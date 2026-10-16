@@ -7,8 +7,9 @@ export interface Settings {
   computer_slots: number; phone_slots: number; swaps_per_30d: number; users_can_add_devices: boolean;
   allow_download_default: boolean; offline_saving: boolean; offline_days: number; watermark: boolean; block_screenshots: boolean;
   payment_methods: PaymentMethod[];
+  admin_emails: string[];
 }
-export interface PaymentMethod { name: string; account: string; holder: string; enabled: boolean }
+export interface PaymentMethod { name: string; account: string; holder: string; enabled: boolean; qr_path?: string | null }
 
 export interface Profile {
   id: string; email: string; full_name: string; avatar_url: string | null; provider: string;

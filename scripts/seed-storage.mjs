@@ -19,7 +19,7 @@ const types = { '.png': 'image/png', '.jpg': 'image/jpeg', '.epub': 'application
   '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
   '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' };
 
-for (const [bucket, dir] of [['covers', 'covers'], ['files', 'files']]) {
+for (const [bucket, dir] of [['covers', 'covers'], ['files', 'files'], ['payment-qr', 'payment-qr']]) {
   const folder = join(root, 'supabase', 'sample', dir);
   for (const name of readdirSync(folder)) {
     const body = readFileSync(join(folder, name));

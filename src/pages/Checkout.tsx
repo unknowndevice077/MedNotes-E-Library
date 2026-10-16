@@ -1,6 +1,6 @@
 import { useRef, useState, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { supabase, paymentQrUrl } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { must, useLoad } from '../lib/useLoad';
 import { errMsg, peso } from '../lib/format';
@@ -79,6 +79,18 @@ export default function Checkout() {
                     <b>{m.name}</b><span className="small muted">{m.account} · {m.holder}</span>
                   </button>
                 ))}
+              </div>
+            )}
+            {methods[method]?.qr_path && (
+              <div className="row wrap" style={{ alignItems: 'center', gap: 20, borderTop: '1px solid var(--line)', paddingTop: 16 }}>
+                <a href={paymentQrUrl(methods[method]!.qr_path)!} target="_blank" rel="noreferrer" style={{ flexShrink: 0 }}>
+                  <img src={paymentQrUrl(methods[method]!.qr_path)!} alt={`${methods[method]!.name} QR code`} style={{ width: 200, borderRadius: 12, border: '1px solid var(--line)' }} />
+                </a>
+                <ol className="col" style={{ gap: 6, paddingLeft: 18, margin: 0, flex: 1, minWidth: 220 }}>
+                  <li>Open <b>{methods[method]!.name}</b> and tap <b>Pay QR</b> (or save this QR and upload it from your gallery).</li>
+                  <li>Send exactly <b style={{ color: 'var(--green)' }}>{peso(file.price)}</b> to {methods[method]!.holder}.</li>
+                  <li>Screenshot the confirmation and upload it below with the reference number.</li>
+                </ol>
               </div>
             )}
           </div>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { supabase, paymentQrUrl } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { must, useLoad } from '../lib/useLoad';
 import { initials } from '../lib/format';
@@ -72,7 +72,19 @@ export function AdminRestrictions() {
 
 export function AdminSettings() {
   const { s, setS, loading, save } = useSettingsForm();
+  const toast = useToast();
+  const [newAdmin, setNewAdmin] = useState('');
   if (loading || !s) return <AdminLayout title="Settings"><Loading /></AdminLayout>;
+  // Upload a payment QR right away and save it, so buyers see it immediately.
+  async function uploadQr(i: number, file?: File | null) {
+    if (!file || !s) return;
+    const path = `${s.payment_methods[i]!.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now().toString(36)}.${file.name.split('.').pop() || 'png'}`;
+    const up = await supabase.storage.from('payment-qr').upload(path, file, { contentType: file.type });
+    if (up.error) return toast(up.error.message);
+    const methods = s.payment_methods.map((m, j) => (j === i ? { ...m, qr_path: path } : m));
+    setS({ ...s, payment_methods: methods });
+    await save({ payment_methods: methods });
+  }
   const set = (p: Partial<Settings>) => setS({ ...s, ...p });
   const setMethod = (i: number, p: Partial<PaymentMethod>) => set({ payment_methods: s.payment_methods.map((m, j) => (j === i ? { ...m, ...p } : m)) });
   return (
@@ -88,6 +100,13 @@ export function AdminSettings() {
                 <input className="input grow" style={{ minWidth: 140 }} value={m.holder} onChange={(e) => setMethod(i, { holder: e.target.value })} aria-label="Account name" />
                 <Toggle on={m.enabled} onChange={(v) => setMethod(i, { enabled: v })} label="Shown to buyers" />
                 <button className="btn btn-sm btn-danger" onClick={() => set({ payment_methods: s.payment_methods.filter((_, j) => j !== i) })}>Remove</button>
+                <div className="row" style={{ width: '100%', gap: 12 }}>
+                  {m.qr_path ? <a href={paymentQrUrl(m.qr_path)!} target="_blank" rel="noreferrer"><img src={paymentQrUrl(m.qr_path)!} alt={`${m.name} QR`} style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--line)' }} /></a>
+                    : <span className="small muted">No QR yet</span>}
+                  <label className="btn btn-sm">{m.qr_path ? 'Replace QR' : 'Upload QR'}<input type="file" accept="image/*" hidden onChange={(e) => uploadQr(i, e.target.files?.[0])} /></label>
+                  {m.qr_path && <button className="btn btn-sm" onClick={() => setMethod(i, { qr_path: null })}>Remove QR</button>}
+                  {m.qr_path?.includes('demo') && <span className="badge b-pending">Demo QR: replace with your real {m.name} QR</span>}
+                </div>
               </div>
             ))}
             <button className="btn btn-sm" style={{ alignSelf: 'flex-start' }} onClick={() => set({ payment_methods: [...s.payment_methods, { name: 'New method', account: '', holder: s.receipt_business, enabled: true }] })}>+ Add payment method</button>
@@ -116,6 +135,15 @@ export function AdminSettings() {
             <h3>Sign-in providers</h3>
             <span className="small muted">Google and Facebook sign-in are switched on in Supabase (Authentication → Providers) with your app's client IDs. See README → "Social sign-in".</span>
             <Link to="/admin/users" className="link">Manage admins in Users →</Link>
+          </div>
+          <div className="card col">
+            <h3>Admin emails</h3>
+            <span className="small muted">These emails become admins as soon as they sign up (or right away if they already have an account).</span>
+            {(s.admin_emails ?? []).map((e) => (
+              <div key={e} className="spread"><span>{e}</span><button className="btn btn-sm btn-danger" onClick={() => set({ admin_emails: s.admin_emails.filter((x) => x !== e) })}>Remove</button></div>
+            ))}
+            <div className="row"><input className="input grow" type="email" placeholder="name@example.com" value={newAdmin} onChange={(e) => setNewAdmin(e.target.value)} aria-label="Admin email" />
+              <button className="btn btn-sm" onClick={() => { const e = newAdmin.trim().toLowerCase(); if (e && !s.admin_emails.includes(e)) set({ admin_emails: [...s.admin_emails, e] }); setNewAdmin(''); }}>Add</button></div>
           </div>
         </div>
       </div>
