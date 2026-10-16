@@ -51,12 +51,7 @@ Buyers on a laptop scan the QR with their phone. On a phone they tap **Save QR**
 
 ## Social sign-in (Google, Facebook)
 
-1. **Google**: Google Cloud Console → OAuth client (Web). Authorized redirect URI: `https://<project-ref>.supabase.co/auth/v1/callback`.
-2. **Facebook**: Meta for Developers → app with Facebook Login. Valid OAuth redirect URI: the same Supabase callback URL.
-3. Supabase dashboard → Authentication → Providers: paste the client ID and secret for each.
-4. Authentication → URL Configuration: add your site URL (e.g. `https://mednotes.vercel.app`) and `com.mednotes.elibrary://auth-callback` (the Android app's deep link) to the redirect allow-list.
-
-For local testing put the IDs/secrets in `supabase/.env` (see `supabase/config.toml`) and set `enabled = true`.
+The buttons appear automatically for each provider switched on in Supabase. Step-by-step setup with this project's exact URLs: [docs/oauth-setup.md](docs/oauth-setup.md).
 
 ## Deploy
 

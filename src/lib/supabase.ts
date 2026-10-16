@@ -45,3 +45,13 @@ export const coverUrl = (path?: string | null) =>
   path ? supabase.storage.from('covers').getPublicUrl(path).data.publicUrl : '/logo.png';
 export const paymentQrUrl = (path?: string | null) =>
   path ? supabase.storage.from('payment-qr').getPublicUrl(path).data.publicUrl : null;
+
+/** Which OAuth providers are switched on in Supabase (Authentication → Providers). Asked once per app start. */
+let providersPromise: Promise<{ google: boolean; facebook: boolean }> | null = null;
+export function enabledProviders() {
+  providersPromise ??= fetch(`${url}/auth/v1/settings`, { headers: { apikey: anonKey } })
+    .then((r) => r.json())
+    .then((j) => ({ google: !!j.external?.google, facebook: !!j.external?.facebook }))
+    .catch(() => ({ google: false, facebook: false }));
+  return providersPromise;
+}

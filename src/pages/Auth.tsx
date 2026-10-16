@@ -1,6 +1,6 @@
-import { useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { supabase, setRememberMe } from '../lib/supabase';
+import { supabase, setRememberMe, enabledProviders } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { errMsg } from '../lib/format';
 import { isNative } from '../lib/platform';
@@ -39,15 +39,20 @@ function AuthShell({ children, withHero = true }: { children: ReactNode; withHer
   );
 }
 
-function Providers() {
+/** Google / Facebook buttons, shown only for providers switched on in Supabase, plus the "or" divider. */
+function Providers({ divider }: { divider: string }) {
   const { signInWithProvider } = useAuth();
+  const [on, setOn] = useState<{ google: boolean; facebook: boolean } | null>(null);
   const [err, setErr] = useState('');
+  useEffect(() => { enabledProviders().then(setOn); }, []);
+  if (!on || (!on.google && !on.facebook)) return null;
   const go = (p: 'google' | 'facebook') => signInWithProvider(p).catch((e) => setErr(errMsg(e)));
   return (
     <>
-      <button type="button" className="btn btn-block" onClick={() => go('google')}><Google /> Continue with Google</button>
-      <button type="button" className="btn btn-block" onClick={() => go('facebook')}><Facebook /> Continue with Facebook</button>
-      {err && <span className="error">{err.includes('provider is not enabled') ? 'This sign-in option is not set up yet. Use email for now.' : err}</span>}
+      {on.google && <button type="button" className="btn btn-block" onClick={() => go('google')}><Google /> Continue with Google</button>}
+      {on.facebook && <button type="button" className="btn btn-block" onClick={() => go('facebook')}><Facebook /> Continue with Facebook</button>}
+      {err && <span className="error">{err}</span>}
+      <div className="divider">{divider}</div>
     </>
   );
 }
@@ -72,8 +77,7 @@ export function SignIn() {
     <AuthShell>
       <form className="auth-card" onSubmit={submit}>
         <div className="col" style={{ gap: 4 }}><h1>Welcome back</h1><span className="muted">Sign in to continue to your library.</span></div>
-        <Providers />
-        <div className="divider">or sign in with email</div>
+        <Providers divider="or sign in with email" />
         <div className="field"><label htmlFor="email">Email</label><input id="email" className="input" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></div>
         <div className="field"><label htmlFor="pw">Password</label><input id="pw" className="input" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} /></div>
         <div className="spread small">
@@ -119,8 +123,7 @@ export function SignUp() {
           <div className="note note-blue">Check {f.email} for a confirmation link, then sign in.</div>
         ) : (
           <>
-            <Providers />
-            <div className="divider">or with email</div>
+            <Providers divider="or with email" />
             <div className="row">
               <div className="field grow"><label htmlFor="fn">First name</label><input id="fn" className="input" required value={f.first} onChange={(e) => setF({ ...f, first: e.target.value })} /></div>
               <div className="field grow"><label htmlFor="ln">Last name</label><input id="ln" className="input" required value={f.last} onChange={(e) => setF({ ...f, last: e.target.value })} /></div>
