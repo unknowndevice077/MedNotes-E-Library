@@ -75,13 +75,19 @@ npm run apk:debug
 
 The APK talks to whatever `VITE_SUPABASE_URL` was set at build time. A phone can't reach `127.0.0.1`, so build with your cloud project's URL and key.
 
-**GitHub Actions** (`.github/workflows/android.yml`) builds on every push to `main` and on manual runs, then uploads the APKs as an artifact. Repository secrets:
+**GitHub Actions** (`.github/workflows/android.yml`) builds the APK on every push to `main` (download it from the run's artifacts). To publish a release with the APK attached:
+
+```bash
+git tag v0.2.0
+git push origin v0.2.0
+```
+
+The build reads the project URL and public anon key from the committed `.env.production`. The anon key is public by design and is protected by row-level security, so no secrets are needed. Optional repository secrets:
 
 | Secret | Value |
 |---|---|
-| `VITE_SUPABASE_URL` | `https://jjaxqfhvswdjjydzqvud.supabase.co` |
-| `VITE_SUPABASE_ANON_KEY` | Supabase → Settings → API → anon public key |
-| `MEDNOTES_KEYSTORE_BASE64` *(optional)* | `base64 -w0 release.jks`, for a signed release APK |
+| `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | override `.env.production` (e.g. a staging project) |
+| `MEDNOTES_KEYSTORE_BASE64` | `base64 -w0 release.jks`, for a signed release APK |
 | `MEDNOTES_KEYSTORE_PASSWORD`, `MEDNOTES_KEY_ALIAS`, `MEDNOTES_KEY_PASSWORD` | keystore details |
 
 Create a release keystore once and keep it safe; Google Play needs the same key for every update:

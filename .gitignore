@@ -13,3 +13,4 @@ android/app/release
 *.keystore
 *.jks
 design/out
+.env.*.local
