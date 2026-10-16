@@ -15,7 +15,8 @@
     "cap:sync": "npm run build && cap sync android",
     "apk:debug": "npm run cap:sync && cd android && gradlew.bat assembleDebug",
     "seed:samples": "node scripts/make-samples.mjs",
-    "seed:storage": "node scripts/seed-storage.mjs"
+    "seed:storage": "node scripts/seed-storage.mjs",
+    "publish:samples": "node scripts/publish-samples.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^6.1.2",
