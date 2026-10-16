@@ -193,6 +193,53 @@ textarea.input { height: 96px; padding: 12px 14px; resize: vertical; }
 .sheet tr:first-child td { background: #107c41; color: #fff; font-weight: 700; }
 @media print { .reader, .reader * { display: none !important; } }
 
+
+/* ---- Motion: light, quick, and off for people who prefer reduced motion ---- */
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@keyframes pop { from { opacity: 0; transform: scale(.96) translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes toast-in { from { opacity: 0; transform: translate(-50%, 12px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+.fade-in { animation: fade-in .25s ease both; }
+.page, .content { animation: rise .35s cubic-bezier(.2, .7, .2, 1) both; }
+.auth-card { animation: pop .45s cubic-bezier(.2, .7, .2, 1) both; }
+.auth-card > * { animation: rise .45s cubic-bezier(.2, .7, .2, 1) both; }
+.auth-card > :nth-child(1) { animation-delay: .04s; } .auth-card > :nth-child(2) { animation-delay: .08s; }
+.auth-card > :nth-child(3) { animation-delay: .12s; } .auth-card > :nth-child(4) { animation-delay: .16s; }
+.auth-card > :nth-child(5) { animation-delay: .20s; } .auth-card > :nth-child(6) { animation-delay: .24s; }
+.auth-card > :nth-child(n+7) { animation-delay: .28s; }
+.auth-side .qr, .auth-side .hero { animation: rise .6s .15s cubic-bezier(.2, .7, .2, 1) both; }
+.grid > * { animation: rise .4s cubic-bezier(.2, .7, .2, 1) both; }
+.grid > :nth-child(2) { animation-delay: .04s; } .grid > :nth-child(3) { animation-delay: .08s; } .grid > :nth-child(4) { animation-delay: .12s; }
+.grid > :nth-child(5) { animation-delay: .16s; } .grid > :nth-child(n+6) { animation-delay: .2s; }
+.tr, .device, .card.row { animation: fade-in .3s ease both; }
+.overlay { animation: fade-in .18s ease both; }
+.modal { animation: pop .25s cubic-bezier(.2, .7, .2, 1) both; }
+.toast { animation: toast-in .25s ease both; }
+.btn { transition: transform .12s ease, box-shadow .15s ease, filter .15s ease, background .15s ease; }
+.btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(15, 23, 42, .12); }
+.btn:active:not(:disabled) { transform: translateY(0) scale(.98); box-shadow: none; }
+.btn-primary:hover:not(:disabled) { box-shadow: 0 8px 20px rgba(2, 132, 199, .3); }
+.btn-social svg { transition: transform .2s ease; }
+.btn-social:hover:not(:disabled) svg { transform: scale(1.12); }
+.chip { transition: background .15s, color .15s, border-color .15s, transform .12s; }
+.chip:active { transform: scale(.96); }
+.cover { transition: transform .25s ease, box-shadow .25s ease; }
+.cover img { transition: transform .4s ease; }
+.bookcard:hover .cover { transform: translateY(-4px); }
+.bookcard:hover .cover img { transform: scale(1.04); }
+.bookcard:active .cover { transform: translateY(-1px); }
+.input { transition: border-color .15s, box-shadow .15s; }
+.tab { transition: color .15s, transform .12s; }
+.tab:active { transform: scale(.92); }
+.tab.active svg { animation: pop .25s ease both; }
+.nav a, .side a { transition: color .15s, background .2s; }
+.spinner.sm { width: 18px; height: 18px; border-width: 2px; display: inline-block; }
+.skeleton { background: linear-gradient(90deg, #eef2f7 25%, #f8fafc 50%, #eef2f7 75%); background-size: 200% 100%; animation: shimmer 1.4s linear infinite; border-radius: 8px; }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; animation-delay: 0s !important; transition-duration: .001ms !important; }
+}
+
 /* responsive: phones and the Android app use the mobile layout */
 .only-mobile { display: none; }
 @media (max-width: 760px) {
