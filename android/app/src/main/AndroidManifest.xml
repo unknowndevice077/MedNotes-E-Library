@@ -44,6 +44,11 @@
         </provider>
     </application>
 
+    <!-- Lets the app find and open GCash for "Open GCash" at checkout (Android 11+ package visibility). -->
+    <queries>
+        <package android:name="com.globe.gcash.android" />
+    </queries>
+
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />

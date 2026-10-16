@@ -1,7 +1,7 @@
 {
   "name": "mednotes-elibrary",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -20,16 +20,20 @@
   "dependencies": {
     "@capacitor/android": "^6.1.2",
     "@capacitor/app": "^6.0.1",
+    "@capacitor/app-launcher": "^6.0.4",
     "@capacitor/browser": "^6.0.2",
     "@capacitor/core": "^6.1.2",
     "@capacitor/device": "^6.0.1",
     "@capacitor/filesystem": "^6.0.1",
     "@capacitor/network": "^6.0.2",
     "@capacitor/preferences": "^6.0.2",
+    "@capacitor/share": "^6.0.4",
     "@supabase/supabase-js": "^2.45.4",
     "docx-preview": "^0.3.3",
     "epubjs": "^0.3.93",
+    "jsqr": "^1.4.0",
     "pdfjs-dist": "^4.6.82",
+    "qrcode": "^1.5.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.26.2",
@@ -37,6 +41,7 @@
   },
   "devDependencies": {
     "@capacitor/cli": "^6.1.2",
+    "@types/qrcode": "^1.5.5",
     "@types/react": "^18.3.11",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.2",

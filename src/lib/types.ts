@@ -9,7 +9,7 @@ export interface Settings {
   payment_methods: PaymentMethod[];
   admin_emails: string[];
 }
-export interface PaymentMethod { name: string; account: string; holder: string; enabled: boolean; qr_path?: string | null }
+export interface PaymentMethod { name: string; account: string; holder: string; enabled: boolean; qr_path?: string | null; qr_payload?: string | null }
 
 export interface Profile {
   id: string; email: string; full_name: string; avatar_url: string | null; provider: string;

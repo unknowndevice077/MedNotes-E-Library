@@ -1,13 +1,19 @@
-import { useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase, paymentQrUrl } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { must, useLoad } from '../lib/useLoad';
 import { errMsg, peso } from '../lib/format';
-import { KIND_LABEL, type LibFile } from '../lib/types';
+import { KIND_LABEL, type LibFile, type PaymentMethod } from '../lib/types';
+import { isQrPh, withAmount } from '../lib/qrph';
+import { qrDataUrl } from '../lib/qrimage';
+import { isNative } from '../lib/platform';
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
+import { AppLauncher } from '@capacitor/app-launcher';
 import { ClientLayout } from '../components/Layouts';
 import { Empty, Loading, Thumb, useIsMobile, useToast } from '../components/ui';
-import { Clock, Upload } from '../components/Icons';
+import { Clock, Download, Upload } from '../components/Icons';
 
 const MAX = 10 * 1024 * 1024;
 
@@ -81,18 +87,7 @@ export default function Checkout() {
                 ))}
               </div>
             )}
-            {methods[method]?.qr_path && (
-              <div className="row wrap" style={{ alignItems: 'center', gap: 20, borderTop: '1px solid var(--line)', paddingTop: 16 }}>
-                <a href={paymentQrUrl(methods[method]!.qr_path)!} target="_blank" rel="noreferrer" style={{ flexShrink: 0 }}>
-                  <img src={paymentQrUrl(methods[method]!.qr_path)!} alt={`${methods[method]!.name} QR code`} style={{ width: 200, borderRadius: 12, border: '1px solid var(--line)' }} />
-                </a>
-                <ol className="col" style={{ gap: 6, paddingLeft: 18, margin: 0, flex: 1, minWidth: 220 }}>
-                  <li>Open <b>{methods[method]!.name}</b> and tap <b>Pay QR</b> (or save this QR and upload it from your gallery).</li>
-                  <li>Send exactly <b style={{ color: 'var(--green)' }}>{peso(file.price)}</b> to {methods[method]!.holder}.</li>
-                  <li>Screenshot the confirmation and upload it below with the reference number.</li>
-                </ol>
-              </div>
-            )}
+            {methods[method] && (methods[method]!.qr_payload || methods[method]!.qr_path) && <PayQr m={methods[method]!} price={Number(file.price)} fileName={file.name} />}
           </div>
           <div className="card col">
             <h3>Upload proof of payment</h3>
@@ -120,5 +115,70 @@ export default function Checkout() {
         {mobile && <div className="bottom-bar" style={{ width: '100%', margin: '0 -16px -24px' }}><button className="btn btn-primary btn-block" style={{ height: 50 }} disabled={busy}>{busy ? 'Submitting…' : 'Submit for confirmation'}</button></div>}
       </form>
     </ClientLayout>
+  );
+}
+
+const GCASH_ANDROID = 'com.globe.gcash.android';
+
+/** The payment QR: rebuilt per purchase with the price filled in when the publisher's QR is a QR Ph code. */
+function PayQr({ m, price, fileName }: { m: PaymentMethod; price: number; fileName: string }) {
+  const toast = useToast();
+  const mobile = useIsMobile();
+  const dynamic = !!m.qr_payload && isQrPh(m.qr_payload);
+  const [src, setSrc] = useState<string | null>(null);
+  useEffect(() => {
+    if (dynamic) qrDataUrl(withAmount(m.qr_payload!, price)).then(setSrc);
+    else setSrc(paymentQrUrl(m.qr_path));
+  }, [dynamic, m.qr_payload, m.qr_path, price]);
+  const isGcash = /gcash/i.test(m.name);
+  const fname = `MedNotes-${m.name}-${price.toFixed(0)}.png`.replace(/\s+/g, '-');
+
+  async function saveQr() {
+    if (!src) return;
+    try {
+      const blob = await (await fetch(src)).blob();
+      if (isNative) {
+        const data = await new Promise<string>((r) => { const fr = new FileReader(); fr.onload = () => r(String(fr.result).split(',')[1]!); fr.readAsDataURL(blob); });
+        const { uri } = await Filesystem.writeFile({ path: fname, data, directory: Directory.Cache });
+        await Share.share({ title: `${m.name} payment QR`, text: `Pay ${peso(price)} for ${fileName}`, files: [uri], dialogTitle: 'Save the QR to your gallery' });
+      } else {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob); a.download = fname; a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+      }
+    } catch (e) { if (!String(e).includes('cancel')) toast('Could not save the QR: ' + errMsg(e)); }
+  }
+  async function openGcash() {
+    try { await AppLauncher.openUrl({ url: GCASH_ANDROID }); }
+    catch { toast("Couldn't open GCash. Is it installed?"); }
+  }
+
+  return (
+    <div className="row wrap" style={{ alignItems: 'center', gap: 20, borderTop: '1px solid var(--line)', paddingTop: 16 }}>
+      <div className="col" style={{ gap: 8, alignItems: 'center', flexShrink: 0 }}>
+        {src ? <img src={src} alt={`${m.name} QR code for ${peso(price)}`} style={{ width: 220, borderRadius: 12, border: '1px solid var(--line)', background: '#fff' }} /> : <div className="spinner" />}
+        {dynamic && <span className="badge b-ok">{peso(price)} already filled in</span>}
+      </div>
+      <div className="col" style={{ gap: 10, flex: 1, minWidth: 230 }}>
+        {mobile ? (
+          <ol className="col" style={{ gap: 6, paddingLeft: 18, margin: 0 }}>
+            <li><b>Save the QR</b> to your gallery (or take a screenshot).</li>
+            <li>Open <b>{m.name}</b> → <b>Pay QR</b> → <b>Upload QR</b>, and pick the saved image.</li>
+            <li>{dynamic ? <>Check the amount is <b style={{ color: 'var(--green)' }}>{peso(price)}</b> and pay.</> : <>Enter <b style={{ color: 'var(--green)' }}>{peso(price)}</b> and pay.</>}</li>
+            <li>Screenshot the receipt and upload it below.</li>
+          </ol>
+        ) : (
+          <ol className="col" style={{ gap: 6, paddingLeft: 18, margin: 0 }}>
+            <li>Open <b>{m.name}</b> on your phone and tap <b>Pay QR</b>.</li>
+            <li>Scan this QR{dynamic ? <>. The amount <b style={{ color: 'var(--green)' }}>{peso(price)}</b> is already filled in.</> : <> and enter <b style={{ color: 'var(--green)' }}>{peso(price)}</b>.</>}</li>
+            <li>Pay to {m.holder}, then screenshot the receipt and upload it below.</li>
+          </ol>
+        )}
+        <div className="row wrap" style={{ gap: 8 }}>
+          <button type="button" className="btn btn-sm" onClick={saveQr} disabled={!src}><Download /> Save QR</button>
+          {isNative && isGcash && <button type="button" className="btn btn-sm btn-primary" onClick={openGcash}>Open GCash</button>}
+        </div>
+      </div>
+    </div>
   );
 }

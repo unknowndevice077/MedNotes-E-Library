@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase, paymentQrUrl } from '../lib/supabase';
+import { decodeQrImage } from '../lib/qrimage';
+import { describe as describeQr, isQrPh } from '../lib/qrph';
 import { useAuth } from '../lib/auth';
 import { must, useLoad } from '../lib/useLoad';
 import { initials } from '../lib/format';
@@ -79,11 +81,17 @@ export function AdminSettings() {
   async function uploadQr(i: number, file?: File | null) {
     if (!file || !s) return;
     const path = `${s.payment_methods[i]!.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now().toString(36)}.${file.name.split('.').pop() || 'png'}`;
+    // Read the code in the image: a QR Ph code lets checkout fill in each file's price automatically.
+    const decoded = await decodeQrImage(file).catch(() => null);
+    const payload = decoded && isQrPh(decoded) ? decoded : null;
     const up = await supabase.storage.from('payment-qr').upload(path, file, { contentType: file.type });
     if (up.error) return toast(up.error.message);
-    const methods = s.payment_methods.map((m, j) => (j === i ? { ...m, qr_path: path } : m));
+    const methods = s.payment_methods.map((m, j) => (j === i ? { ...m, qr_path: path, qr_payload: payload } : m));
     setS({ ...s, payment_methods: methods });
     await save({ payment_methods: methods });
+    toast(payload ? `QR Ph code read (${describeQr(payload).name || 'account'}): checkout will fill in the amount automatically.`
+      : decoded ? "Saved, but this isn't a QR Ph payment code, so buyers will type the amount themselves."
+      : "Saved, but no QR code was found in the image. Use a clear screenshot of your GCash QR.");
   }
   const set = (p: Partial<Settings>) => setS({ ...s, ...p });
   const setMethod = (i: number, p: Partial<PaymentMethod>) => set({ payment_methods: s.payment_methods.map((m, j) => (j === i ? { ...m, ...p } : m)) });
@@ -104,8 +112,10 @@ export function AdminSettings() {
                   {m.qr_path ? <a href={paymentQrUrl(m.qr_path)!} target="_blank" rel="noreferrer"><img src={paymentQrUrl(m.qr_path)!} alt={`${m.name} QR`} style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--line)' }} /></a>
                     : <span className="small muted">No QR yet</span>}
                   <label className="btn btn-sm">{m.qr_path ? 'Replace QR' : 'Upload QR'}<input type="file" accept="image/*" hidden onChange={(e) => uploadQr(i, e.target.files?.[0])} /></label>
-                  {m.qr_path && <button className="btn btn-sm" onClick={() => setMethod(i, { qr_path: null })}>Remove QR</button>}
-                  {m.qr_path?.includes('demo') && <span className="badge b-pending">Demo QR: replace with your real {m.name} QR</span>}
+                  {m.qr_path && <button className="btn btn-sm" onClick={() => setMethod(i, { qr_path: null, qr_payload: null })}>Remove QR</button>}
+                  {m.qr_path?.includes('demo') ? <span className="badge b-pending">Demo QR: replace with your real {m.name} QR</span>
+                    : m.qr_payload ? <span className="badge b-ok">QR Ph · amount filled in automatically</span>
+                    : m.qr_path ? <span className="badge b-lock">Image only · buyers type the amount</span> : null}
                 </div>
               </div>
             ))}

@@ -8,6 +8,7 @@ import { errMsg } from '../lib/format';
 import { isSaved, listSaved, offlineExpired, readOffline } from '../lib/offline';
 import type { FileKind, LibFile } from '../lib/types';
 import { Loading } from '../components/ui';
+import { blockScreenshots } from '../lib/screenGuard';
 import { Back } from '../components/Icons';
 
 type Source = { kind: FileKind; name: string; mime: string; blob?: Blob; url?: string };
@@ -46,6 +47,13 @@ export default function Reader() {
   useEffect(() => {
     loadSource(id!, sp.get('offline') === '1', settings?.offline_days ?? 30).then(setSrc).catch((e) => setErr(errMsg(e)));
   }, [id, sp, settings?.offline_days]);
+
+  // Android: block screenshots/recording only while paid content is on screen (Restrictions setting).
+  useEffect(() => {
+    if (settings?.block_screenshots === false) return;
+    blockScreenshots(true);
+    return () => { blockScreenshots(false); };
+  }, [settings?.block_screenshots]);
 
   const mark = `${email} · ${deviceLabel()}`;
   return (

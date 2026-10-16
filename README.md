@@ -41,6 +41,14 @@ Local test accounts (seed only, they don't exist anywhere else):
 
 The watermark, disabled right-click and screenshot blocking (Android `FLAG_SECURE`) discourage copying, but nothing can stop a determined person with a second camera. That's why every view carries the buyer's email.
 
+## GCash payments
+
+1. In GCash, open **QR → Generate QR / My QR** and save the image (or screenshot it).
+2. In MedNotes go to **Admin → Settings → GCash → Upload QR**.
+3. If the image is a QR Ph code, Settings shows **"QR Ph · amount filled in automatically"**. Every checkout then shows a fresh QR with that file's exact price built in: the app sets QR Ph tag 54 and recomputes the CRC (`src/lib/qrph.ts`, tests in `scripts/qrph.test.mjs`). Otherwise buyers see your image and type the amount.
+
+Buyers on a laptop scan the QR with their phone. On a phone they tap **Save QR**, then in GCash use **Pay QR → Upload QR**; the Android app also has **Open GCash**. Whether GCash pre-fills the amount from a *personal* QR depends on GCash, so check it once with your own QR. Payments are still confirmed by hand in **Admin → Payments**.
+
 ## Social sign-in (Google, Facebook)
 
 1. **Google**: Google Cloud Console → OAuth client (Web). Authorized redirect URI: `https://<project-ref>.supabase.co/auth/v1/callback`.
