@@ -9,6 +9,12 @@ Values used below:
 | Supabase callback URL (paste into Google and Facebook) | `https://jjaxqfhvswdjjydzqvud.supabase.co/auth/v1/callback` |
 | Android app deep link (Supabase redirect allow-list) | `com.mednotes.elibrary://auth-callback` |
 | Supabase dashboard | https://supabase.com/dashboard/project/jjaxqfhvswdjjydzqvud |
+| Web app (home page) | https://unknowndevice077.github.io/MedNotes-E-Library/ |
+| Privacy policy URL | https://unknowndevice077.github.io/MedNotes-E-Library/privacy |
+| User data deletion URL | https://unknowndevice077.github.io/MedNotes-E-Library/data-deletion |
+| App domain (Google "Authorized domains") | `unknowndevice077.github.io` |
+
+Before registering: set your real support email in **Admin → Settings → Store → Support email**. It is shown on the privacy and data-deletion pages that Google and Meta review.
 
 ## 1. Google
 
@@ -33,10 +39,10 @@ Values used below:
 
 Supabase dashboard → **Authentication → URL Configuration**:
 
-- **Site URL**: where the web app is hosted (e.g. `https://mednotes.example.com`).
+- **Site URL**: `https://unknowndevice077.github.io/MedNotes-E-Library/`
 - **Redirect URLs**: add
+  - `https://unknowndevice077.github.io/MedNotes-E-Library/**` (the web app)
   - `com.mednotes.elibrary://auth-callback` (the Android app)
-  - your web app URL, e.g. `https://mednotes.example.com/**`
 
 ## Check
 
