@@ -18,7 +18,7 @@ jobs:
     env:
       HAS_KEYSTORE: ${{ secrets.MEDNOTES_KEYSTORE_BASE64 != '' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Supabase settings
         env:
@@ -34,17 +34,23 @@ jobs:
           fi
           grep -q '^VITE_SUPABASE_URL=https://' .env.production || { echo "::error::.env.production is missing VITE_SUPABASE_URL"; exit 1; }
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 17
 
-      - uses: android-actions/setup-android@v3
+      - name: Android SDK packages
+        # The Ubuntu runner image ships the Android SDK; make sure the versions Capacitor 6 needs are present.
+        run: |
+          SDKM="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKM" --licenses > /dev/null || true
+          "$SDKM" "platforms;android-34" "build-tools;34.0.0" "platform-tools" > /dev/null
+          echo "sdk.dir=$ANDROID_HOME" > android/local.properties
 
       - name: Install dependencies
         run: npm ci
