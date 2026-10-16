@@ -2,3 +2,10 @@
 android/gradlew text eol=lf
 *.sh text eol=lf
 *.bat text eol=crlf
+*.pdf binary
+*.epub binary
+*.docx binary
+*.pptx binary
+*.xlsx binary
+*.mp4 binary
+*.jks binary
