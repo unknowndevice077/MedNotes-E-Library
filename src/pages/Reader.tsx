@@ -137,7 +137,7 @@ function Pdf({ blob }: { blob: Blob }) {
     (async () => {
       const pdfjs = await import('pdfjs-dist');
       pdfjs.GlobalWorkerOptions.workerSrc = (await import('pdfjs-dist/build/pdf.worker.min.mjs?url')).default;
-      loaded = await pdfjs.getDocument({ data: new Uint8Array(await blob.arrayBuffer()), standardFontDataUrl: '/pdfjs/standard_fonts/' }).promise;
+      loaded = await pdfjs.getDocument({ data: new Uint8Array(await blob.arrayBuffer()), standardFontDataUrl: import.meta.env.BASE_URL + 'pdfjs/standard_fonts/' }).promise;
       if (alive) setDoc(loaded); else loaded.destroy();
     })();
     return () => { alive = false; loaded?.destroy(); };

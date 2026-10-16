@@ -1,13 +1,13 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { coverUrl } from '../lib/supabase';
 import { KIND_TAG, type LibFile, type PurchaseStatus } from '../lib/types';
-import { isNative } from '../lib/platform';
+import { asset, isNative } from '../lib/platform';
 import { Check, Clock, Lock, Play } from './Icons';
 
 export function Logo({ light, short, size = 36 }: { light?: boolean; short?: boolean; size?: number }) {
   return (
     <span className={`logo${light ? ' light' : ''}`}>
-      <span className={light ? 'tile' : ''}><img src="/logo.png" alt="" style={{ width: size, height: size }} /></span>
+      <span className={light ? 'tile' : ''}><img src={asset('logo.png')} alt="" style={{ width: size, height: size }} /></span>
       <span>Med<b>Notes</b>{!short && <> <i>E-Library</i></>}</span>
     </span>
   );

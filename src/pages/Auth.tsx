@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { supabase, setRememberMe, enabledProviders } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { errMsg } from '../lib/format';
-import { isNative } from '../lib/platform';
+import { appUrl, asset, isNative } from '../lib/platform';
 import { Logo, Toggle } from '../components/ui';
 import { Facebook, Google, Laptop } from '../components/Icons';
 
@@ -18,7 +18,7 @@ function AuthShell({ children, withHero = true }: { children: ReactNode; withHer
             <Logo light />
             {!isNative && (
               <div className="qr">
-                <img className="code" src="/qr-playstore.png" alt="QR code to download the MedNotes Android app" />
+                <img className="code" src={asset('qr-playstore.png')} alt="QR code to download the MedNotes Android app" />
                 <div className="col shadowed" style={{ gap: 4 }}>
                   <b style={{ fontSize: 18 }}>Get the MedNotes app</b>
                   <span style={{ opacity: 0.85 }}>Scan to download for Android</span>
@@ -57,6 +57,10 @@ function Providers({ divider }: { divider: string }) {
   );
 }
 
+function LegalLinks() {
+  return <div className="small muted" style={{ textAlign: 'center' }}><Link to="/privacy" className="muted">Privacy policy</Link> · <Link to="/data-deletion" className="muted">Delete your data</Link></div>;
+}
+
 export function SignIn() {
   const nav = useNavigate();
   const [email, setEmail] = useState('');
@@ -88,6 +92,7 @@ export function SignIn() {
         {err && <span className="error">{err}</span>}
         <button className="btn btn-primary btn-block" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
         <div className="muted" style={{ textAlign: 'center' }}>New to MedNotes? <Link to="/sign-up" className="link">Create an account</Link></div>
+        <LegalLinks />
         <div className="note note-blue"><Laptop /><span>Sign in once and we'll remember you{isNative ? ' on this phone' : ' on this browser'}. Each account works on 1 computer and 1 phone.</span></div>
       </form>
     </AuthShell>
@@ -107,7 +112,7 @@ export function SignUp() {
     setRememberMe(true);
     const { data, error } = await supabase.auth.signUp({
       email: f.email.trim(), password: f.password,
-      options: { data: { full_name: `${f.first} ${f.last}`.trim() }, emailRedirectTo: isNative ? undefined : `${location.origin}/library` },
+      options: { data: { full_name: `${f.first} ${f.last}`.trim() }, emailRedirectTo: isNative ? undefined : appUrl('library') },
     });
     setBusy(false);
     if (error) return setErr(error.message);
@@ -136,6 +141,7 @@ export function SignUp() {
           </>
         )}
         <div className="muted" style={{ textAlign: 'center' }}>Already have an account? <Link to="/sign-in" className="link">Sign in</Link></div>
+        <LegalLinks />
       </form>
     </AuthShell>
   );
@@ -147,7 +153,7 @@ export function ForgotPassword() {
   const [err, setErr] = useState('');
   async function submit(e: FormEvent) {
     e.preventDefault();
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${location.origin}/reset-password` });
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: appUrl('reset-password') });
     if (error) setErr(error.message); else setSent(true);
   }
   return (

@@ -42,7 +42,7 @@ export const supabase = createClient(url, anonKey, {
 
 export const NATIVE_REDIRECT = 'com.mednotes.elibrary://auth-callback';
 export const coverUrl = (path?: string | null) =>
-  path ? supabase.storage.from('covers').getPublicUrl(path).data.publicUrl : '/logo.png';
+  path ? supabase.storage.from('covers').getPublicUrl(path).data.publicUrl : import.meta.env.BASE_URL + 'logo.png';
 export const paymentQrUrl = (path?: string | null) =>
   path ? supabase.storage.from('payment-qr').getPublicUrl(path).data.publicUrl : null;
 

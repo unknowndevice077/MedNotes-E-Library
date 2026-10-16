@@ -13,6 +13,7 @@ import ReceiptPage from './pages/Receipt';
 import Devices from './pages/Devices';
 import Account from './pages/Account';
 import SavedOffline from './pages/SavedOffline';
+import { DataDeletion, Privacy } from './pages/Legal';
 
 const Reader = lazy(() => import('./pages/Reader'));
 const Dashboard = lazy(() => import('./admin/Dashboard'));
@@ -49,7 +50,7 @@ function PublicOnly({ children }: { children: ReactNode }) {
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={import.meta.env.BASE_URL}>
       <AuthProvider>
         <ToastProvider>
           <Suspense fallback={<Loading />}>
@@ -58,6 +59,8 @@ export default function App() {
               <Route path="/sign-up" element={<PublicOnly><SignUp /></PublicOnly>} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/privacy" element={<Privacy />} />
+              <Route path="/data-deletion" element={<DataDeletion />} />
 
               <Route path="/library" element={<RequireAuth><Library /></RequireAuth>} />
               <Route path="/file/:id" element={<RequireAuth><FileDetail /></RequireAuth>} />

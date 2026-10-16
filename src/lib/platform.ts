@@ -20,4 +20,9 @@ export function deviceLabel(): string {
   return `${os} · ${browser}`;
 }
 
+/** URL of a file in /public, respecting the deploy base path (e.g. GitHub Pages subfolder). */
+export const asset = (name: string) => import.meta.env.BASE_URL + name;
+/** Absolute URL of an app route, for auth redirects (email links, OAuth). */
+export const appUrl = (path = '') => location.origin + import.meta.env.BASE_URL + path.replace(/^\//, '');
+
 export const platformName = isNative ? 'android-app' : 'web';

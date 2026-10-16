@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
-import { bytes, initials } from '../lib/format';
+import { bytes, errMsg, initials } from '../lib/format';
 import { isNative } from '../lib/platform';
-import { listSaved } from '../lib/offline';
+import { listSaved, removeOffline } from '../lib/offline';
 import { ClientLayout } from '../components/Layouts';
 import { useIsMobile, useToast } from '../components/ui';
 import { Facebook, Google, Logout } from '../components/Icons';
@@ -17,6 +17,21 @@ export default function Account() {
   const [pw, setPw] = useState('');
   const [storage, setStorage] = useState<{ n: number; size: number } | null>(null);
   useEffect(() => { if (isNative) listSaved().then((l) => setStorage({ n: l.length, size: l.reduce((a, f) => a + f.size, 0) })); }, []);
+  const nav = useNavigate();
+  async function deleteAccount() {
+    const typed = prompt('This permanently deletes your account, your purchases and access to every file you bought. Type DELETE to confirm.');
+    if (typed?.trim().toUpperCase() !== 'DELETE') return;
+    try {
+      const uid = profile!.id;
+      const { data: proofs } = await supabase.storage.from('proofs').list(uid, { limit: 1000 });
+      if (proofs?.length) await supabase.storage.from('proofs').remove(proofs.map((f) => `${uid}/${f.name}`));
+      const { error } = await supabase.rpc('delete_my_account');
+      if (error) throw error;
+      if (isNative) for (const f of await listSaved()) await removeOffline(f.id);
+      await supabase.auth.signOut({ scope: 'local' });
+      nav('/sign-in', { replace: true });
+    } catch (e) { toast(errMsg(e)); }
+  }
   const providers: string[] = session?.user.app_metadata.providers ?? [profile?.provider ?? 'email'];
 
   async function saveName() {
@@ -63,6 +78,12 @@ export default function Account() {
           <div className="card spread"><div className="col" style={{ gap: 0 }}><b>Saved offline</b><span className="small muted">{storage.n} files · {bytes(storage.size)} on this phone</span></div><Link to="/saved" className="btn btn-sm">Manage</Link></div>
         )}
         <button className="btn btn-danger btn-block" onClick={signOut}><Logout /> Sign out{isNative ? ' of this phone' : ''}</button>
+        <div className="card col" style={{ gap: 8, borderColor: '#fecdd3' }}>
+          <b>Delete my account</b>
+          <span className="small muted">Removes your profile, devices, payment proofs, purchases and access to your files. See <Link to="/data-deletion" className="link">what gets deleted</Link>.</span>
+          <button className="btn btn-sm btn-danger-solid" style={{ alignSelf: 'flex-start' }} onClick={deleteAccount}>Delete my account</button>
+        </div>
+        <span className="small muted" style={{ textAlign: 'center' }}><Link to="/privacy" className="muted">Privacy policy</Link></span>
       </div>
     </ClientLayout>
   );

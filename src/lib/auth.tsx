@@ -6,7 +6,7 @@ import { Network } from '@capacitor/network';
 import { Preferences } from '@capacitor/preferences';
 import { supabase, NATIVE_REDIRECT } from './supabase';
 import { registerDevice, type DeviceCheck } from './device';
-import { isNative } from './platform';
+import { appUrl, isNative } from './platform';
 import { markVerified, pruneSaved } from './offline';
 import type { Profile, Settings } from './types';
 
@@ -105,7 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (error) throw error;
         if (data.url) await Browser.open({ url: data.url });
       } else {
-        const { error } = await supabase.auth.signInWithOAuth({ provider, options: { redirectTo: `${location.origin}/` } });
+        const { error } = await supabase.auth.signInWithOAuth({ provider, options: { redirectTo: appUrl() } });
         if (error) throw error;
       }
     },
