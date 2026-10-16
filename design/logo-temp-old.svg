@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- MedNotes E-Library: temporary logo (open book + medical cross + heartbeat), medical blue/green -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0284C7"/>
+      <stop offset="1" stop-color="#059669"/>
+    </linearGradient>
+    <linearGradient id="cross" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#22C55E"/>
+      <stop offset="1" stop-color="#15803D"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <!-- open book -->
+  <path d="M256 196c-38-26-92-34-140-28v196c48-6 102 2 140 28z" fill="#FFFFFF"/>
+  <path d="M256 196c38-26 92-34 140-28v196c-48-6-102 2-140 28z" fill="#E0F2FE"/>
+  <path d="M256 196v196" stroke="#0369A1" stroke-width="6"/>
+  <!-- heartbeat line across the pages -->
+  <path d="M132 290h52l18-38 26 76 22-56 14 18h116" fill="none" stroke="#0284C7" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- medical cross badge above the book -->
+  <circle cx="256" cy="132" r="62" fill="#FFFFFF"/>
+  <path d="M240 92h32v24h24v32h-24v24h-32v-24h-24v-32h24z" fill="url(#cross)"/>
+</svg>

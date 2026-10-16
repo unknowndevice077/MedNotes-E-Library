@@ -1,0 +1,289 @@
+<!-- A1 Dashboard -->
+<div class="screen shell" data-name="Admin / Dashboard">
+  <div class="side">
+    <div class="logo light" style="padding:0 8px 22px;font-size:16px">{{LOGO}}<span>Med<b>Notes</b> Admin</span></div>
+    <div class="item on">{{GRID}}Dashboard</div><div class="item">{{FILES}}Files</div><div class="item">{{PAY}}Payments<span class="count">5</span></div><div class="item">{{USERS}}Users</div><div class="item">{{SHIELD}}Restrictions</div><div class="item">{{COG}}Settings</div>
+  </div>
+  <div class="main">
+    <div class="mainhead"><h2>Dashboard</h2><div class="row">{{BELL}}<div class="avatar">MP</div></div></div>
+    <div class="content">
+      <div class="row" style="gap:16px">
+        <div class="stat"><span class="muted">Revenue this month</span><span class="v" style="color:#059669">₱48,250</span><span class="small muted">+18% vs September</span></div>
+        <div class="stat" style="border-color:#FDE68A;background:#FFFBEB"><span class="muted">Payments to confirm</span><span class="v" style="color:#B45309">5</span><span class="small muted">Oldest: 6 hours ago</span></div>
+        <div class="stat"><span class="muted">Users</span><span class="v">1,284</span><span class="small muted">42 new this week</span></div>
+        <div class="stat"><span class="muted">Files</span><span class="v">128</span><span class="small muted">EPUB 41 · PDF 52 · Video 14 · Other 21</span></div>
+      </div>
+      <div class="row" style="gap:16px;align-items:flex-start">
+        <div class="card col grow" style="gap:12px">
+          <div class="spread"><h3>Waiting for confirmation</h3><span style="color:#0284C7;font-weight:600">View all</span></div>
+          <div class="spread"><div class="row"><div class="avatar">JD</div><div class="col" style="gap:0"><b>Juan Dela Cruz</b><span class="small muted">Pharmacology Made Easy · GCash</span></div></div><b>₱450</b><span class="btn btn-sm btn-green">Review</span></div>
+          <div class="spread"><div class="row"><div class="avatar">MR</div><div class="col" style="gap:0"><b>Maria Reyes</b><span class="small muted">ECG Interpretation Lecture · BDO</span></div></div><b>₱600</b><span class="btn btn-sm btn-green">Review</span></div>
+          <div class="spread"><div class="row"><div class="avatar">KL</div><div class="col" style="gap:0"><b>Kevin Lim</b><span class="small muted">Anatomy Atlas · Maya</span></div></div><b>₱350</b><span class="btn btn-sm btn-green">Review</span></div>
+        </div>
+        <div class="card col" style="width:420px;gap:12px">
+          <h3>Top sellers</h3>
+          <div class="spread"><span class="row"><div class="cover c5 thumb"></div>Pharmacology Made Easy</span><b>86 sold</b></div>
+          <div class="spread"><span class="row"><div class="cover c3 thumb"></div>ECG Interpretation Lecture</span><b>61 sold</b></div>
+          <div class="spread"><span class="row"><div class="cover c2 thumb"></div>Anatomy Atlas: Upper Limb</span><b>54 sold</b></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- A2 Files -->
+<div class="screen shell" data-name="Admin / Files">
+  <div class="side">
+    <div class="logo light" style="padding:0 8px 22px;font-size:16px">{{LOGO}}<span>Med<b>Notes</b> Admin</span></div>
+    <div class="item">{{GRID}}Dashboard</div><div class="item on">{{FILES}}Files</div><div class="item">{{PAY}}Payments<span class="count">5</span></div><div class="item">{{USERS}}Users</div><div class="item">{{SHIELD}}Restrictions</div><div class="item">{{COG}}Settings</div>
+  </div>
+  <div class="main">
+    <div class="mainhead"><h2>Files</h2><div class="row"><div class="input search" style="width:300px">{{SEARCH}} Search files</div><div class="btn btn-primary">+ Upload file</div></div></div>
+    <div class="content">
+      <div class="row"><span class="chip on">All 128</span><span class="chip">EPUB</span><span class="chip">PDF</span><span class="chip">Video</span><span class="chip">Images</span><span class="chip">Word / PowerPoint / Excel</span></div>
+      <div class="table">
+        <div class="tr th"><span style="width:340px">Name</span><span style="width:130px">Label</span><span style="width:90px">Type</span><span style="width:100px">Price</span><span style="width:70px">Sales</span><span style="width:130px">Allow download</span><span class="grow"></span></div>
+        <div class="tr"><div class="row" style="width:340px"><div class="cover c5 thumb"></div><div class="col" style="gap:0"><b>Pharmacology Made Easy</b><span class="small muted">A complete reviewer for board exams</span></div></div><span style="width:130px"><span class="badge b-blue">Pharmacology</span></span><span style="width:90px">EPUB</span><b style="width:100px">₱450</b><span style="width:70px">86</span><span style="width:130px"><span class="toggle"></span></span><span class="grow"></span><span class="btn btn-sm">Edit</span><span class="btn btn-sm btn-danger">Delete</span></div>
+        <div class="tr"><div class="row" style="width:340px"><div class="cover c2 thumb"></div><div class="col" style="gap:0"><b>Anatomy Atlas: Upper Limb</b><span class="small muted">Labeled plates, 96 pages</span></div></div><span style="width:130px"><span class="badge b-blue">Anatomy</span></span><span style="width:90px">PDF</span><b style="width:100px">₱350</b><span style="width:70px">54</span><span style="width:130px"><span class="toggle on"></span></span><span class="grow"></span><span class="btn btn-sm">Edit</span><span class="btn btn-sm btn-danger">Delete</span></div>
+        <div class="tr"><div class="row" style="width:340px"><div class="cover c3 thumb"></div><div class="col" style="gap:0"><b>ECG Interpretation Lecture</b><span class="small muted">2h 14m recorded lecture</span></div></div><span style="width:130px"><span class="badge b-blue">Cardiology</span></span><span style="width:90px">Video</span><b style="width:100px">₱600</b><span style="width:70px">61</span><span style="width:130px"><span class="toggle"></span></span><span class="grow"></span><span class="btn btn-sm">Edit</span><span class="btn btn-sm btn-danger">Delete</span></div>
+        <div class="tr"><div class="row" style="width:340px"><div class="cover c4 thumb"></div><div class="col" style="gap:0"><b>Pathology Notes Vol. 1</b><span class="small muted">Word handout</span></div></div><span style="width:130px"><span class="badge b-blue">Pathology</span></span><span style="width:90px">DOCX</span><b style="width:100px">₱250</b><span style="width:70px">39</span><span style="width:130px"><span class="toggle on"></span></span><span class="grow"></span><span class="btn btn-sm">Edit</span><span class="btn btn-sm btn-danger">Delete</span></div>
+        <div class="tr"><div class="row" style="width:340px"><div class="cover c6 thumb"></div><div class="col" style="gap:0"><b>Microbiology Slides</b><span class="small muted">62 slides</span></div></div><span style="width:130px"><span class="badge b-blue">Microbiology</span></span><span style="width:90px">PPTX</span><b style="width:100px">₱200</b><span style="width:70px">22</span><span style="width:130px"><span class="toggle"></span></span><span class="grow"></span><span class="btn btn-sm">Edit</span><span class="btn btn-sm btn-danger">Delete</span></div>
+        <div class="tr"><div class="row" style="width:340px"><div class="cover c1 thumb"></div><div class="col" style="gap:0"><b>Lab Values Cheat Sheet</b><span class="small muted">Excel reference table</span></div></div><span style="width:130px"><span class="badge b-blue">Clinical</span></span><span style="width:90px">XLSX</span><b style="width:100px">₱150</b><span style="width:70px">71</span><span style="width:130px"><span class="toggle on"></span></span><span class="grow"></span><span class="btn btn-sm">Edit</span><span class="btn btn-sm btn-danger">Delete</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- A3 Upload modal -->
+<div class="screen shell" data-name="Admin / Upload file" style="position:relative">
+  <div class="side">
+    <div class="logo light" style="padding:0 8px 22px;font-size:16px">{{LOGO}}<span>Med<b>Notes</b> Admin</span></div>
+    <div class="item">{{GRID}}Dashboard</div><div class="item on">{{FILES}}Files</div><div class="item">{{PAY}}Payments<span class="count">5</span></div><div class="item">{{USERS}}Users</div><div class="item">{{SHIELD}}Restrictions</div><div class="item">{{COG}}Settings</div>
+  </div>
+  <div class="main"><div class="mainhead"><h2>Files</h2></div></div>
+  <div class="overlay">
+    <div class="modal" style="width:760px">
+      <div class="spread"><h2>Upload file</h2><span class="muted" style="font-size:22px">×</span></div>
+      <div class="drop" style="height:120px">{{UPLOAD}}<b>Drop any file here: PDF, EPUB, video, images, Word, PowerPoint, Excel</b><span class="small">Up to 2 GB · the file is stored encrypted</span></div>
+      <div class="row" style="align-items:flex-start;gap:20px">
+        <div class="col" style="width:170px;gap:8px"><label class="small" style="font-weight:600">Front page (free preview)</label><div class="cover c5" style="height:210px"><span class="tag">COVER</span><span class="t" style="font-size:14px">Auto-generated from page 1</span></div><span class="btn btn-sm">Replace image</span></div>
+        <div class="col grow" style="gap:14px">
+          <div class="field"><label>Name</label><div class="input filled">Clinical Skills OSCE Guide</div></div>
+          <div class="row"><div class="field grow"><label>Label / category</label><div class="input filled">Clinical Skills</div></div><div class="field" style="width:180px"><label>Price (₱)</label><div class="input filled">500.00</div></div></div>
+          <div class="field"><label>Description</label><div class="input filled textarea">Step-by-step OSCE stations with checklists for history taking, physical exam and procedures.</div></div>
+          <div class="spread card" style="padding:12px 14px"><div class="col" style="gap:0"><b>Allow download</b><span class="small muted">Off: buyers can only read or watch inside the app</span></div><span class="toggle"></span></div>
+          <div class="spread card" style="padding:12px 14px"><div class="col" style="gap:0"><b>Publish now</b><span class="small muted">Visible in the library right away</span></div><span class="toggle on"></span></div>
+        </div>
+      </div>
+      <div class="row" style="justify-content:flex-end"><div class="btn">Save as draft</div><div class="btn btn-primary">Upload & publish</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- A4 Payments -->
+<div class="screen shell" data-name="Admin / Payments – confirm">
+  <div class="side">
+    <div class="logo light" style="padding:0 8px 22px;font-size:16px">{{LOGO}}<span>Med<b>Notes</b> Admin</span></div>
+    <div class="item">{{GRID}}Dashboard</div><div class="item">{{FILES}}Files</div><div class="item on">{{PAY}}Payments<span class="count">5</span></div><div class="item">{{USERS}}Users</div><div class="item">{{SHIELD}}Restrictions</div><div class="item">{{COG}}Settings</div>
+  </div>
+  <div class="main">
+    <div class="mainhead"><h2>Payments</h2><div class="row"><span class="chip on">Pending 5</span><span class="chip">Confirmed</span><span class="chip">Rejected</span></div></div>
+    <div class="content" style="flex-direction:row;gap:20px;align-items:flex-start">
+      <div class="col" style="width:440px;gap:10px">
+        <div class="card row" style="border:2px solid #0284C7;padding:14px"><div class="avatar">JD</div><div class="col grow" style="gap:0"><b>Juan Dela Cruz</b><span class="small muted">Pharmacology Made Easy</span></div><div class="col" style="gap:0;align-items:flex-end"><b>₱450</b><span class="small muted">6h ago</span></div></div>
+        <div class="card row" style="padding:14px"><div class="avatar">MR</div><div class="col grow" style="gap:0"><b>Maria Reyes</b><span class="small muted">ECG Interpretation Lecture</span></div><div class="col" style="gap:0;align-items:flex-end"><b>₱600</b><span class="small muted">4h ago</span></div></div>
+        <div class="card row" style="padding:14px"><div class="avatar">KL</div><div class="col grow" style="gap:0"><b>Kevin Lim</b><span class="small muted">Anatomy Atlas: Upper Limb</span></div><div class="col" style="gap:0;align-items:flex-end"><b>₱350</b><span class="small muted">2h ago</span></div></div>
+        <div class="card row" style="padding:14px"><div class="avatar">AS</div><div class="col grow" style="gap:0"><b>Ana Santos</b><span class="small muted">Lab Values Cheat Sheet</span></div><div class="col" style="gap:0;align-items:flex-end"><b>₱150</b><span class="small muted">1h ago</span></div></div>
+      </div>
+      <div class="card col grow" style="gap:16px">
+        <div class="spread"><h3>Payment from Juan Dela Cruz</h3><span class="badge b-pending">Pending</span></div>
+        <div class="row" style="gap:20px;align-items:flex-start">
+          <div style="width:220px;height:380px;border-radius:14px;background:linear-gradient(180deg,#0B5ED7,#0A58CA);color:#FFFFFF;padding:18px;display:flex;flex-direction:column;gap:10px;flex-shrink:0"><b>GCash</b><span class="small" style="opacity:0.8">Sent via GCash</span><span style="font-size:28px;font-weight:700;margin-top:30px">₱450.00</span><span class="small">To MedNotes Pub.</span><span class="small">Ref No. 8821 4407 3312</span><span class="small" style="opacity:0.8">Oct 16, 2026 9:12 AM</span><span class="small" style="margin-top:auto;opacity:0.7">Proof of payment (uploaded screenshot)</span></div>
+          <div class="col grow" style="gap:10px">
+            <div class="spread"><span class="muted">File</span><b>Pharmacology Made Easy</b></div>
+            <div class="spread"><span class="muted">Price</span><b>₱450.00</b></div>
+            <div class="spread"><span class="muted">Amount claimed</span><b>₱450.00 {{CHECK}}</b></div>
+            <div class="spread"><span class="muted">Method</span><b>GCash</b></div>
+            <div class="spread"><span class="muted">Reference no.</span><b>GC-8821 4407 3312</b></div>
+            <div class="spread"><span class="muted">Email</span><b>juan.delacruz@email.com</b></div>
+            <div class="card row" style="padding:12px;background:#F0FDF4;border-color:#BBF7D0;gap:10px">{{RECEIPT}}<span class="small">Confirming creates receipt <b>OR-000232</b>, emails it to the buyer and unlocks the file.</span></div>
+            <div class="field"><label>Note to buyer (optional)</label><div class="input">e.g. Thank you for your purchase!</div></div>
+          </div>
+        </div>
+        <div class="row" style="justify-content:flex-end"><div class="btn btn-danger">Reject…</div><div class="btn btn-green">{{CHECKW}} Confirm received & send receipt</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- A5 Users -->
+<div class="screen shell" data-name="Admin / Users">
+  <div class="side">
+    <div class="logo light" style="padding:0 8px 22px;font-size:16px">{{LOGO}}<span>Med<b>Notes</b> Admin</span></div>
+    <div class="item">{{GRID}}Dashboard</div><div class="item">{{FILES}}Files</div><div class="item">{{PAY}}Payments<span class="count">5</span></div><div class="item on">{{USERS}}Users</div><div class="item">{{SHIELD}}Restrictions</div><div class="item">{{COG}}Settings</div>
+  </div>
+  <div class="main">
+    <div class="mainhead"><h2>Users</h2><div class="input search" style="width:320px">{{SEARCH}} Search by name or email</div></div>
+    <div class="content">
+      <div class="table">
+        <div class="tr th"><span style="width:300px">User</span><span style="width:110px">Sign-in</span><span style="width:110px">Files</span><span style="width:200px">Devices</span><span style="width:120px">Status</span><span class="grow"></span></div>
+        <div class="tr"><div class="row" style="width:300px"><div class="avatar">JD</div><div class="col" style="gap:0"><b>Juan Dela Cruz</b><span class="small muted">juan.delacruz@email.com</span></div></div><span style="width:110px" class="row">{{GOOGLE}} Google</span><span style="width:110px">3 owned</span><span style="width:200px" class="row" ><span class="badge b-blue">PC 1/1</span><span class="badge b-ok">Phone 1/1</span></span><span style="width:120px"><span class="badge b-ok">Active</span></span><span class="grow"></span><span class="btn btn-sm">Manage</span></div>
+        <div class="tr"><div class="row" style="width:300px"><div class="avatar">MR</div><div class="col" style="gap:0"><b>Maria Reyes</b><span class="small muted">maria.reyes@email.com</span></div></div><span style="width:110px" class="row">{{FB}} Facebook</span><span style="width:110px">1 owned</span><span style="width:200px" class="row"><span class="badge b-blue">PC 1/1</span><span class="badge b-lock">Phone 0/1</span></span><span style="width:120px"><span class="badge b-ok">Active</span></span><span class="grow"></span><span class="btn btn-sm">Manage</span></div>
+        <div class="tr"><div class="row" style="width:300px"><div class="avatar">KL</div><div class="col" style="gap:0"><b>Kevin Lim</b><span class="small muted">kevin.lim@email.com</span></div></div><span style="width:110px">Email</span><span style="width:110px">5 owned</span><span style="width:200px" class="row"><span class="badge b-blue">PC 2/2</span><span class="badge b-ok">Phone 1/1</span></span><span style="width:120px"><span class="badge b-pending">Extra slot</span></span><span class="grow"></span><span class="btn btn-sm">Manage</span></div>
+        <div class="tr"><div class="row" style="width:300px"><div class="avatar">RT</div><div class="col" style="gap:0"><b>Rico Tan</b><span class="small muted">rico.tan@email.com</span></div></div><span style="width:110px">Email</span><span style="width:110px">0 owned</span><span style="width:200px" class="row"><span class="badge b-lock">PC 0/1</span><span class="badge b-lock">Phone 0/1</span></span><span style="width:120px"><span class="badge b-red">Suspended</span></span><span class="grow"></span><span class="btn btn-sm">Manage</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- A6 User detail / override -->
+<div class="screen shell" data-name="Admin / User detail – override">
+  <div class="side">
+    <div class="logo light" style="padding:0 8px 22px;font-size:16px">{{LOGO}}<span>Med<b>Notes</b> Admin</span></div>
+    <div class="item">{{GRID}}Dashboard</div><div class="item">{{FILES}}Files</div><div class="item">{{PAY}}Payments<span class="count">5</span></div><div class="item on">{{USERS}}Users</div><div class="item">{{SHIELD}}Restrictions</div><div class="item">{{COG}}Settings</div>
+  </div>
+  <div class="main">
+    <div class="mainhead"><div class="row">{{BACK}}<h2>Juan Dela Cruz</h2><span class="badge b-ok">Active</span></div><div class="row"><div class="btn btn-danger">Suspend</div><div class="btn btn-danger">Delete user</div></div></div>
+    <div class="content" style="flex-direction:row;align-items:flex-start;gap:20px">
+      <div class="col grow" style="gap:16px">
+        <div class="card col" style="gap:12px">
+          <div class="spread"><h3>Devices</h3><span class="btn btn-sm">Reset all devices</span></div>
+          <div class="device" style="padding:12px"><div class="devicon">{{LAPTOP}}</div><div class="col grow" style="gap:0"><b>Windows PC · Chrome</b><span class="small muted">Computer · active now</span></div><span class="btn btn-sm btn-danger">Sign out</span></div>
+          <div class="device" style="padding:12px"><div class="devicon g">{{PHONE}}</div><div class="col grow" style="gap:0"><b>Galaxy A54 · App</b><span class="small muted">Phone · 2 hours ago</span></div><span class="btn btn-sm btn-danger">Sign out</span></div>
+        </div>
+        <div class="card col" style="gap:12px">
+          <h3>Owned files</h3>
+          <div class="spread"><span class="row"><div class="cover c4 thumb"></div>Pathology Notes Vol. 1</span><span class="row"><span class="badge b-ok">Unlocked</span><span class="btn btn-sm btn-danger">Revoke</span></span></div>
+          <div class="spread"><span class="row"><div class="cover c2 thumb"></div>Anatomy Atlas: Upper Limb</span><span class="row"><span class="badge b-ok">Unlocked</span><span class="btn btn-sm btn-danger">Revoke</span></span></div>
+          <div class="btn btn-sm" style="align-self:flex-start">+ Grant file access manually</div>
+        </div>
+      </div>
+      <div class="card col" style="width:440px;gap:14px">
+        <h3>Restrictions & overrides</h3>
+        <div class="spread"><div class="col" style="gap:0"><b>Computer slots</b><span class="small muted">Plan default: 1</span></div><div class="row"><span class="btn btn-sm">−</span><b>1</b><span class="btn btn-sm">+</span></div></div>
+        <div class="spread"><div class="col" style="gap:0"><b>Phone slots</b><span class="small muted">Plan default: 1</span></div><div class="row"><span class="btn btn-sm">−</span><b>1</b><span class="btn btn-sm">+</span></div></div>
+        <div class="spread"><div class="col" style="gap:0"><b>Allow downloads</b><span class="small muted">Overrides each file's setting for this user</span></div><span class="toggle"></span></div>
+        <div class="spread"><div class="col" style="gap:0"><b>Can add new devices</b><span class="small muted">Off locks the current devices</span></div><span class="toggle on"></span></div>
+        <div class="spread"><div class="col" style="gap:0"><b>Device swaps per 30 days</b><span class="small muted">Default: 2</span></div><div class="input filled" style="width:70px;height:36px">2</div></div>
+        <div class="field"><label>Admin note</label><div class="input filled textarea">Approved extra phone for tablet use (Oct 2).</div></div>
+        <div class="btn btn-primary">Save overrides</div>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- A7 Reject payment -->
+<div class="screen shell" data-name="Admin / Reject payment" style="position:relative">
+  <div class="side">
+    <div class="logo light" style="padding:0 8px 22px;font-size:16px">{{LOGO}}<span>Med<b>Notes</b> Admin</span></div>
+    <div class="item">{{GRID}}Dashboard</div><div class="item">{{FILES}}Files</div><div class="item on">{{PAY}}Payments<span class="count">5</span></div><div class="item">{{USERS}}Users</div><div class="item">{{SHIELD}}Restrictions</div><div class="item">{{COG}}Settings</div>
+  </div>
+  <div class="main"><div class="mainhead"><h2>Payments</h2></div></div>
+  <div class="overlay">
+    <div class="modal" style="width:520px">
+      <h2>Reject this payment?</h2>
+      <div class="muted">Juan Dela Cruz · Pharmacology Made Easy · ₱450.00</div>
+      <div class="field"><label>Reason (sent to the buyer)</label>
+        <div class="col" style="gap:8px">
+          <div class="card row" style="padding:12px;border:2px solid #0284C7"><span class="toggle on" style="width:18px;height:18px;border-radius:9px"></span>Amount doesn't match the price</div>
+          <div class="card row" style="padding:12px"><span class="toggle" style="width:18px;height:18px;border-radius:9px"></span>Payment not received / reference not found</div>
+          <div class="card row" style="padding:12px"><span class="toggle" style="width:18px;height:18px;border-radius:9px"></span>Proof is unreadable</div>
+        </div>
+      </div>
+      <div class="field"><label>Message</label><div class="input filled textarea">We received ₱400 instead of ₱450. Please send the ₱50 balance and upload the new proof.</div></div>
+      <div class="row"><div class="btn grow">Cancel</div><div class="btn grow" style="background:#E11D48;color:#FFFFFF;border:none">Reject & notify buyer</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- A8 Restrictions -->
+<div class="screen shell" data-name="Admin / Restrictions">
+  <div class="side">
+    <div class="logo light" style="padding:0 8px 22px;font-size:16px">{{LOGO}}<span>Med<b>Notes</b> Admin</span></div>
+    <div class="item">{{GRID}}Dashboard</div><div class="item">{{FILES}}Files</div><div class="item">{{PAY}}Payments<span class="count">5</span></div><div class="item">{{USERS}}Users</div><div class="item on">{{SHIELD}}Restrictions</div><div class="item">{{COG}}Settings</div>
+  </div>
+  <div class="main">
+    <div class="mainhead"><div class="col" style="gap:0"><h2>Restrictions</h2><span class="small muted">Defaults for every account. Override them per user on the user's page.</span></div><div class="btn btn-primary">Save restrictions</div></div>
+    <div class="content" style="flex-direction:row;align-items:flex-start;gap:20px">
+      <div class="col grow" style="gap:16px">
+        <div class="card col" style="gap:14px">
+          <div class="row">{{LAPTOP:22}}<h3>Device limit (like Netflix plans)</h3></div>
+          <div class="spread"><div class="col" style="gap:0"><b>Computers per account</b><span class="small muted">Desktop or laptop, web browser</span></div><div class="row"><span class="btn btn-sm">−</span><b style="width:20px;text-align:center">1</b><span class="btn btn-sm">+</span></div></div>
+          <div class="spread"><div class="col" style="gap:0"><b>Phones per account</b><span class="small muted">Android app (APK) or mobile browser</span></div><div class="row"><span class="btn btn-sm">−</span><b style="width:20px;text-align:center">1</b><span class="btn btn-sm">+</span></div></div>
+          <div class="spread"><div class="col" style="gap:0"><b>Device swaps per 30 days</b><span class="small muted">Stops people from sharing one account</span></div><div class="input filled" style="width:70px;height:36px">2</div></div>
+          <div class="spread"><div class="col" style="gap:0"><b>When the limit is reached</b><span class="small muted">What a new device sees</span></div><div class="input filled" style="width:260px;height:36px">Ask to sign out the old device ▾</div></div>
+          <div class="spread"><div class="col" style="gap:0"><b>Users can add new devices</b><span class="small muted">Off: only admins can register devices</span></div><span class="toggle on"></span></div>
+        </div>
+        <div class="card col" style="gap:14px">
+          <div class="row">{{SHIELD:22}}<h3>Content protection</h3></div>
+          <div class="spread"><div class="col" style="gap:0"><b>Allow downloads by default</b><span class="small muted">New files start with this setting. Each file can change it.</span></div><span class="toggle"></span></div>
+          <div class="spread"><div class="col" style="gap:0"><b>Watermark with buyer email</b><span class="small muted">On the reader, videos and downloaded PDFs</span></div><span class="toggle on"></span></div>
+          <div class="spread"><div class="col" style="gap:0"><b>Block screenshots in the app</b><span class="small muted">Android secure screen</span></div><span class="toggle on"></span></div>
+          <div class="spread"><div class="col" style="gap:0"><b>Disable copy & print in the reader</b></div><span class="toggle on"></span></div>
+          <div class="spread"><div class="col" style="gap:0"><b>Max downloads per file</b><span class="small muted">When downloads are allowed</span></div><div class="input filled" style="width:70px;height:36px">3</div></div>
+        </div>
+      </div>
+      <div class="col" style="width:440px;gap:16px">
+        <div class="card col" style="gap:14px">
+          <h3>Sign-in & sessions</h3>
+          <div class="spread"><span>Sign out after inactivity</span><div class="input filled" style="width:120px;height:36px">30 days ▾</div></div>
+          <div class="spread"><span>Block rooted phones / emulators</span><span class="toggle on"></span></div>
+          <div class="spread"><span>Require email verification</span><span class="toggle on"></span></div>
+        </div>
+        <div class="card col" style="gap:12px">
+          <h3>Active user overrides</h3>
+          <div class="spread"><span class="row"><div class="avatar">KL</div>Kevin Lim</span><span class="badge b-pending">+1 computer</span></div>
+          <div class="spread"><span class="row"><div class="avatar">AS</div>Ana Santos</span><span class="badge b-blue">Downloads on</span></div>
+          <div class="spread"><span class="row"><div class="avatar">RT</div>Rico Tan</span><span class="badge b-red">Devices locked</span></div>
+          <span style="color:#0284C7;font-weight:600">Manage in Users →</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- A9 Settings -->
+<div class="screen shell" data-name="Admin / Settings">
+  <div class="side">
+    <div class="logo light" style="padding:0 8px 22px;font-size:16px">{{LOGO}}<span>Med<b>Notes</b> Admin</span></div>
+    <div class="item">{{GRID}}Dashboard</div><div class="item">{{FILES}}Files</div><div class="item">{{PAY}}Payments<span class="count">5</span></div><div class="item">{{USERS}}Users</div><div class="item">{{SHIELD}}Restrictions</div><div class="item on">{{COG}}Settings</div>
+  </div>
+  <div class="main">
+    <div class="mainhead"><h2>Settings</h2><div class="btn btn-primary">Save settings</div></div>
+    <div class="content" style="flex-direction:row;align-items:flex-start;gap:20px">
+      <div class="col grow" style="gap:16px">
+        <div class="card col" style="gap:14px">
+          <h3>Payment methods shown to buyers</h3>
+          <div class="spread card" style="padding:12px 14px"><div class="col" style="gap:0"><b>GCash</b><span class="small muted">0917 123 4567 · MedNotes Pub.</span></div><span class="row"><span class="btn btn-sm">Edit</span><span class="toggle on"></span></span></div>
+          <div class="spread card" style="padding:12px 14px"><div class="col" style="gap:0"><b>Maya</b><span class="small muted">0918 765 4321</span></div><span class="row"><span class="btn btn-sm">Edit</span><span class="toggle on"></span></span></div>
+          <div class="spread card" style="padding:12px 14px"><div class="col" style="gap:0"><b>BDO bank transfer</b><span class="small muted">0012 3456 7890 · MedNotes Publishing</span></div><span class="row"><span class="btn btn-sm">Edit</span><span class="toggle on"></span></span></div>
+          <span class="btn btn-sm" style="align-self:flex-start">+ Add payment method</span>
+        </div>
+        <div class="card col" style="gap:14px">
+          <h3>Receipts</h3>
+          <div class="row"><div class="field grow"><label>Business name on receipt</label><div class="input filled">MedNotes Publishing</div></div><div class="field" style="width:200px"><label>TIN (optional)</label><div class="input filled">123-456-789-000</div></div></div>
+          <div class="row"><div class="field" style="width:160px"><label>Receipt prefix</label><div class="input filled">OR-</div></div><div class="field" style="width:180px"><label>Next number</label><div class="input filled">000232</div></div><div class="field grow"><label>Footer note</label><div class="input filled">Thank you for supporting MedNotes!</div></div></div>
+          <div class="spread"><span>Email the receipt automatically when a payment is confirmed</span><span class="toggle on"></span></div>
+        </div>
+      </div>
+      <div class="col" style="width:440px;gap:16px">
+        <div class="card col" style="gap:14px">
+          <h3>Sign-in providers</h3>
+          <div class="spread"><span class="row">{{GOOGLE}} Google</span><span class="toggle on"></span></div>
+          <div class="spread"><span class="row">{{FB}} Facebook</span><span class="toggle on"></span></div>
+          <div class="spread"><span>Email & password</span><span class="toggle on"></span></div>
+        </div>
+        <div class="card col" style="gap:14px">
+          <h3>Store</h3>
+          <div class="field"><label>Store name</label><div class="input filled">MedNotes E-Library</div></div>
+          <div class="field"><label>Support email</label><div class="input filled">support@mednotes.example</div></div>
+          <div class="row"><div style="width:44px;height:44px">{{LOGO:44}}</div><span class="btn btn-sm">Replace logo</span></div>
+        </div>
+        <div class="card col" style="gap:12px">
+          <div class="spread"><h3>Admins</h3><span class="btn btn-sm">+ Invite</span></div>
+          <div class="spread"><span class="row"><div class="avatar">MP</div>Maria P. (Owner)</span><span class="badge b-blue">Owner</span></div>
+          <div class="spread"><span class="row"><div class="avatar">CS</div>Carlo S.</span><span class="badge b-lock">Payments only</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

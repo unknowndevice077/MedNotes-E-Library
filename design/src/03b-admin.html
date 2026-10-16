@@ -1,0 +1,116 @@
+<!-- A7 Reject payment -->
+<div class="screen shell" data-name="Admin / Reject payment" style="position:relative">
+  <div class="side">
+    <div class="logo light" style="padding:0 8px 22px;font-size:16px">{{LOGO}}<span>Med<b>Notes</b> Admin</span></div>
+    <div class="item">{{GRID}}Dashboard</div><div class="item">{{FILES}}Files</div><div class="item on">{{PAY}}Payments<span class="count">5</span></div><div class="item">{{USERS}}Users</div><div class="item">{{SHIELD}}Restrictions</div><div class="item">{{COG}}Settings</div>
+  </div>
+  <div class="main"><div class="mainhead"><h2>Payments</h2></div></div>
+  <div class="overlay">
+    <div class="modal" style="width:520px">
+      <h2>Reject this payment?</h2>
+      <div class="muted">Juan Dela Cruz · Pharmacology Made Easy · ₱450.00</div>
+      <div class="field"><label>Reason (sent to the buyer)</label>
+        <div class="col" style="gap:8px">
+          <div class="card row" style="padding:12px;border:2px solid #0284C7"><span class="toggle on" style="width:18px;height:18px;border-radius:9px"></span>Amount doesn't match the price</div>
+          <div class="card row" style="padding:12px"><span class="toggle" style="width:18px;height:18px;border-radius:9px"></span>Payment not received / reference not found</div>
+          <div class="card row" style="padding:12px"><span class="toggle" style="width:18px;height:18px;border-radius:9px"></span>Proof is unreadable</div>
+        </div>
+      </div>
+      <div class="field"><label>Message</label><div class="input filled textarea">We received ₱400 instead of ₱450. Please send the ₱50 balance and upload the new proof.</div></div>
+      <div class="row"><div class="btn grow">Cancel</div><div class="btn grow" style="background:#E11D48;color:#FFFFFF;border:none">Reject & notify buyer</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- A8 Restrictions -->
+<div class="screen shell" data-name="Admin / Restrictions">
+  <div class="side">
+    <div class="logo light" style="padding:0 8px 22px;font-size:16px">{{LOGO}}<span>Med<b>Notes</b> Admin</span></div>
+    <div class="item">{{GRID}}Dashboard</div><div class="item">{{FILES}}Files</div><div class="item">{{PAY}}Payments<span class="count">5</span></div><div class="item">{{USERS}}Users</div><div class="item on">{{SHIELD}}Restrictions</div><div class="item">{{COG}}Settings</div>
+  </div>
+  <div class="main">
+    <div class="mainhead"><div class="col" style="gap:0"><h2>Restrictions</h2><span class="small muted">Defaults for every account. Override them per user on the user's page.</span></div><div class="btn btn-primary">Save restrictions</div></div>
+    <div class="content" style="flex-direction:row;align-items:flex-start;gap:20px">
+      <div class="col grow" style="gap:16px">
+        <div class="card col" style="gap:14px">
+          <div class="row">{{LAPTOP:22}}<h3>Device limit (like Netflix plans)</h3></div>
+          <div class="spread"><div class="col" style="gap:0"><b>Computers per account</b><span class="small muted">Desktop or laptop, web browser</span></div><div class="row"><span class="btn btn-sm">−</span><b style="width:20px;text-align:center">1</b><span class="btn btn-sm">+</span></div></div>
+          <div class="spread"><div class="col" style="gap:0"><b>Phones per account</b><span class="small muted">Android app (APK) or mobile browser</span></div><div class="row"><span class="btn btn-sm">−</span><b style="width:20px;text-align:center">1</b><span class="btn btn-sm">+</span></div></div>
+          <div class="spread"><div class="col" style="gap:0"><b>Device swaps per 30 days</b><span class="small muted">Stops people from sharing one account</span></div><div class="input filled" style="width:70px;height:36px">2</div></div>
+          <div class="spread"><div class="col" style="gap:0"><b>When the limit is reached</b><span class="small muted">What a new device sees</span></div><div class="input filled" style="width:260px;height:36px">Ask to sign out the old device ▾</div></div>
+          <div class="spread"><div class="col" style="gap:0"><b>Users can add new devices</b><span class="small muted">Off: only admins can register devices</span></div><span class="toggle on"></span></div>
+        </div>
+        <div class="card col" style="gap:14px">
+          <div class="row">{{SHIELD:22}}<h3>Content protection</h3></div>
+          <div class="spread"><div class="col" style="gap:0"><b>Allow downloads by default</b><span class="small muted">New files start with this setting. Each file can change it.</span></div><span class="toggle"></span></div>
+          <div class="spread"><div class="col" style="gap:0"><b>Watermark with buyer email</b><span class="small muted">On the reader, videos and downloaded PDFs</span></div><span class="toggle on"></span></div>
+          <div class="spread"><div class="col" style="gap:0"><b>Block screenshots in the app</b><span class="small muted">Android secure screen</span></div><span class="toggle on"></span></div>
+          <div class="spread"><div class="col" style="gap:0"><b>Disable copy & print in the reader</b></div><span class="toggle on"></span></div>
+          <div class="spread"><div class="col" style="gap:0"><b>Max downloads per file</b><span class="small muted">When downloads are allowed</span></div><div class="input filled" style="width:70px;height:36px">3</div></div>
+        </div>
+      </div>
+      <div class="col" style="width:440px;gap:16px">
+        <div class="card col" style="gap:14px">
+          <h3>Sign-in & sessions</h3>
+          <div class="spread"><span>Sign out after inactivity</span><div class="input filled" style="width:120px;height:36px">30 days ▾</div></div>
+          <div class="spread"><span>Block rooted phones / emulators</span><span class="toggle on"></span></div>
+          <div class="spread"><span>Require email verification</span><span class="toggle on"></span></div>
+        </div>
+        <div class="card col" style="gap:12px">
+          <h3>Active user overrides</h3>
+          <div class="spread"><span class="row"><div class="avatar">KL</div>Kevin Lim</span><span class="badge b-pending">+1 computer</span></div>
+          <div class="spread"><span class="row"><div class="avatar">AS</div>Ana Santos</span><span class="badge b-blue">Downloads on</span></div>
+          <div class="spread"><span class="row"><div class="avatar">RT</div>Rico Tan</span><span class="badge b-red">Devices locked</span></div>
+          <span style="color:#0284C7;font-weight:600">Manage in Users →</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- A9 Settings -->
+<div class="screen shell" data-name="Admin / Settings">
+  <div class="side">
+    <div class="logo light" style="padding:0 8px 22px;font-size:16px">{{LOGO}}<span>Med<b>Notes</b> Admin</span></div>
+    <div class="item">{{GRID}}Dashboard</div><div class="item">{{FILES}}Files</div><div class="item">{{PAY}}Payments<span class="count">5</span></div><div class="item">{{USERS}}Users</div><div class="item">{{SHIELD}}Restrictions</div><div class="item on">{{COG}}Settings</div>
+  </div>
+  <div class="main">
+    <div class="mainhead"><h2>Settings</h2><div class="btn btn-primary">Save settings</div></div>
+    <div class="content" style="flex-direction:row;align-items:flex-start;gap:20px">
+      <div class="col grow" style="gap:16px">
+        <div class="card col" style="gap:14px">
+          <h3>Payment methods shown to buyers</h3>
+          <div class="spread card" style="padding:12px 14px"><div class="col" style="gap:0"><b>GCash</b><span class="small muted">0917 123 4567 · MedNotes Pub.</span></div><span class="row"><span class="btn btn-sm">Edit</span><span class="toggle on"></span></span></div>
+          <div class="spread card" style="padding:12px 14px"><div class="col" style="gap:0"><b>Maya</b><span class="small muted">0918 765 4321</span></div><span class="row"><span class="btn btn-sm">Edit</span><span class="toggle on"></span></span></div>
+          <div class="spread card" style="padding:12px 14px"><div class="col" style="gap:0"><b>BDO bank transfer</b><span class="small muted">0012 3456 7890 · MedNotes Publishing</span></div><span class="row"><span class="btn btn-sm">Edit</span><span class="toggle on"></span></span></div>
+          <span class="btn btn-sm" style="align-self:flex-start">+ Add payment method</span>
+        </div>
+        <div class="card col" style="gap:14px">
+          <h3>Receipts</h3>
+          <div class="row"><div class="field grow"><label>Business name on receipt</label><div class="input filled">MedNotes Publishing</div></div><div class="field" style="width:200px"><label>TIN (optional)</label><div class="input filled">123-456-789-000</div></div></div>
+          <div class="row"><div class="field" style="width:160px"><label>Receipt prefix</label><div class="input filled">OR-</div></div><div class="field" style="width:180px"><label>Next number</label><div class="input filled">000232</div></div><div class="field grow"><label>Footer note</label><div class="input filled">Thank you for supporting MedNotes!</div></div></div>
+          <div class="spread"><span>Email the receipt automatically when a payment is confirmed</span><span class="toggle on"></span></div>
+        </div>
+      </div>
+      <div class="col" style="width:440px;gap:16px">
+        <div class="card col" style="gap:14px">
+          <h3>Sign-in providers</h3>
+          <div class="spread"><span class="row">{{GOOGLE}} Google</span><span class="toggle on"></span></div>
+          <div class="spread"><span class="row">{{FB}} Facebook</span><span class="toggle on"></span></div>
+          <div class="spread"><span>Email & password</span><span class="toggle on"></span></div>
+        </div>
+        <div class="card col" style="gap:14px">
+          <h3>Store</h3>
+          <div class="field"><label>Store name</label><div class="input filled">MedNotes E-Library</div></div>
+          <div class="field"><label>Support email</label><div class="input filled">support@mednotes.example</div></div>
+          <div class="row"><div style="width:44px;height:44px">{{LOGO:44}}</div><span class="btn btn-sm">Replace logo</span></div>
+        </div>
+        <div class="card col" style="gap:12px">
+          <div class="spread"><h3>Admins</h3><span class="btn btn-sm">+ Invite</span></div>
+          <div class="spread"><span class="row"><div class="avatar">MP</div>Maria P. (Owner)</span><span class="badge b-blue">Owner</span></div>
+          <div class="spread"><span class="row"><div class="avatar">CS</div>Carlo S.</span><span class="badge b-lock">Payments only</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

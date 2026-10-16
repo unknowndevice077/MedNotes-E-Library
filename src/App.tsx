@@ -1,0 +1,88 @@
+import { lazy, Suspense, type ReactNode } from 'react';
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { AuthProvider, useAuth } from './lib/auth';
+import { isNative } from './lib/platform';
+import { Loading, ToastProvider } from './components/ui';
+import DeviceGate from './components/DeviceGate';
+import { ForgotPassword, ResetPassword, SignIn, SignUp } from './pages/Auth';
+import Library from './pages/Library';
+import FileDetail from './pages/FileDetail';
+import Checkout from './pages/Checkout';
+import MyFiles from './pages/MyFiles';
+import ReceiptPage from './pages/Receipt';
+import Devices from './pages/Devices';
+import Account from './pages/Account';
+import SavedOffline from './pages/SavedOffline';
+
+const Reader = lazy(() => import('./pages/Reader'));
+const Dashboard = lazy(() => import('./admin/Dashboard'));
+const AdminFiles = lazy(() => import('./admin/Files'));
+const Payments = lazy(() => import('./admin/Payments'));
+const AdminUsers = lazy(() => import('./admin/Users').then((m) => ({ default: m.AdminUsers })));
+const AdminUserDetail = lazy(() => import('./admin/Users').then((m) => ({ default: m.AdminUserDetail })));
+const AdminRestrictions = lazy(() => import('./admin/Restrictions').then((m) => ({ default: m.AdminRestrictions })));
+const AdminSettings = lazy(() => import('./admin/Restrictions').then((m) => ({ default: m.AdminSettings })));
+
+function RequireAuth({ children, admin }: { children: ReactNode; admin?: boolean }) {
+  const { loading, session, profile, online } = useAuth();
+  const loc = useLocation();
+  if (loading) return <Loading label="Loading MedNotes…" />;
+  if (!session) return <Navigate to="/sign-in" replace state={{ from: loc.pathname }} />;
+  // In the app without internet, only saved files are available.
+  if (isNative && !online && !/^\/(saved|read)/.test(loc.pathname)) return <Navigate to="/saved" replace />;
+  if (admin && profile?.role !== 'admin') return <Navigate to="/library" replace />;
+  return <>{children}<DeviceGate /></>;
+}
+
+/** After sign-in: admins land on the dashboard (web), everyone else on the library. */
+function Home() {
+  const { profile } = useAuth();
+  return <Navigate to={profile?.role === 'admin' && !isNative ? '/admin' : '/library'} replace />;
+}
+
+function PublicOnly({ children }: { children: ReactNode }) {
+  const { loading, session, profile } = useAuth();
+  if (loading) return <Loading />;
+  if (session) return <Navigate to={profile?.role === 'admin' && !isNative ? '/admin' : '/library'} replace />;
+  return <>{children}</>;
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <ToastProvider>
+          <Suspense fallback={<Loading />}>
+            <Routes>
+              <Route path="/sign-in" element={<PublicOnly><SignIn /></PublicOnly>} />
+              <Route path="/sign-up" element={<PublicOnly><SignUp /></PublicOnly>} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+
+              <Route path="/library" element={<RequireAuth><Library /></RequireAuth>} />
+              <Route path="/file/:id" element={<RequireAuth><FileDetail /></RequireAuth>} />
+              <Route path="/checkout/:id" element={<RequireAuth><Checkout /></RequireAuth>} />
+              <Route path="/my-files" element={<RequireAuth><MyFiles /></RequireAuth>} />
+              <Route path="/receipt/:id" element={<RequireAuth><ReceiptPage /></RequireAuth>} />
+              <Route path="/read/:id" element={<RequireAuth><Reader /></RequireAuth>} />
+              <Route path="/devices" element={<RequireAuth><Devices /></RequireAuth>} />
+              <Route path="/account" element={<RequireAuth><Account /></RequireAuth>} />
+              <Route path="/saved" element={<RequireAuth><SavedOffline /></RequireAuth>} />
+
+              <Route path="/admin" element={<RequireAuth admin><Dashboard /></RequireAuth>} />
+              <Route path="/admin/files" element={<RequireAuth admin><AdminFiles /></RequireAuth>} />
+              <Route path="/admin/payments" element={<RequireAuth admin><Payments /></RequireAuth>} />
+              <Route path="/admin/users" element={<RequireAuth admin><AdminUsers /></RequireAuth>} />
+              <Route path="/admin/users/:id" element={<RequireAuth admin><AdminUserDetail /></RequireAuth>} />
+              <Route path="/admin/restrictions" element={<RequireAuth admin><AdminRestrictions /></RequireAuth>} />
+              <Route path="/admin/settings" element={<RequireAuth admin><AdminSettings /></RequireAuth>} />
+
+              <Route path="/" element={<RequireAuth><Home /></RequireAuth>} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Suspense>
+        </ToastProvider>
+      </AuthProvider>
+    </BrowserRouter>
+  );
+}

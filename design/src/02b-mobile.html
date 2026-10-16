@@ -1,0 +1,76 @@
+<!-- M8 Create account -->
+<div class="mobile" data-name="App / Create account">
+  <div class="mtop">{{BACK}}<b>Create account</b><span style="width:24px"></span></div>
+  <div class="mbody" style="gap:14px">
+    <div class="row"><div class="btn grow">{{GOOGLE}} Google</div><div class="btn grow">{{FB}} Facebook</div></div>
+    <div class="divider">or with email</div>
+    <div class="field"><label>Full name</label><div class="input filled">Juan Dela Cruz</div></div>
+    <div class="field"><label>Email</label><div class="input filled">juan.delacruz@email.com</div></div>
+    <div class="field"><label>Password</label><div class="input">At least 8 characters</div></div>
+    <div class="small muted">By signing up you agree to the Terms and the Device Policy (1 computer + 1 phone).</div>
+  </div>
+  <div style="padding:16px 20px 34px;background:#FFFFFF;border-top:1px solid #E2E8F0"><div class="btn btn-primary btn-block" style="height:50px">Create account</div></div>
+</div>
+
+<!-- M9 My files -->
+<div class="mobile" data-name="App / My files">
+  <div class="mtop"><b style="font-size:18px">My files</b><span></span></div>
+  <div class="mbody" style="gap:12px">
+    <div class="card row" style="background:#FFFBEB;border-color:#FDE68A;padding:12px;gap:10px">{{CLOCK:20}}<span class="small"><b>1 payment</b> is waiting for the publisher's confirmation</span></div>
+    <div class="card row" style="padding:12px"><div class="cover c5 thumb"></div><div class="col grow" style="gap:2px"><b>Pharmacology Made Easy</b><span class="badge b-pending" style="align-self:flex-start">Pending confirmation</span></div></div>
+    <div class="card row" style="padding:12px"><div class="cover c4 thumb"></div><div class="col grow" style="gap:2px"><b>Pathology Notes Vol. 1</b><span class="row small" style="gap:6px;color:#0284C7;font-weight:600">{{RECEIPT:14}} Receipt OR-000231</span></div><span class="btn btn-sm btn-primary">Open</span></div>
+    <div class="card row" style="padding:12px"><div class="cover c2 thumb"></div><div class="col grow" style="gap:2px"><b>Anatomy Atlas</b><span class="badge b-ok" style="align-self:flex-start">Unlocked</span></div><span class="btn btn-sm btn-primary">Open</span></div>
+    <div class="card row" style="padding:12px"><div class="cover c6 thumb"></div><div class="col grow" style="gap:2px"><b>Microbiology Slides</b><span class="badge b-red" style="align-self:flex-start">Rejected: resubmit proof</span></div></div>
+  </div>
+  <div class="tabbar"><span class="tab">{{HOME}}Library</span><span class="tab on">{{BOOK}}My files</span><span class="tab">{{DEV}}Devices</span><span class="tab">{{USER}}Account</span></div>
+</div>
+
+<!-- M10 Receipt -->
+<div class="mobile" data-name="App / Receipt">
+  <div class="mtop">{{BACK}}<b>Receipt</b><span style="width:24px"></span></div>
+  <div class="mbody">
+    <div class="card col" style="gap:12px">
+      <div class="spread"><div class="logo" style="font-size:15px">{{LOGO:28}}<span>Med<b>Notes</b></span></div><span class="badge b-ok">{{CHECK}} PAID</span></div>
+      <div class="col" style="gap:0"><h3>Official receipt</h3><span class="small muted">OR-000231 · Oct 14, 2026</span></div>
+      <div class="col" style="gap:8px;border-top:1px dashed #CBD5E1;border-bottom:1px dashed #CBD5E1;padding:12px 0">
+        <div class="spread small"><span class="muted">Item</span><span>Pathology Notes Vol. 1</span></div>
+        <div class="spread small"><span class="muted">Payment</span><span>GCash · GC-7710 2290</span></div>
+        <div class="spread small"><span class="muted">Confirmed by</span><span>MedNotes Publishing</span></div>
+      </div>
+      <div class="spread"><b>Total paid</b><b style="font-size:22px;color:#059669">₱250.00</b></div>
+    </div>
+  </div>
+  <div style="padding:16px 20px 34px;background:#FFFFFF;border-top:1px solid #E2E8F0;display:flex;gap:10px"><div class="btn grow">Save PDF</div><div class="btn btn-primary grow">Open file</div></div>
+</div>
+
+<!-- M11 Phone limit -->
+<div class="mobile" data-name="App / Phone limit reached" style="background:#F1F5F9">
+  <div class="overlay" style="align-items:flex-end">
+    <div class="modal" style="width:390px;border-radius:22px 22px 0 0;padding:24px 20px 40px">
+      <div class="devicon g" style="width:56px;height:56px">{{PHONE:28}}</div>
+      <h2>Phone limit reached</h2>
+      <div class="muted">Your account is already signed in on another phone. Sign it out to use this one.</div>
+      <div class="device" style="padding:12px"><div class="devicon g">{{PHONE}}</div><div class="col grow" style="gap:0"><b>iPhone 13</b><span class="small muted">Last active Oct 12</span></div></div>
+      <div class="btn btn-primary btn-block">Sign out other phone</div>
+      <div class="btn btn-block">Cancel</div>
+    </div>
+  </div>
+</div>
+
+<!-- M12 Account -->
+<div class="mobile" data-name="App / Account">
+  <div class="mtop"><b style="font-size:18px">Account</b><span></span></div>
+  <div class="mbody" style="gap:12px">
+    <div class="card row" style="padding:14px"><div class="avatar" style="width:52px;height:52px;border-radius:26px;font-size:17px">JD</div><div class="col grow" style="gap:0"><b>Juan Dela Cruz</b><span class="small muted">juan.delacruz@email.com</span><span class="row small" style="gap:6px">{{GOOGLE:14}} Signed in with Google</span></div></div>
+    <div class="card col" style="padding:0;gap:0">
+      <div class="spread" style="padding:14px;border-bottom:1px solid #F1F5F9"><span>Edit profile</span><span class="muted">›</span></div>
+      <div class="spread" style="padding:14px;border-bottom:1px solid #F1F5F9"><span>Change password</span><span class="muted">›</span></div>
+      <div class="spread" style="padding:14px;border-bottom:1px solid #F1F5F9"><span>Purchase history & receipts</span><span class="muted">›</span></div>
+      <div class="spread" style="padding:14px;border-bottom:1px solid #F1F5F9"><span>Payment notifications</span><span class="toggle on"></span></div>
+      <div class="spread" style="padding:14px;border-bottom:1px solid #F1F5F9"><span>Dark mode</span><span class="toggle"></span></div>
+      <div class="spread" style="padding:14px"><span>Help & contact publisher</span><span class="muted">›</span></div>
+    </div>
+    <div class="btn btn-danger btn-block">Sign out of this phone</div>
+  </div>
+  <div class="tabbar"><span class="tab">{{HOME}}Library</span><span class="tab">{{BOOK}}My files</span><span class="tab">{{DEV}}Devices</span><span class="tab on">{{USER}}Account</span></div>
+</div>

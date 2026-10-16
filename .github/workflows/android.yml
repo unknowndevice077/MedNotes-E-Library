@@ -1,0 +1,105 @@
+name: Android APK
+
+# Every push to main builds the APK (downloadable from the run's artifacts).
+# Pushing a version tag (e.g. `git tag v0.1.0 && git push origin v0.1.0`) also
+# publishes a GitHub Release with the APK attached.
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      HAS_KEYSTORE: ${{ secrets.MEDNOTES_KEYSTORE_BASE64 != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check required secrets
+        env:
+          URL: ${{ secrets.VITE_SUPABASE_URL }}
+          KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$URL" ] || [ -z "$KEY" ]; then
+            echo "::error::Add the VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY repository secrets (Settings → Secrets and variables → Actions). The app can't reach a backend without them."
+            exit 1
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web app
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_PLAY_STORE_URL: ${{ vars.VITE_PLAY_STORE_URL }}
+        run: npm run build
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      - name: Restore release keystore
+        if: env.HAS_KEYSTORE == 'true'
+        run: echo "${{ secrets.MEDNOTES_KEYSTORE_BASE64 }}" | base64 -d > "$RUNNER_TEMP/release.jks"
+
+      - name: Set version from tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          V="${GITHUB_REF_NAME#v}"
+          CODE=$(echo "$V" | awk -F. '{ printf "%d", ($1*10000)+($2*100)+$3 }')
+          sed -i "s/versionCode [0-9]*/versionCode $CODE/; s/versionName \"[^\"]*\"/versionName \"$V\"/" android/app/build.gradle
+
+      - name: Build APKs
+        working-directory: android
+        env:
+          MEDNOTES_KEYSTORE_PATH: ${{ env.HAS_KEYSTORE == 'true' && format('{0}/release.jks', runner.temp) || '' }}
+          MEDNOTES_KEYSTORE_PASSWORD: ${{ secrets.MEDNOTES_KEYSTORE_PASSWORD }}
+          MEDNOTES_KEY_ALIAS: ${{ secrets.MEDNOTES_KEY_ALIAS }}
+          MEDNOTES_KEY_PASSWORD: ${{ secrets.MEDNOTES_KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug assembleRelease --no-daemon
+
+      - name: Collect APKs
+        run: |
+          mkdir -p out
+          NAME="MedNotes-${GITHUB_REF_NAME//\//-}"
+          cp android/app/build/outputs/apk/debug/app-debug.apk "out/$NAME-debug.apk"
+          # The release APK is only installable when signed (keystore secrets set).
+          if [ -f android/app/build/outputs/apk/release/app-release.apk ]; then
+            cp android/app/build/outputs/apk/release/app-release.apk "out/$NAME.apk"
+          fi
+          ls -la out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mednotes-apk
+          path: out/*.apk
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: MedNotes ${{ github.ref_name }}
+          generate_release_notes: true
+          files: out/*.apk
+          body: |
+            **Install on Android:** download the APK below, open it on your phone and allow "Install unknown apps" when asked.
+            `-debug.apk` is the test build. The plain `.apk` is the signed release build, present when the signing keystore is configured.

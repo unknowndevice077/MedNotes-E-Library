@@ -1,0 +1,48 @@
+{
+  "name": "mednotes-elibrary",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "db:start": "supabase start",
+    "db:stop": "supabase stop",
+    "db:reset": "supabase db reset",
+    "db:status": "supabase status",
+    "cap:sync": "npm run build && cap sync android",
+    "apk:debug": "npm run cap:sync && cd android && gradlew.bat assembleDebug",
+    "seed:samples": "node scripts/make-samples.mjs",
+    "seed:storage": "node scripts/seed-storage.mjs"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/app": "^6.0.1",
+    "@capacitor/browser": "^6.0.2",
+    "@capacitor/core": "^6.1.2",
+    "@capacitor/device": "^6.0.1",
+    "@capacitor/filesystem": "^6.0.1",
+    "@capacitor/network": "^6.0.2",
+    "@capacitor/preferences": "^6.0.2",
+    "@supabase/supabase-js": "^2.45.4",
+    "docx-preview": "^0.3.3",
+    "epubjs": "^0.3.93",
+    "pdfjs-dist": "^4.6.82",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.26.2",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.1.2",
+    "@types/react": "^18.3.11",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.2",
+    "pptxgenjs": "^3.12.0",
+    "supabase": "^1.200.3",
+    "typescript": "^5.6.2",
+    "vite": "^5.4.8"
+  }
+}

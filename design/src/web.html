@@ -1,0 +1,260 @@
+<!-- 1. Sign in -->
+<div class="screen" data-name="Web / Sign in" style="flex-direction:row">
+  <div style="width:640px;height:900px;background:linear-gradient(150deg,#0284C7,#059669);padding:56px;display:flex;flex-direction:column;justify-content:space-between;color:#FFFFFF">
+    <div class="logo light">{{LOGO}}<span>Med<b>Notes</b> <i>E-Library</i></span></div>
+    <div class="col" style="gap:16px">
+      <div style="font-size:44px;line-height:52px;font-weight:700">Your medical review library, in one place.</div>
+      <div style="font-size:17px;opacity:0.9">Notes, e-books, lectures and slides from trusted publishers. Preview the cover for free and unlock the full file once your payment is confirmed.</div>
+    </div>
+    <div class="row" style="gap:12px">
+      <div class="cover c5" style="width:120px;height:150px;border:2px solid rgba(255,255,255,0.4)"><span class="tag">EPUB</span><span class="t" style="font-size:13px;line-height:17px">Pharmacology Made Easy</span></div>
+      <div class="cover c2" style="width:120px;height:150px;border:2px solid rgba(255,255,255,0.4)"><span class="tag">PDF</span><span class="t" style="font-size:13px;line-height:17px">Anatomy Atlas</span></div>
+      <div class="cover c3" style="width:120px;height:150px;border:2px solid rgba(255,255,255,0.4)"><span class="tag">VIDEO</span><span class="t" style="font-size:13px;line-height:17px">ECG Lecture</span></div>
+    </div>
+  </div>
+  <div style="flex:1;display:flex;align-items:center;justify-content:center">
+    <div class="col" style="width:420px;gap:20px">
+      <div class="col" style="gap:6px"><h1>Welcome back</h1><div class="muted">Sign in to continue to your library.</div></div>
+      <div class="btn btn-block">{{GOOGLE}} Continue with Google</div>
+      <div class="btn btn-block">{{FB}} Continue with Facebook</div>
+      <div class="divider">or sign in with email</div>
+      <div class="field"><label>Email</label><div class="input filled">juan.delacruz@email.com</div></div>
+      <div class="field"><label>Password</label><div class="input filled">••••••••••</div></div>
+      <div class="spread small"><span class="row" style="gap:8px"><span class="toggle on" style="width:32px;height:18px"></span>Remember this device</span><span style="color:#0284C7;font-weight:600">Forgot password?</span></div>
+      <div class="btn btn-primary btn-block">Sign in</div>
+      <div class="muted" style="text-align:center">New to MedNotes? <b style="color:#0284C7">Create an account</b></div>
+      <div class="card small muted row" style="padding:12px;background:#F0F9FF;border-color:#BAE6FD">{{LAPTOP}}<span>Each account can be signed in on <b>1 computer</b> and <b>1 phone</b> at a time.</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- 2. Sign up -->
+<div class="screen" data-name="Web / Create account" style="align-items:center;justify-content:center;background:linear-gradient(180deg,#F0F9FF,#ECFDF5)">
+  <div class="card col" style="width:480px;padding:36px;gap:18px">
+    <div class="logo">{{LOGO}}<span>Med<b>Notes</b> <i>E-Library</i></span></div>
+    <div class="col" style="gap:4px"><h2>Create your account</h2><div class="muted">Free to join. Pay only for the files you unlock.</div></div>
+    <div class="row"><div class="btn grow">{{GOOGLE}} Google</div><div class="btn grow">{{FB}} Facebook</div></div>
+    <div class="divider">or with email</div>
+    <div class="row"><div class="field grow"><label>First name</label><div class="input filled">Juan</div></div><div class="field grow"><label>Last name</label><div class="input filled">Dela Cruz</div></div></div>
+    <div class="field"><label>Email</label><div class="input filled">juan.delacruz@email.com</div></div>
+    <div class="field"><label>Password</label><div class="input">At least 8 characters</div></div>
+    <div class="small muted">By creating an account you agree to the Terms and the Device Policy.</div>
+    <div class="btn btn-primary btn-block">Create account</div>
+  </div>
+</div>
+
+<!-- 3. Library catalog -->
+<div class="screen" data-name="Web / Library">
+  <div class="topbar">
+    <div class="logo">{{LOGO}}<span>Med<b>Notes</b> <i>E-Library</i></span></div>
+    <div class="nav"><span class="on">Library</span><span>My files</span><span>Devices</span></div>
+    <div class="input search">{{SEARCH}} Search notes, books, lectures…</div>
+    <div class="grow"></div>{{BELL}}<div class="avatar">JD</div>
+  </div>
+  <div style="padding:32px 40px;display:flex;flex-direction:column;gap:22px">
+    <div class="spread"><div class="col" style="gap:4px"><h1>Library</h1><div class="muted">128 files · free cover preview on every file</div></div><div class="btn">Sort: Newest</div></div>
+    <div class="row"><span class="chip on">All</span><span class="chip">EPUB</span><span class="chip">PDF</span><span class="chip">Video</span><span class="chip">Images</span><span class="chip">Word</span><span class="chip">PowerPoint</span><span class="chip">Excel</span><span style="width:24px"></span><span class="chip">Anatomy</span><span class="chip">Pharmacology</span><span class="chip">Pathology</span></div>
+    <div class="row" style="gap:24px;align-items:flex-start">
+      <div class="bookcard"><div class="cover c5"><span class="tag">EPUB</span><span class="lockpill">{{LOCK}}</span><span class="t">Pharmacology Made Easy</span></div><h3>Pharmacology Made Easy</h3><div class="spread"><span class="muted small">Reviewer · 320 pages</span><span class="price">₱450</span></div></div>
+      <div class="bookcard"><div class="cover c2"><span class="tag">PDF</span><span class="lockpill">{{LOCK}}</span><span class="t">Anatomy Atlas: Upper Limb</span></div><h3>Anatomy Atlas: Upper Limb</h3><div class="spread"><span class="muted small">Atlas · 96 pages</span><span class="price">₱350</span></div></div>
+      <div class="bookcard"><div class="cover c3" style="align-items:center"><span class="tag" style="align-self:flex-start">VIDEO</span><span class="lockpill">{{LOCK}}</span>{{PLAY}}<span class="t" style="align-self:flex-start">ECG Interpretation Lecture</span></div><h3>ECG Interpretation Lecture</h3><div class="spread"><span class="muted small">Video · 2h 14m</span><span class="price">₱600</span></div></div>
+      <div class="bookcard"><div class="cover c4"><span class="tag">DOCX</span><span class="badge b-ok" style="position:absolute;right:10px;top:12px">Owned</span><span class="t">Pathology Notes Vol. 1</span></div><h3>Pathology Notes Vol. 1</h3><div class="spread"><span class="muted small">Word · 48 pages</span><span class="badge b-ok">Unlocked</span></div></div>
+      <div class="bookcard"><div class="cover c6"><span class="tag">PPTX</span><span class="lockpill">{{LOCK}}</span><span class="t">Microbiology Slides</span></div><h3>Microbiology Slides</h3><div class="spread"><span class="muted small">PowerPoint · 62 slides</span><span class="price">₱200</span></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- 4. File detail (locked, cover only) -->
+<div class="screen" data-name="Web / File detail – locked">
+  <div class="topbar">
+    <div class="logo">{{LOGO}}<span>Med<b>Notes</b> <i>E-Library</i></span></div>
+    <div class="nav"><span class="on">Library</span><span>My files</span><span>Devices</span></div>
+    <div class="grow"></div>{{BELL}}<div class="avatar">JD</div>
+  </div>
+  <div style="padding:32px 40px;display:flex;gap:48px">
+    <div class="col" style="width:520px;gap:14px">
+      <div class="muted small">Library / Pharmacology / Pharmacology Made Easy</div>
+      <div class="cover c5" style="height:600px;padding:32px"><span class="tag">EPUB · FRONT PAGE PREVIEW</span><div class="col" style="gap:10px"><span style="font-size:40px;line-height:46px;font-weight:700">Pharmacology Made Easy</span><span style="opacity:0.9;font-size:16px">A complete reviewer for nursing & medical board exams</span><span style="opacity:0.8">Dr. A. Santos, RPh, MD</span></div></div>
+    </div>
+    <div class="col grow" style="gap:22px;padding-top:30px">
+      <div class="row"><span class="badge b-blue">EPUB</span><span class="badge b-lock">{{LOCKD}} Locked</span></div>
+      <h1 style="font-size:36px;line-height:44px">Pharmacology Made Easy</h1>
+      <div class="muted" style="font-size:16px;max-width:620px">Drug classes, mechanisms, side effects and nursing considerations, summarized into tables and mnemonics. Built for board exam review.</div>
+      <div class="row" style="gap:32px"><div class="col" style="gap:2px"><span class="muted small">Pages</span><h3>320</h3></div><div class="col" style="gap:2px"><span class="muted small">Format</span><h3>EPUB</h3></div><div class="col" style="gap:2px"><span class="muted small">Updated</span><h3>Sep 2026</h3></div><div class="col" style="gap:2px"><span class="muted small">Download</span><h3>Read online only</h3></div></div>
+      <div class="card col" style="gap:16px;max-width:620px">
+        <div class="spread"><span class="muted">Price</span><span style="font-size:32px;font-weight:700;color:#059669">₱450.00</span></div>
+        <div class="btn btn-primary btn-block" style="height:52px;font-size:16px">{{LOCK}} Buy & unlock full file</div>
+        <div class="small muted">Only the front page is visible until you pay. After you pay, the publisher confirms the payment and sends your receipt. The file then unlocks on your devices.</div>
+      </div>
+      <div class="col" style="gap:10px;max-width:620px">
+        <h3>Inside this file</h3>
+        <div class="card" style="padding:0;position:relative;height:150px;overflow:hidden">
+          <div class="col" style="padding:18px;gap:8px;opacity:0.35"><b>Chapter 1 · Pharmacokinetics</b><span>Absorption, distribution, metabolism, excretion…</span><b>Chapter 2 · Autonomic drugs</b><span>Cholinergic and adrenergic agonists…</span></div>
+          <div style="position:absolute;left:0;top:0;width:100%;height:100%;background:linear-gradient(180deg,rgba(255,255,255,0.3),#FFFFFF);display:flex;align-items:flex-end;justify-content:center;padding-bottom:16px"><span class="badge b-lock">{{LOCKD}} Unlock to read 23 chapters</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 5. Checkout / pay -->
+<div class="screen" data-name="Web / Checkout – submit payment">
+  <div class="topbar"><div class="logo">{{LOGO}}<span>Med<b>Notes</b> <i>E-Library</i></span></div><div class="grow"></div><div class="avatar">JD</div></div>
+  <div style="padding:36px 40px;display:flex;gap:32px;justify-content:center">
+    <div class="col" style="width:720px;gap:20px">
+      <h1>Pay for your file</h1>
+      <div class="row" style="gap:10px"><span class="badge b-ok">1 Pay</span><span class="muted">—</span><span class="badge b-lock">2 Publisher confirms</span><span class="muted">—</span><span class="badge b-lock">3 Receipt & unlock</span></div>
+      <div class="card col" style="gap:14px">
+        <h3>Choose payment method</h3>
+        <div class="row">
+          <div class="card grow col" style="gap:4px;border:2px solid #0284C7;background:#F0F9FF;padding:16px"><b>GCash</b><span class="small muted">0917 123 4567 · MedNotes Pub.</span></div>
+          <div class="card grow col" style="gap:4px;padding:16px"><b>Maya</b><span class="small muted">0918 765 4321</span></div>
+          <div class="card grow col" style="gap:4px;padding:16px"><b>Bank transfer</b><span class="small muted">BDO · 0012 3456 7890</span></div>
+        </div>
+      </div>
+      <div class="card col" style="gap:14px">
+        <h3>Upload proof of payment</h3>
+        <div class="drop">{{UPLOAD}}<b>Drop your screenshot here, or browse</b><span class="small">JPG, PNG or PDF · max 10 MB</span></div>
+        <div class="row"><div class="field grow"><label>Reference number</label><div class="input filled">GC-8821 4407 3312</div></div><div class="field grow"><label>Amount sent</label><div class="input filled">₱450.00</div></div></div>
+      </div>
+      <div class="btn btn-primary" style="height:52px;font-size:16px">Submit payment for confirmation</div>
+    </div>
+    <div class="card col" style="width:360px;gap:16px;align-self:flex-start">
+      <h3>Order summary</h3>
+      <div class="row"><div class="cover c5 thumb"></div><div class="col grow" style="gap:0"><b>Pharmacology Made Easy</b><span class="small muted">EPUB · 320 pages</span></div></div>
+      <div class="spread"><span class="muted">Subtotal</span><span>₱450.00</span></div>
+      <div class="spread" style="border-top:1px solid #E2E8F0;padding-top:12px"><b>Total</b><b style="color:#059669;font-size:20px">₱450.00</b></div>
+      <div class="small muted">The publisher checks every payment by hand. This usually takes less than 24 hours.</div>
+    </div>
+  </div>
+</div>
+
+<!-- 6. My files / purchases -->
+<div class="screen" data-name="Web / My files">
+  <div class="topbar">
+    <div class="logo">{{LOGO}}<span>Med<b>Notes</b> <i>E-Library</i></span></div>
+    <div class="nav"><span>Library</span><span class="on">My files</span><span>Devices</span></div>
+    <div class="grow"></div>{{BELL}}<div class="avatar">JD</div>
+  </div>
+  <div style="padding:32px 40px;display:flex;flex-direction:column;gap:20px">
+    <h1>My files</h1>
+    <div class="card row" style="background:#FFFBEB;border-color:#FDE68A;gap:14px">{{CLOCK:24}}<div class="col grow" style="gap:2px"><b>1 payment is waiting for the publisher's confirmation</b><span class="small muted">We'll notify you and email your receipt as soon as it's confirmed.</span></div></div>
+    <div class="table">
+      <div class="tr th"><span style="width:420px">File</span><span style="width:160px">Paid</span><span style="width:220px">Status</span><span style="width:160px">Receipt</span><span class="grow"></span></div>
+      <div class="tr"><div class="row" style="width:420px"><div class="cover c5 thumb"></div><div class="col" style="gap:0"><b>Pharmacology Made Easy</b><span class="small muted">EPUB · Ref GC-8821 4407 3312</span></div></div><span style="width:160px">₱450.00</span><span style="width:220px"><span class="badge b-pending">{{CLOCK}} Pending confirmation</span></span><span style="width:160px" class="muted">—</span><span class="grow"></span><span class="btn btn-sm" style="color:#94A3B8">Locked</span></div>
+      <div class="tr"><div class="row" style="width:420px"><div class="cover c4 thumb"></div><div class="col" style="gap:0"><b>Pathology Notes Vol. 1</b><span class="small muted">Word · Ref GC-7710 2290 1145</span></div></div><span style="width:160px">₱250.00</span><span style="width:220px"><span class="badge b-ok">{{CHECK}} Confirmed · Unlocked</span></span><span style="width:160px;color:#0284C7;font-weight:600" class="row">{{RECEIPT}} OR-000231</span><span class="grow"></span><span class="btn btn-sm btn-primary">Open</span></div>
+      <div class="tr"><div class="row" style="width:420px"><div class="cover c2 thumb"></div><div class="col" style="gap:0"><b>Anatomy Atlas: Upper Limb</b><span class="small muted">PDF · Ref BDO-55102</span></div></div><span style="width:160px">₱350.00</span><span style="width:220px"><span class="badge b-ok">{{CHECK}} Confirmed · Unlocked</span></span><span style="width:160px;color:#0284C7;font-weight:600" class="row">{{RECEIPT}} OR-000198</span><span class="grow"></span><span class="btn btn-sm btn-primary">Open</span><span class="btn btn-sm">Download</span></div>
+      <div class="tr"><div class="row" style="width:420px"><div class="cover c6 thumb"></div><div class="col" style="gap:0"><b>Microbiology Slides</b><span class="small muted">PowerPoint · Ref MY-99031</span></div></div><span style="width:160px">₱200.00</span><span style="width:220px"><span class="badge b-red">Rejected: amount mismatch</span></span><span style="width:160px" class="muted">—</span><span class="grow"></span><span class="btn btn-sm">Resubmit proof</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- 7. Reader -->
+<div class="screen" data-name="Web / Reader (EPUB)" style="background:#F1F5F9">
+  <div class="topbar" style="gap:16px"><span class="row" style="font-weight:600">{{BACK}} Pharmacology Made Easy</span><div class="grow"></div><span class="muted">Chapter 2 of 23</span><span class="btn btn-sm">Aa</span><span class="btn btn-sm">Contents</span><span class="badge b-lock">Read online only</span></div>
+  <div style="flex:1;display:flex;justify-content:center;padding:32px;position:relative">
+    <div class="card col" style="width:760px;padding:56px 72px;gap:18px;font-size:17px;line-height:30px;position:relative;overflow:hidden">
+      <div class="muted small" style="letter-spacing:1px">CHAPTER 2</div>
+      <h1>Autonomic Nervous System Drugs</h1>
+      <p>Cholinergic agonists mimic acetylcholine at muscarinic and nicotinic receptors. Direct-acting agents such as bethanechol stimulate bladder and GI smooth muscle…</p>
+      <div class="card" style="background:#F0FDF4;border-color:#BBF7D0;font-size:15px;line-height:24px"><b style="color:#047857">Mnemonic · SLUDGE</b><br/>Salivation, Lacrimation, Urination, Defecation, GI upset, Emesis: signs of cholinergic excess.</div>
+      <p>Anticholinergics (atropine, scopolamine) block muscarinic receptors and are used for bradycardia, pre-op secretions and motion sickness…</p>
+      <div style="position:absolute;left:120px;top:300px;transform:rotate(-24deg);color:#0284C7;opacity:0.08;font-size:30px;font-weight:700;white-space:nowrap">juan.delacruz@email.com · Device: Windows PC</div>
+    </div>
+  </div>
+  <div style="height:56px;background:#FFFFFF;border-top:1px solid #E2E8F0;display:flex;align-items:center;padding:0 40px;gap:16px"><span class="small muted">34%</span><div style="flex:1;height:6px;background:#E2E8F0;border-radius:3px"><div style="width:34%;height:6px;border-radius:3px;background:linear-gradient(90deg,#0284C7,#059669)"></div></div><span class="small muted">Page 109 / 320</span></div>
+</div>
+
+<!-- 8. Devices -->
+<div class="screen" data-name="Web / Devices">
+  <div class="topbar">
+    <div class="logo">{{LOGO}}<span>Med<b>Notes</b> <i>E-Library</i></span></div>
+    <div class="nav"><span>Library</span><span>My files</span><span class="on">Devices</span></div>
+    <div class="grow"></div>{{BELL}}<div class="avatar">JD</div>
+  </div>
+  <div style="padding:32px 40px;display:flex;flex-direction:column;gap:20px;width:900px">
+    <div class="col" style="gap:4px"><h1>Your devices</h1><div class="muted">Your plan allows 1 computer (desktop or laptop) and 1 phone. Removing a device signs it out. You can swap devices twice every 30 days.</div></div>
+    <div class="device"><div class="devicon">{{LAPTOP}}</div><div class="col grow" style="gap:2px"><div class="row"><b>Windows PC · Chrome</b><span class="badge b-blue">This device</span></div><span class="small muted">Computer slot · Cebu City · active now</span></div><span class="badge b-blue">1/1 Computer</span></div>
+    <div class="device"><div class="devicon g">{{PHONE}}</div><div class="col grow" style="gap:2px"><b>Samsung Galaxy A54 · MedNotes app</b><span class="small muted">Phone slot · last active 2 hours ago</span></div><span class="badge b-ok">1/1 Phone</span><span class="btn btn-sm btn-danger">Remove</span></div>
+    <div class="card row" style="background:#F0F9FF;border-color:#BAE6FD;gap:12px">{{SHIELD}}<span class="small">Need another device? Ask the publisher. Admins can grant extra slots or reset your devices.</span></div>
+    <div class="card col" style="gap:10px"><h3>Device swaps used</h3><div style="height:8px;background:#E2E8F0;border-radius:4px"><div style="width:50%;height:8px;background:#0284C7;border-radius:4px"></div></div><span class="small muted">1 of 2 swaps used this month · resets Nov 1</span></div>
+  </div>
+</div>
+
+<!-- 9. Device limit reached -->
+<div class="screen" data-name="Web / Device limit reached" style="background:#F1F5F9">
+  <div class="overlay">
+    <div class="modal" style="width:520px">
+      <div class="devicon" style="width:64px;height:64px">{{LAPTOP:32}}</div>
+      <h2>Computer limit reached</h2>
+      <div class="muted">Your account is already signed in on another computer. Sign that one out to use this one. You can swap devices twice every 30 days.</div>
+      <div class="device" style="padding:14px"><div class="devicon">{{LAPTOP}}</div><div class="col grow" style="gap:0"><b>MacBook Air · Safari</b><span class="small muted">Last active Oct 12 · Manila</span></div></div>
+      <div class="row"><div class="btn grow">Cancel</div><div class="btn btn-primary grow">Sign out other computer</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- 10. Receipt -->
+<div class="screen" data-name="Web / Receipt" style="align-items:center;justify-content:center;background:#F1F5F9">
+  <div class="card col" style="width:520px;padding:36px;gap:16px">
+    <div class="spread"><div class="logo">{{LOGO}}<span>Med<b>Notes</b> <i>E-Library</i></span></div><span class="badge b-ok">{{CHECK}} PAID</span></div>
+    <div class="col" style="gap:2px"><h2>Official receipt</h2><span class="muted small">OR-000231 · Issued Oct 14, 2026 · 3:42 PM</span></div>
+    <div class="col" style="gap:8px;border-top:1px dashed #CBD5E1;border-bottom:1px dashed #CBD5E1;padding:16px 0">
+      <div class="spread"><span class="muted">Billed to</span><span>Juan Dela Cruz</span></div>
+      <div class="spread"><span class="muted">Item</span><span>Pathology Notes Vol. 1 (Word)</span></div>
+      <div class="spread"><span class="muted">Payment</span><span>GCash · GC-7710 2290 1145</span></div>
+      <div class="spread"><span class="muted">Confirmed by</span><span>MedNotes Publishing</span></div>
+    </div>
+    <div class="spread"><b>Total paid</b><b style="font-size:24px;color:#059669">₱250.00</b></div>
+    <div class="row"><div class="btn grow">Download PDF</div><div class="btn btn-primary grow">Open file</div></div>
+  </div>
+</div>
+<!-- 11. Forgot password -->
+<div class="screen" data-name="Web / Forgot password" style="align-items:center;justify-content:center;background:linear-gradient(180deg,#F0F9FF,#ECFDF5)">
+  <div class="card col" style="width:440px;padding:36px;gap:18px">
+    <div class="logo">{{LOGO}}<span>Med<b>Notes</b> <i>E-Library</i></span></div>
+    <div class="col" style="gap:4px"><h2>Reset your password</h2><div class="muted">Enter your email and we'll send you a reset link.</div></div>
+    <div class="field"><label>Email</label><div class="input filled">juan.delacruz@email.com</div></div>
+    <div class="btn btn-primary btn-block">Send reset link</div>
+    <div class="muted" style="text-align:center">Remembered it? <b style="color:#0284C7">Back to sign in</b></div>
+  </div>
+</div>
+
+<!-- 12. Account settings -->
+<div class="screen" data-name="Web / Account settings">
+  <div class="topbar">
+    <div class="logo">{{LOGO}}<span>Med<b>Notes</b> <i>E-Library</i></span></div>
+    <div class="nav"><span>Library</span><span>My files</span><span>Devices</span></div>
+    <div class="grow"></div>{{BELL}}<div class="avatar">JD</div>
+  </div>
+  <div style="padding:32px 40px;display:flex;gap:32px">
+    <div class="col" style="width:240px;gap:4px">
+      <h1 style="margin-bottom:12px">Account</h1>
+      <div class="side-link" style="padding:10px 14px;border-radius:10px;background:#E0F2FE;color:#0369A1;font-weight:600">Profile</div>
+      <div style="padding:10px 14px;color:#475569">Sign-in & security</div>
+      <div style="padding:10px 14px;color:#475569">Purchases & receipts</div>
+      <div style="padding:10px 14px;color:#475569">Notifications</div>
+      <div style="padding:10px 14px;color:#E11D48">Sign out</div>
+    </div>
+    <div class="col grow" style="gap:20px;max-width:760px">
+      <div class="card col" style="gap:16px">
+        <h3>Profile</h3>
+        <div class="row" style="gap:16px"><div class="avatar" style="width:64px;height:64px;border-radius:32px;font-size:20px">JD</div><span class="btn btn-sm">Change photo</span></div>
+        <div class="row"><div class="field grow"><label>Full name</label><div class="input filled">Juan Dela Cruz</div></div><div class="field grow"><label>Mobile number</label><div class="input filled">0917 555 0192</div></div></div>
+        <div class="field"><label>School / profession (optional)</label><div class="input filled">BS Nursing · 4th year</div></div>
+      </div>
+      <div class="card col" style="gap:14px">
+        <h3>Sign-in methods</h3>
+        <div class="spread"><span class="row">{{GOOGLE}} Google · juan.delacruz@email.com</span><span class="badge b-ok">Connected</span></div>
+        <div class="spread"><span class="row">{{FB}} Facebook</span><span class="btn btn-sm">Connect</span></div>
+        <div class="spread"><span>Email & password</span><span class="btn btn-sm">Change password</span></div>
+      </div>
+      <div class="card col" style="gap:14px">
+        <h3>Notifications</h3>
+        <div class="spread"><span>Email me when a payment is confirmed or rejected</span><span class="toggle on"></span></div>
+        <div class="spread"><span>New files in labels I follow</span><span class="toggle"></span></div>
+      </div>
+      <div class="row" style="justify-content:flex-end"><div class="btn">Cancel</div><div class="btn btn-primary">Save changes</div></div>
+    </div>
+  </div>
+</div>
