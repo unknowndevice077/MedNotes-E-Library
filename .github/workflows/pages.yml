@@ -35,8 +35,8 @@ jobs:
           VITE_BASE: /${{ github.event.repository.name }}/
         run: |
           npm run build
-          # GitHub Pages has no SPA rewrites: serve the app for unknown paths too (e.g. /privacy).
-          cp dist/index.html dist/404.html
+          # Real pages (HTTP 200) for app routes + pre-rendered privacy/data-deletion; 404.html for the rest.
+          node scripts/prerender.mjs
           touch dist/.nojekyll
 
       - uses: actions/configure-pages@v5

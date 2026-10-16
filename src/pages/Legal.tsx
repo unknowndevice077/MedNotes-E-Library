@@ -5,8 +5,13 @@ import { Logo } from '../components/ui';
 
 const UPDATED = 'October 16, 2026';
 
+type Contact = { store_name: string; support_email: string; business: string };
+let preset: Contact | null = null;
+/** Used by the build-time prerender (scripts/prerender.mjs) so the static HTML includes the contact email. */
+export const presetContact = (c: Contact) => { preset = c; };
+
 function useContact() {
-  const [c, setC] = useState<{ store_name: string; support_email: string; business: string } | null>(null);
+  const [c, setC] = useState<Contact | null>(preset);
   useEffect(() => { supabase.rpc('public_contact').then(({ data }) => data && setC(data)); }, []);
   return c ?? { store_name: 'MedNotes E-Library', support_email: '', business: 'MedNotes Publishing' };
 }
