@@ -39,19 +39,30 @@ function AuthShell({ children, withHero = true }: { children: ReactNode; withHer
   );
 }
 
-/** Google / Facebook buttons, shown only for providers switched on in Supabase, plus the "or" divider. */
+/** Google / Facebook buttons. Always visible; if a provider isn't switched on in Supabase yet, a friendly note replaces the raw error. */
 function Providers({ divider }: { divider: string }) {
   const { signInWithProvider } = useAuth();
   const [on, setOn] = useState<{ google: boolean; facebook: boolean } | null>(null);
-  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState<'google' | 'facebook' | null>(null);
+  const [note, setNote] = useState('');
   useEffect(() => { enabledProviders().then(setOn); }, []);
-  if (!on || (!on.google && !on.facebook)) return null;
-  const go = (p: 'google' | 'facebook') => signInWithProvider(p).catch((e) => setErr(errMsg(e)));
+  async function go(p: 'google' | 'facebook') {
+    const name = p === 'google' ? 'Google' : 'Facebook';
+    setNote('');
+    if (on && !on[p]) return setNote(`${name} sign-in isn't switched on yet. Please use your email for now.`);
+    setBusy(p);
+    try { await signInWithProvider(p); }
+    catch (e) { setNote(errMsg(e).includes('not enabled') ? `${name} sign-in isn't switched on yet. Please use your email for now.` : errMsg(e)); setBusy(null); }
+  }
   return (
     <>
-      {on.google && <button type="button" className="btn btn-block" onClick={() => go('google')}><Google /> Continue with Google</button>}
-      {on.facebook && <button type="button" className="btn btn-block" onClick={() => go('facebook')}><Facebook /> Continue with Facebook</button>}
-      {err && <span className="error">{err}</span>}
+      <button type="button" className="btn btn-block btn-social" disabled={!!busy} onClick={() => go('google')}>
+        {busy === 'google' ? <span className="spinner sm" /> : <Google />} Continue with Google
+      </button>
+      <button type="button" className="btn btn-block btn-social" disabled={!!busy} onClick={() => go('facebook')}>
+        {busy === 'facebook' ? <span className="spinner sm" /> : <Facebook />} Continue with Facebook
+      </button>
+      {note && <div className="note note-amber fade-in" role="status">{note}</div>}
       <div className="divider">{divider}</div>
     </>
   );
