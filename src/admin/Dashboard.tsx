@@ -5,7 +5,8 @@ import { ago, initials, peso, pesoShort } from '../lib/format';
 import type { Purchase } from '../lib/types';
 import { AdminLayout } from '../components/Layouts';
 import RevenueChart from '../components/RevenueChart';
-import { Loading } from '../components/ui';
+import {} from '../components/ui';
+import { DashboardSkeleton } from '../components/Skeletons';
 
 interface Stats {
   revenue_month: number; revenue_last_month: number; pending: number; oldest_pending: string | null;
@@ -24,7 +25,7 @@ export default function Dashboard() {
     ]);
     return { stats: must(s) as Stats, pending: must(p) as Purchase[], revenue: must(rev) as { amount: number; confirmed_at: string }[], users: must(users) as { id: string; full_name: string; email: string; provider: string; created_at: string }[] };
   });
-  if (loading || !data) return <AdminLayout title="Dashboard"><Loading /></AdminLayout>;
+  if (loading || !data) return <AdminLayout title="Dashboard"><DashboardSkeleton /></AdminLayout>;
   const { stats, pending, revenue, users } = data;
   const change = stats.revenue_last_month ? Math.round(((stats.revenue_month - stats.revenue_last_month) / stats.revenue_last_month) * 100) : null;
   const kinds = Object.entries(stats.files_by_kind).map(([k, n]) => `${k.toUpperCase()} ${n}`).join(' · ');

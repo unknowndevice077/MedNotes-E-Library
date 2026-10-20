@@ -53,19 +53,30 @@ describe('clients', () => {
     assert.equal(pr.length, 0);
   });
   test("can't make themselves admin or change their own limits", async () => {
-    for (const patch of [{ role: 'admin' }, { computer_slots: 9 }, { suspended: false, admin_note: 'x' }]) {
+    for (const patch of [{ role: 'admin' }, { computer_slots: 9 }, { suspended: false, admin_note: 'x' }, { can_add_devices: true },
+      { email: 'x@evil.test' }, { created_at: '2020-01-01T00:00:00Z' }, { provider: 'google' }]) {
       const { error } = await other.client.from('profiles').update(patch).eq('id', other.id);
       assert.ok(error, `blocked: ${JSON.stringify(patch)}`);
     }
     const { data } = await service.from('profiles').select('role').eq('id', other.id).single();
     assert.equal(data.role, 'client');
   });
-  test('can rename themselves', async () => {
-    const { error } = await other.client.from('profiles').update({ full_name: 'Renamed' }).eq('id', other.id);
+  test('can rename themselves and save their own preferences', async () => {
+    const { error } = await other.client.from('profiles').update({ full_name: 'Renamed', prefs: { readerTheme: 'sepia', textSize: 18 } }).eq('id', other.id);
     assert.ifError(error);
+    const { data } = await service.from('profiles').select('prefs').eq('id', other.id).single();
+    assert.deepEqual(data.prefs, { readerTheme: 'sepia', textSize: 18 });
+  });
+  test("can't read the admin email list or other users' limits", async () => {
+    const { data: s } = await other.client.from('settings').select('*').eq('id', 1).single();
+    assert.ok(s && !('admin_emails' in s), 'not on settings any more');
+    const { data: list } = await other.client.from('admin_allowlist').select('*');
+    assert.deepEqual(list, [], 'allowlist is admin-only');
+    assert.ok((await other.client.rpc('effective_limits', { p_user: buyer.id })).error, 'limits probe refused');
   });
   test("can't create a confirmed purchase or a receipt", async () => {
-    const bad = [{ status: 'confirmed' }, { receipt_no: 'OR-999999' }, { user_id: buyer.id }];
+    const bad = [{ status: 'confirmed' }, { receipt_no: 'OR-999999' }, { user_id: buyer.id }, { confirmed_at: new Date().toISOString() },
+      { decided_by: other.id }, { note_to_buyer: 'Approved by admin' }];
     for (const extra of bad) {
       const { error } = await other.client.from('purchases').insert({ user_id: other.id, file_id: XLSX, amount: 1, ...extra });
       assert.ok(error, `blocked: ${JSON.stringify(extra)}`);
@@ -99,6 +110,15 @@ describe('storage', () => {
     assert.ok((await other.client.storage.from('proofs').upload(`${buyer.id}/evil.png`, png, { contentType: 'image/png' })).error);
     assert.ok((await buyer.client.storage.from('proofs').download(`${other.id}/t.png`)).error, "can't read someone else's proof");
     assert.ifError((await admin.client.storage.from('proofs').download(`${other.id}/t.png`)).error);
+  });
+  test('uploads are limited to sensible types and sizes', async () => {
+    const exe = Buffer.from('4d5a900003000000', 'hex');
+    assert.ok((await other.client.storage.from('proofs').upload(`${other.id}/x.exe`, exe, { contentType: 'application/x-msdownload' })).error, 'no executables as proof');
+    const big = Buffer.alloc(11 * 1024 * 1024, 1);
+    assert.ok((await other.client.storage.from('proofs').upload(`${other.id}/big.png`, big, { contentType: 'image/png' })).error, 'max 10 MB proof');
+    const png = Buffer.from('89504e470d0a1a0a', 'hex');
+    assert.ok((await other.client.storage.from('branding').upload('logo.png', png, { contentType: 'image/png' })).error, 'only admins brand the site');
+    assert.ifError((await admin.client.storage.from('branding').upload(`test-${Date.now()}.png`, png, { contentType: 'image/png' })).error);
   });
   test('covers are public', async () => {
     const r = await fetch(service.storage.from('covers').getPublicUrl('anatomy.png').data.publicUrl);
@@ -208,16 +228,26 @@ describe('read-file (encrypted delivery)', () => {
 
 describe('accounts', () => {
   test('allow-listed email becomes admin on sign-up; others stay clients', async () => {
-    const { data: s } = await service.from('settings').select('admin_emails').eq('id', 1).single();
     const email = `test-allow-${Date.now()}@mednotes.test`;
-    await service.from('settings').update({ admin_emails: [...s.admin_emails, email] }).eq('id', 1);
+    assert.ifError((await admin.client.from('admin_allowlist').insert({ email })).error);
     const { data } = await service.auth.admin.createUser({ email, password: 'x' + Date.now(), email_confirm: true });
+    const late = await makeUser('late');
     try {
       assert.equal((await service.from('profiles').select('role').eq('id', data.user.id).single()).data.role, 'admin');
+      assert.equal((await service.from('profiles').select('role').eq('id', late.id).single()).data.role, 'client');
+      // adding an existing account's email promotes it right away
+      await admin.client.from('admin_allowlist').insert({ email: late.email });
+      assert.equal((await service.from('profiles').select('role').eq('id', late.id).single()).data.role, 'admin');
     } finally {
       await service.auth.admin.deleteUser(data.user.id);
-      await service.from('settings').update({ admin_emails: s.admin_emails }).eq('id', 1);
+      await dropUser(late);
+      await service.from('admin_allowlist').delete().in('email', [email, late.email]);
     }
+  });
+  test('anyone can read the site look (for the sign-in page), nothing else', async () => {
+    const { data, error } = await anon().rpc('get_public_theme');
+    assert.ifError(error);
+    assert.deepEqual(Object.keys(data).sort(), ['store_name', 'theme']);
   });
   test('delete my account removes the user and their data; admins are refused', async () => {
     const u = await makeUser('bye');

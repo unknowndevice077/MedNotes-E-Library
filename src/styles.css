@@ -221,7 +221,7 @@ textarea.input { height: 96px; padding: 12px 14px; resize: vertical; }
 .btn { transition: transform .12s ease, box-shadow .15s ease, filter .15s ease, background .15s ease; }
 .btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(15, 23, 42, .12); }
 .btn:active:not(:disabled) { transform: translateY(0) scale(.98); box-shadow: none; }
-.btn-primary:hover:not(:disabled) { box-shadow: 0 8px 20px rgba(2, 132, 199, .3); }
+.btn-primary:hover:not(:disabled) { box-shadow: 0 8px 20px color-mix(in srgb, var(--blue) 30%, transparent); }
 .btn-social svg { transition: transform .2s ease; }
 .btn-social:hover:not(:disabled) svg { transform: scale(1.12); }
 .chip { transition: background .15s, color .15s, border-color .15s, transform .12s; }

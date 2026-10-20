@@ -4,8 +4,9 @@ import { must, useLoad } from '../lib/useLoad';
 import { bytes, errMsg, pesoShort } from '../lib/format';
 import { KIND_LABEL, KIND_TAG, kindFromName, type FileKind, type LibFile } from '../lib/types';
 import { AdminLayout } from '../components/Layouts';
-import { Loading, Modal, Toggle, useConfirm, useIsMobile, useToast } from '../components/ui';
+import { Modal, Toggle, useConfirm, useIsMobile, useToast } from '../components/ui';
 import { Search, Upload } from '../components/Icons';
+import { RowsSkeleton } from '../components/Skeletons';
 
 const ACCEPT = '.epub,.pdf,.mp4,.webm,.mov,.png,.jpg,.jpeg,.webp,.gif,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.csv';
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60) || 'file';
@@ -47,7 +48,7 @@ export default function AdminFiles() {
         <button className={`chip${kind === 'all' ? ' on' : ''}`} onClick={() => setKind('all')}>All {data?.files.length ?? ''}</button>
         {(['epub', 'pdf', 'video', 'image', 'docx', 'pptx', 'xlsx'] as FileKind[]).map((k) => <button key={k} className={`chip${kind === k ? ' on' : ''}`} onClick={() => setKind(k)}>{KIND_LABEL[k]}</button>)}
       </div>
-      {loading ? <Loading /> : (
+      {loading ? <RowsSkeleton rows={8} /> : (
         <div className="table rtable">
           <div className="tr th hide-sm"><span style={{ width: 340 }}>Name</span><span style={{ width: 130 }}>Label</span><span style={{ width: 80 }}>Type</span><span style={{ width: 90 }}>Price</span><span style={{ width: 60 }}>Sales</span><span style={{ width: 130 }}>Status</span><span className="grow" /></div>
           {shown.map((f) => (

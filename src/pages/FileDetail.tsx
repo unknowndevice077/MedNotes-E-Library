@@ -10,8 +10,9 @@ import { fetchSecureFile } from '../lib/secureFile';
 import { KIND_LABEL, KIND_TAG, type LibFile, type Purchase } from '../lib/types';
 import { ClientLayout } from '../components/Layouts';
 import { publisherOf } from '../lib/watermark';
-import { Cover, Empty, Loading, useIsMobile, useToast } from '../components/ui';
+import { Cover, Empty, useIsMobile, useToast } from '../components/ui';
 import { Check, Clock, Download, Eye, Laptop, Lock, Phone, Receipt, Shield } from '../components/Icons';
+import { DetailSkeleton } from '../components/Skeletons';
 
 /** Paid → publisher confirms → unlocked. */
 function Timeline({ p }: { p?: Purchase }) {
@@ -55,7 +56,7 @@ export default function FileDetail() {
   }, [id]);
   useEffect(() => { if (isNative && id) isSaved(id).then(setSaved); }, [id]);
 
-  if (loading) return <ClientLayout back title="File details"><Loading /></ClientLayout>;
+  if (loading) return <ClientLayout back title="File details"><div className="page"><DetailSkeleton /></div></ClientLayout>;
   if (error || !data) return <ClientLayout back title="File details"><div className="page"><Empty title="File not found">{error}</Empty></div></ClientLayout>;
 
   const { file, purchases, related } = data;

@@ -27,19 +27,40 @@ Local test accounts (seed only, they don't exist anywhere else):
 | Client | `juan@mednotes.test` | `MedNotesReader#2026` |
 
 `npm run seed:samples` regenerates the sample EPUB/PDF/DOCX/PPTX/XLSX/MP4 files (the MP4 needs ffmpeg on PATH).
+The demo buyers from `supabase/seed_demo.sql` (e.g. `maria.reyes@mednotes.test`) use the password `DemoBuyer#2026`.
+
+### Passwords
+
+Buyers who sign up with their email choose their own password; Supabase stores only a salted hash, so nobody
+(including the publisher) can read it. Forgotten passwords are reset by email (**Forgot password?**).
+Google/Facebook buyers have no password until they add one under **Account → Add a password**; changing a password
+asks for the current one first.
 
 ## How the rules are enforced
 
 | Rule | Where |
 |---|---|
-| Only confirmed buyers (or admins) can open a file | Storage RLS policy `files_read`: signed links are refused otherwise |
-| 1 computer + 1 phone, swaps per 30 days, admin overrides | `register_device` / `swap_device` / `remove_device` RPCs and `effective_limits()` |
-| Reader requires a registered device | `device_ok()` RPC checked before a signed link is created |
+| Files are never downloadable | No storage read policy on `files`; bytes only come from the `read-file` edge function, encrypted per chunk for the reader's session key |
+| Only confirmed buyers (or admins) on a registered device can open a file | `read-file` checks the purchase, `device_ok()` and suspension on every chunk |
+| 1 computer + 1 phone, swaps per 30 days, admin overrides | `register_device` / `swap_device` / `remove_device` RPCs (`effective_limits()` is internal only) |
 | Receipts are sequential (`OR-000001`…) | `confirm_purchase()` locks `settings` and increments `receipt_next` |
-| Clients can't change roles / limits | `guard_profile_update` trigger |
+| Buyers can only edit their name, avatar and preferences | `guard_profile_update` trigger (allowlist of columns) |
+| Buyers can't fake a confirmation | `purchases_insert` policy: pending only, no receipt, decider, date or admin note |
+| Admin emails are private | `admin_allowlist` table, admins only |
+| Uploads are limited | proofs ≤ 10 MB images/PDF; covers, payment QRs and branding ≤ 5 MB images |
 | Proofs of payment are private | `proofs` bucket, readable by the buyer and admins only |
+| Offline copies stay in the app | AES-GCM in the app's private storage; Android backup and device transfer are off |
 
-The watermark, disabled right-click and screenshot blocking (Android `FLAG_SECURE`) discourage copying, but nothing can stop a determined person with a second camera. That's why every view carries the buyer's email.
+The publisher's watermark (Admin → Restrictions) is drawn into PDF pages and images and laid over every other page;
+right-click, save/print shortcuts and DevTools are blocked in the browser and screenshots are blocked in the Android
+app (`FLAG_SECURE`). These discourage copying, but nothing can stop a determined person with a second camera.
+
+## Admin
+
+- **Receipts**: every issued receipt (search, view, print) and the receipt design with a live sample.
+- **Appearance**: store name, logo, colours, background (plain, gradient or photo), sign-in photo, welcome text,
+  corner roundness and font. Applied to the website and the app; features don't change.
+- **Restrictions**: device limits, watermark text, screenshot blocking, offline saving.
 
 ## GCash payments
 

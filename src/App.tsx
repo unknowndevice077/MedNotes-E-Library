@@ -2,11 +2,14 @@ import { lazy, Suspense, useEffect, type ReactNode } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './lib/auth';
 import { isNative } from './lib/platform';
-import { ConfirmProvider, Loading, ToastProvider } from './components/ui';
+import { useApplyPrefs } from './lib/prefs';
+import { ThemeProvider } from './lib/theme';
+import { ConfirmProvider, ToastProvider } from './components/ui';
 import DeviceGate from './components/DeviceGate';
 import { ForgotPassword, ResetPassword, SignIn, SignUp } from './pages/Auth';
 import Library from './pages/Library';
 import { DataDeletion, Privacy } from './pages/Legal';
+import { AppShellSkeleton } from './components/Skeletons';
 
 // Everything past the library loads on demand; the chunks are warmed up in the background after sign-in.
 const pages = {
@@ -41,12 +44,14 @@ const AdminUsers = lazy(() => import('./admin/Users').then((m) => ({ default: m.
 const AdminUserDetail = lazy(() => import('./admin/Users').then((m) => ({ default: m.AdminUserDetail })));
 const AdminRestrictions = lazy(() => import('./admin/Restrictions').then((m) => ({ default: m.AdminRestrictions })));
 const AdminSettings = lazy(() => import('./admin/Restrictions').then((m) => ({ default: m.AdminSettings })));
+const AdminReceipts = lazy(() => import('./admin/Receipts'));
+const AdminAppearance = lazy(() => import('./admin/Appearance'));
 
 function RequireAuth({ children, admin }: { children: ReactNode; admin?: boolean }) {
   const { loading, session, profile, online } = useAuth();
   useEffect(() => { if (session) prefetchPages(); }, [session]);
   const loc = useLocation();
-  if (loading) return <Loading label="Loading MedNotes…" />;
+  if (loading) return <AppShellSkeleton />;
   if (!session) return <Navigate to="/sign-in" replace state={{ from: loc.pathname }} />;
   // In the app without internet, only saved files are available.
   if (isNative && !online && !/^\/(saved|read)/.test(loc.pathname)) return <Navigate to="/saved" replace />;
@@ -57,12 +62,15 @@ function RequireAuth({ children, admin }: { children: ReactNode; admin?: boolean
 /** After sign-in: admins land on the dashboard (web), everyone else on the library. */
 function Home() {
   const { profile } = useAuth();
-  return <Navigate to={profile?.role === 'admin' && !isNative ? '/admin' : '/library'} replace />;
+  const start = profile?.prefs?.startPage === 'my-files' ? '/my-files' : '/library';
+  return <Navigate to={profile?.role === 'admin' && !isNative ? '/admin' : start} replace />;
 }
+
+function ApplyPrefs() { useApplyPrefs(); return null; }
 
 function PublicOnly({ children }: { children: ReactNode }) {
   const { loading, session, profile } = useAuth();
-  if (loading) return <Loading />;
+  if (loading) return <div className="auth" aria-busy="true" />;
   if (session) return <Navigate to={profile?.role === 'admin' && !isNative ? '/admin' : '/library'} replace />;
   return <>{children}</>;
 }
@@ -70,9 +78,11 @@ function PublicOnly({ children }: { children: ReactNode }) {
 export default function App() {
   return (
     <BrowserRouter basename={import.meta.env.BASE_URL}>
+      <ThemeProvider>
       <AuthProvider>
+        <ApplyPrefs />
         <ToastProvider><ConfirmProvider>
-          <Suspense fallback={<Loading />}>
+          <Suspense fallback={<AppShellSkeleton />}>
             <Routes>
               <Route path="/sign-in" element={<PublicOnly><SignIn /></PublicOnly>} />
               <Route path="/sign-up" element={<PublicOnly><SignUp /></PublicOnly>} />
@@ -98,6 +108,8 @@ export default function App() {
               <Route path="/admin/users/:id" element={<RequireAuth admin><AdminUserDetail /></RequireAuth>} />
               <Route path="/admin/restrictions" element={<RequireAuth admin><AdminRestrictions /></RequireAuth>} />
               <Route path="/admin/settings" element={<RequireAuth admin><AdminSettings /></RequireAuth>} />
+              <Route path="/admin/receipts" element={<RequireAuth admin><AdminReceipts /></RequireAuth>} />
+              <Route path="/admin/appearance" element={<RequireAuth admin><AdminAppearance /></RequireAuth>} />
 
               <Route path="/" element={<RequireAuth><Home /></RequireAuth>} />
               <Route path="*" element={<Navigate to="/" replace />} />
@@ -105,6 +117,7 @@ export default function App() {
           </Suspense>
         </ConfirmProvider></ToastProvider>
       </AuthProvider>
+      </ThemeProvider>
     </BrowserRouter>
   );
 }

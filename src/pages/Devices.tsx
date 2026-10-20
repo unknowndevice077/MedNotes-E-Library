@@ -6,8 +6,9 @@ import { must, useLoad } from '../lib/useLoad';
 import { ago } from '../lib/format';
 import type { Device } from '../lib/types';
 import { ClientLayout } from '../components/Layouts';
-import { Loading, useConfirm, useIsMobile, useToast } from '../components/ui';
+import { useConfirm, useIsMobile, useToast } from '../components/ui';
 import { Laptop, Phone, Shield } from '../components/Icons';
+import { DevicesSkeleton } from '../components/Skeletons';
 
 export default function Devices() {
   const { session, profile, settings } = useAuth();
@@ -69,7 +70,7 @@ export default function Devices() {
           {!mobile && <h1>Your devices</h1>}
           <span className="muted">Your plan allows {computers} computer{computers === 1 ? '' : 's'} and {phones} phone{phones === 1 ? '' : 's'}. On a computer, MedNotes runs in your web browser, so there's nothing to install. Offline reading is only in the mobile app. Removing a device signs it out.</span>
         </div>
-        {loading ? <Loading /> : <>{slot('computer', computers)}{slot('phone', phones)}</>}
+        {loading ? <DevicesSkeleton /> : <>{slot('computer', computers)}{slot('phone', phones)}</>}
         <div className="note note-blue"><Shield /><span>Need another device? Ask the publisher. Admins can grant extra slots or reset your devices.</span></div>
         <div className="card col" style={{ gap: 10 }}>
           <h3>Device swaps used</h3>

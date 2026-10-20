@@ -7,15 +7,26 @@ export interface Settings {
   computer_slots: number; phone_slots: number; swaps_per_30d: number; users_can_add_devices: boolean;
   allow_download_default: boolean; offline_saving: boolean; offline_days: number; watermark: boolean; block_screenshots: boolean;
   payment_methods: PaymentMethod[];
-  admin_emails: string[];
+  receipt_design: ReceiptDesign; theme: Theme;
 }
+export interface ReceiptDesign {
+  title?: string; accent?: string; showLogo?: boolean; address?: string; contact?: string; showTin?: boolean;
+  showReference?: boolean; showBuyerEmail?: boolean; footer?: string; paper?: 'card' | 'a5' | 'thermal';
+}
+export interface Theme {
+  primary?: string; accent?: string; ink?: string;
+  background?: { type: 'plain' | 'gradient' | 'image'; color?: string; color2?: string; image?: string; overlay?: number };
+  authImage?: string; logo?: string; storeName?: string; heroTitle?: string; heroText?: string;
+  radius?: number; font?: 'Inter' | 'Poppins' | 'Nunito' | 'Merriweather' | 'System';
+}
+export interface UserPrefs { readerTheme?: 'light' | 'sepia' | 'dark'; textSize?: number; reduceMotion?: boolean; startPage?: 'library' | 'my-files' }
 export interface PaymentMethod { name: string; account: string; holder: string; enabled: boolean; qr_path?: string | null; qr_payload?: string | null }
 
 export interface Profile {
   id: string; email: string; full_name: string; avatar_url: string | null; provider: string;
   role: 'client' | 'admin'; suspended: boolean;
   computer_slots: number | null; phone_slots: number | null; swaps_per_30d: number | null;
-  allow_download: boolean | null; can_add_devices: boolean | null; admin_note: string; created_at: string;
+  allow_download: boolean | null; can_add_devices: boolean | null; admin_note: string; created_at: string; prefs: UserPrefs;
 }
 
 export interface LibFile {

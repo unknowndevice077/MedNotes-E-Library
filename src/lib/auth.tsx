@@ -19,6 +19,8 @@ interface AuthState {
   settings: Settings | null;
   device: DeviceCheck | null;
   refresh: () => Promise<void>;
+  /** Update the signed-in profile locally after saving it (no reload). */
+  patchProfile: (p: Partial<Profile>) => void;
   recheckDevice: () => Promise<void>;
   signOut: () => Promise<void>;
   signInWithProvider: (p: 'google' | 'facebook') => Promise<void>;
@@ -107,6 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<AuthState>(() => ({
     loading, online, session, profile, settings, device,
+    patchProfile: (patch) => setProfile((cur) => (cur ? { ...cur, ...patch } : cur)),
     refresh: async () => { const { data } = await supabase.auth.getSession(); await load(data.session, { quiet: true }); },
     recheckDevice: async () => setDevice(await registerDevice()),
     signOut: async () => { await supabase.auth.signOut(); },

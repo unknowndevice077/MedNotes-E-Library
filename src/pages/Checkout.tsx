@@ -12,8 +12,9 @@ import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import { AppLauncher } from '@capacitor/app-launcher';
 import { ClientLayout, invalidateCounts } from '../components/Layouts';
-import { Empty, Loading, Thumb, useIsMobile, useToast } from '../components/ui';
+import { Empty, Thumb, useIsMobile, useToast } from '../components/ui';
 import { Clock, Download, Upload } from '../components/Icons';
+import { CheckoutSkeleton } from '../components/Skeletons';
 
 const MAX = 10 * 1024 * 1024;
 
@@ -37,7 +38,7 @@ export default function Checkout() {
     return f;
   }, [id]);
 
-  if (loading) return <ClientLayout back title="Pay"><Loading /></ClientLayout>;
+  if (loading) return <ClientLayout back title="Pay"><div className="page"><CheckoutSkeleton /></div></ClientLayout>;
   if (!file) return <ClientLayout back title="Pay"><div className="page"><Empty title="File not found" /></div></ClientLayout>;
 
   function pick(f?: File | null) {

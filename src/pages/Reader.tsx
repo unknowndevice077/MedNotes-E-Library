@@ -6,12 +6,14 @@ import { isNative } from '../lib/platform';
 import { errMsg } from '../lib/format';
 import { isSaved, listSaved, offlineExpired, readOffline } from '../lib/offline';
 import type { FileKind, LibFile } from '../lib/types';
-import { Loading } from '../components/ui';
+import {} from '../components/ui';
 import { fetchSecureFile } from '../lib/secureFile';
 import { guardMessage, useContentGuard } from '../lib/contentGuard';
 import { blockScreenshots } from '../lib/screenGuard';
 import { Back } from '../components/Icons';
 import { stampCanvas, useMark, usePublisher, type Mark } from '../lib/watermark';
+import { usePrefs } from '../lib/prefs';
+import { ReaderSkeleton } from '../components/Skeletons';
 
 type Source = { kind: FileKind; name: string; mime: string; blob?: Blob; url?: string };
 
@@ -54,8 +56,9 @@ export default function Reader() {
 
   const mark = useMark();
   const publisher = usePublisher();
+  const { prefs } = usePrefs();
   return (
-    <div className="reader" onContextMenu={(e) => e.preventDefault()}>
+    <div className={`reader rt-${prefs.readerTheme}`} style={{ '--reader-scale': prefs.textSize / 17 } as React.CSSProperties} onContextMenu={(e) => e.preventDefault()}>
       <div className="reader-top">
         <button onClick={() => nav(-1)} aria-label="Back" className="row" style={{ gap: 6, fontWeight: 600 }}><Back width={22} /><span style={{ maxWidth: '60vw', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{src?.name ?? 'Opening…'}</span></button>
         <span className="grow" />
@@ -64,7 +67,7 @@ export default function Reader() {
       </div>
       <div className="reader-body">
         {err ? <div className="page"><div className="note note-red">{err}</div></div>
-          : !src ? <Loading label={progress > 0 && progress < 1 ? `Opening securely… ${Math.round(progress * 100)}%` : 'Opening your file securely…'} />
+          : !src ? <ReaderSkeleton progress={progress} label={progress > 0 && progress < 1 ? `Opening securely… ${Math.round(progress * 100)}%` : 'Opening your file securely…'} />
           : <div className={guard ? 'guarded' : ''} aria-hidden={!!guard}><Render src={src} mark={mark} /></div>}
         {guard && (
           <div className="guard-cover" role="alert" onClick={() => window.focus()}>
@@ -96,9 +99,19 @@ function Render({ src, mark }: { src: Source; mark: Mark | null }) {
 }
 
 
+const EPUB_COLORS = { light: ['#ffffff', '#1f2937'], sepia: ['#f4ecd8', '#433422'], dark: ['#111827', '#e5e7eb'] } as const;
+
 function Epub({ blob }: { blob: Blob }) {
   const el = useRef<HTMLDivElement>(null);
-  const rendition = useRef<{ prev: () => void; next: () => void; display: (h?: string) => void } | null>(null);
+  const { prefs } = usePrefs();
+  const rendition = useRef<{ prev: () => void; next: () => void; display: (h?: string) => void; themes: { override: (k: string, v: string) => void } } | null>(null);
+  const prefsRef = useRef(prefs); prefsRef.current = prefs;
+  // page colour + text size follow the reader's own settings, even while a book is open
+  useEffect(() => {
+    const r = rendition.current; if (!r) return;
+    const [bg, fg] = EPUB_COLORS[prefs.readerTheme];
+    r.themes.override('background', bg); r.themes.override('color', fg); r.themes.override('font-size', `${prefs.textSize}px`);
+  }, [prefs.readerTheme, prefs.textSize]);
   const [toc, setToc] = useState<{ href: string; label: string }[]>([]);
   useEffect(() => {
     let book: { destroy: () => void } | null = null;
@@ -109,6 +122,8 @@ function Epub({ blob }: { blob: Blob }) {
       const r = b.renderTo(el.current!, { width: '100%', height: '100%', flow: 'scrolled-doc', allowScriptedContent: false });
       r.themes.default({ body: { 'font-family': 'Inter, system-ui, sans-serif !important', 'line-height': '1.7', 'font-size': '17px', padding: '0 8px', 'user-select': 'none' } });
       rendition.current = r;
+      const [bg, fg] = EPUB_COLORS[prefsRef.current.readerTheme];
+      r.themes.override('background', bg); r.themes.override('color', fg); r.themes.override('font-size', `${prefsRef.current.textSize}px`);
       await r.display();
       const nav = await b.loaded.navigation;
       setToc(nav.toc.map((t: { href: string; label: string }) => ({ href: t.href, label: t.label.trim() })));
@@ -146,7 +161,7 @@ function Pdf({ blob, mark }: { blob: Blob; mark: Mark | null }) {
     })();
     return () => { alive = false; loaded?.destroy(); };
   }, [blob]);
-  if (!doc) return <Loading />;
+  if (!doc) return <ReaderSkeleton progress={1} label="Preparing pages…" />;
   return <div style={{ padding: '0 12px 24px' }}>{Array.from({ length: doc.numPages }, (_, i) => <PdfPage key={i} doc={doc} n={i + 1} mark={mark} />)}</div>;
 }
 
@@ -209,7 +224,7 @@ function Docx({ blob }: { blob: Blob }) {
     import('docx-preview').then(({ renderAsync }) => renderAsync(blob, el.current!, undefined, { inWrapper: true, ignoreLastRenderedPageBreak: true }))
       .catch((e) => setErr('Could not render this Word file: ' + errMsg(e)));
   }, [blob]);
-  return <div style={{ padding: 12 }}>{err && <div className="note note-red">{err}</div>}<div ref={el} /></div>;
+  return <div style={{ padding: 12 }}>{err && <div className="note note-red">{err}</div>}<div ref={el} className="reader-zoom" /></div>;
 }
 
 function Sheet({ blob }: { blob: Blob }) {
@@ -225,7 +240,7 @@ function Sheet({ blob }: { blob: Blob }) {
   return (
     <div className="page">
       <div className="chips">{sheets.map((s, i) => <button key={s.name} className={`chip${i === active ? ' on' : ''}`} onClick={() => setActive(i)}>{s.name}</button>)}</div>
-      {sheets[active] && <div className="wm-box"><div className="sheet" style={{ overflow: 'auto' }} dangerouslySetInnerHTML={{ __html: sheets[active].html }} /></div>}
+      {sheets[active] && <div className="wm-box reader-zoom"><div className="sheet" style={{ overflow: 'auto' }} dangerouslySetInnerHTML={{ __html: sheets[active].html }} /></div>}
     </div>
   );
 }
@@ -249,7 +264,7 @@ function Slides({ blob }: { blob: Blob }) {
     })();
   }, [blob]);
   return (
-    <div className="page" style={{ maxWidth: 900 }}>
+    <div className="page reader-zoom" style={{ maxWidth: 900 }}>
       {slides.map((paras, i) => (
         <div key={i} className="slide col wm-box" style={{ gap: 10 }}>
           <b style={{ fontSize: 'clamp(18px, 3vw, 30px)' }}>{paras[0]}</b>

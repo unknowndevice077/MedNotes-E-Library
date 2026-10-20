@@ -155,6 +155,9 @@ for (const size of Object.keys(SIZES)) {
     add('admin', 'admin-restrictions', '/admin/restrictions');
     if (SIZES[size].width < 761) add('admin', 'admin-more-menu', '/admin', { before: clickText('More', '.tabbar button') });
     add('admin', 'admin-settings', '/admin/settings');
+    add('admin', 'admin-receipts', '/admin/receipts');
+    add('admin', 'admin-receipts-design', '/admin/receipts?tab=design');
+    add('admin', 'admin-appearance', '/admin/appearance');
 
     const pages = {};
     before(async () => {

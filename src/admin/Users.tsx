@@ -6,8 +6,9 @@ import { must, useLoad } from '../lib/useLoad';
 import { ago, errMsg, initials } from '../lib/format';
 import type { Device, LibFile, Profile, Purchase } from '../lib/types';
 import { AdminLayout } from '../components/Layouts';
-import { Loading, Modal, Toggle, useConfirm, useIsMobile, useToast } from '../components/ui';
+import { Modal, Toggle, useConfirm, useIsMobile, useToast } from '../components/ui';
 import { Laptop, Phone, Search } from '../components/Icons';
+import { FormSkeleton, RowsSkeleton } from '../components/Skeletons';
 
 export function AdminUsers() {
   const nav = useNavigate();
@@ -27,7 +28,7 @@ export function AdminUsers() {
 
   return (
     <AdminLayout title="Users" actions={<label className="search" style={{ width: mobile ? 160 : 320 }}><Search width={18} color="var(--slate-400)" /><input placeholder="Search by name or email" value={q} onChange={(e) => setQ(e.target.value)} /></label>}>
-      {loading ? <Loading /> : (
+      {loading ? <RowsSkeleton rows={8} /> : (
         <div className="table rtable">
           <div className="tr th hide-sm"><span style={{ width: 300 }}>User</span><span style={{ width: 100 }}>Sign-in</span><span style={{ width: 90 }}>Files</span><span style={{ width: 210 }}>Devices</span><span style={{ width: 120 }}>Status</span><span className="grow" /></div>
           {shown.map((u) => {
@@ -81,7 +82,7 @@ export function AdminUserDetail() {
     setO({ computer_slots: prof.computer_slots, phone_slots: prof.phone_slots, swaps_per_30d: prof.swaps_per_30d, can_add_devices: prof.can_add_devices, admin_note: prof.admin_note });
     return { prof, devices: must(d) as Device[], purchases: must(pu) as Purchase[] };
   }, [id]);
-  if (loading || !data || !o) return <AdminLayout title="User"><Loading /></AdminLayout>;
+  if (loading || !data || !o) return <AdminLayout title="User"><FormSkeleton /></AdminLayout>;
   const { prof, devices, purchases } = data;
 
   const act = async (fn: () => PromiseLike<{ error: { message: string } | null }>, ok: string) => {

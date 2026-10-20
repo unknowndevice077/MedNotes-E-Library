@@ -8,8 +8,9 @@ import { isNative } from '../lib/platform';
 import { listSaved } from '../lib/offline';
 import { KIND_LABEL, type Purchase } from '../lib/types';
 import { ClientLayout, invalidateCounts } from '../components/Layouts';
-import { Empty, Loading, StatusBadge, Thumb, useIsMobile, useToast } from '../components/ui';
+import { Empty, StatusBadge, Thumb, useIsMobile, useToast } from '../components/ui';
 import { Clock, Download, Receipt } from '../components/Icons';
+import { RowsSkeleton } from '../components/Skeletons';
 
 export default function MyFiles() {
   const { session } = useAuth();
@@ -55,7 +56,7 @@ export default function MyFiles() {
         </div>
         {pending > 0 && <div className="note note-amber"><Clock /><span><b>{pending} payment{pending > 1 ? 's are' : ' is'} waiting for the publisher's confirmation.</b> We'll update this page and your receipt appears here as soon as it's confirmed.</span></div>}
         {isNative && <Link to="/saved" className="note note-blue" style={{ alignItems: 'center' }}><Download /><b className="grow">Saved for offline · {savedCount} file{savedCount === 1 ? '' : 's'}</b>→</Link>}
-        {loading ? <Loading /> : error ? <Empty title="Couldn't load your files">{error}</Empty> : visible.length === 0 ? (
+        {loading ? <RowsSkeleton rows={4} /> : error ? <Empty title="Couldn't load your files">{error}</Empty> : visible.length === 0 ? (
           <Empty title={rows.length ? 'Nothing here' : 'No files yet'}>Browse the <Link to="/library" className="link">library</Link> and unlock your first file.</Empty>
         ) : mobile ? (
           <div className="col">

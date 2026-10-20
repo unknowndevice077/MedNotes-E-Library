@@ -9,6 +9,7 @@ import { ClientLayout } from '../components/Layouts';
 import { Cover, Empty, useIsMobile } from '../components/ui';
 import { ArrowRight, Book, Clock, Search } from '../components/Icons';
 import { PreviewCard, useReveal } from '../components/BookPreview';
+import { THEME_DEFAULTS, useTheme } from '../lib/theme';
 
 const KINDS: FileKind[] = ['epub', 'pdf', 'video', 'image', 'docx', 'pptx', 'xlsx'];
 type Status = Purchase['status'] | undefined;
@@ -88,6 +89,7 @@ export default function Library() {
   const first = profile?.full_name?.split(' ')[0];
   const topLabels = labels.slice(0, 3);
   const revealRef = useReveal<HTMLDivElement>();
+  const { theme } = useTheme();
 
   return (
     <ClientLayout>
@@ -96,8 +98,8 @@ export default function Library() {
           <section className="hero-card">
             <div className="col" style={{ gap: 10, maxWidth: 560 }}>
               <span className="eyebrow light">{greeting()}{first ? `, ${first}` : ''}</span>
-              <h1>What are you reviewing today?</h1>
-              <p>Preview any cover for free. Unlock a file once, then read it on your computer and phone.</p>
+              <h1>{theme.heroTitle?.trim() || THEME_DEFAULTS.heroTitle}</h1>
+              <p>{theme.heroText?.trim() || THEME_DEFAULTS.heroText}</p>
               {mobile && (
                 <label className="search hero-search"><Search width={18} color="var(--slate-400)" />
                   <input placeholder="Search notes, books, lectures…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search" /></label>

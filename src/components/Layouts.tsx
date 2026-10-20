@@ -4,7 +4,8 @@ import { useAuth } from '../lib/auth';
 import { supabase } from '../lib/supabase';
 import { initials } from '../lib/format';
 import { Logo, Modal, useIsMobile } from './ui';
-import { Back, Bell, Book, Chevron, Cog, Files, Grid, Home, Logout, Pay, Phone, Search, Shield, User, Users } from './Icons';
+import { useTheme } from '../lib/theme';
+import { Back, Bell, Book, Chevron, Cog, Files, Grid, Home, Logout, Palette, Pay, Phone, Receipt, Search, Shield, User, Users } from './Icons';
 
 function Avatar({ size }: { size?: number }) {
   const { profile } = useAuth();
@@ -65,6 +66,7 @@ function UserMenu() {
 }
 
 function SiteFooter() {
+  const { storeName } = useTheme();
   return (
     <footer className="site-footer">
       <div className="site-footer-inner">
@@ -77,7 +79,7 @@ function SiteFooter() {
           <div className="col"><b className="small">Help</b><Link to="/privacy">Privacy policy</Link><Link to="/data-deletion">Delete your data</Link><Link to="/account">Account</Link></div>
         </div>
       </div>
-      <div className="site-footer-bottom small muted">© {new Date().getFullYear()} MedNotes E-Library · Files are licensed to your account and can only be viewed in MedNotes.</div>
+      <div className="site-footer-bottom small muted">© {new Date().getFullYear()} {storeName || 'MedNotes E-Library'} · Files are licensed to your account and can only be viewed in MedNotes.</div>
     </footer>
   );
 }
@@ -150,7 +152,9 @@ export function AdminLayout({ title, subtitle, actions, children }: { title: str
     { to: '/admin/files', label: 'Files', icon: <Files /> },
     { to: '/admin/payments', label: 'Payments', icon: <Pay />, count: pending },
     { to: '/admin/users', label: 'Users', icon: <Users /> },
+    { to: '/admin/receipts', label: 'Receipts', icon: <Receipt /> },
     { to: '/admin/restrictions', label: 'Restrictions', icon: <Shield /> },
+    { to: '/admin/appearance', label: 'Appearance', icon: <Palette /> },
     { to: '/admin/settings', label: 'Settings', icon: <Cog /> },
   ];
   if (mobile) {
@@ -164,13 +168,15 @@ export function AdminLayout({ title, subtitle, actions, children }: { title: str
           {links.filter((l) => ['Dashboard', 'Files', 'Payments', 'Users'].includes(l.label)).map((l) => (
             <NavLink key={l.to} to={l.to} end={l.end} className="tab">{l.icon}{l.label === 'Dashboard' ? 'Home' : l.label}</NavLink>
           ))}
-          <button type="button" className={`tab${['/admin/settings', '/admin/restrictions'].includes(loc.pathname) ? ' active' : ''}`} onClick={() => setMore(true)}><Cog />More</button>
+          <button type="button" className={`tab${['/admin/settings', '/admin/restrictions', '/admin/receipts', '/admin/appearance'].includes(loc.pathname) ? ' active' : ''}`} onClick={() => setMore(true)}><Cog />More</button>
         </nav>
         {more && (
           <Modal onClose={() => setMore(false)} width={420}>
             <h2>More</h2>
             <div className="col more-menu" style={{ gap: 4 }}>
+              <Link to="/admin/receipts" onClick={() => setMore(false)}><Receipt />Receipts</Link>
               <Link to="/admin/restrictions" onClick={() => setMore(false)}><Shield />Restrictions</Link>
+              <Link to="/admin/appearance" onClick={() => setMore(false)}><Palette />Appearance</Link>
               <Link to="/admin/settings" onClick={() => setMore(false)}><Cog />Settings</Link>
               <Link to="/library" onClick={() => setMore(false)}><Book />Open library</Link>
               <button type="button" onClick={() => signOut()}><Logout />Sign out</button>

@@ -8,11 +8,12 @@ import { must, useLoad } from '../lib/useLoad';
 import { initials } from '../lib/format';
 import type { PaymentMethod, Profile, Settings } from '../lib/types';
 import { AdminLayout } from '../components/Layouts';
-import { Loading, Modal, Toggle, useToast } from '../components/ui';
+import { Modal, Toggle, useToast } from '../components/ui';
 import { markTile, publisherOf, watermarkLine } from '../lib/watermark';
 import { Laptop, Shield } from '../components/Icons';
+import { Bar, FormSkeleton } from '../components/Skeletons';
 
-function useSettingsForm() {
+export function useSettingsForm() {
   const { refresh } = useAuth();
   const toast = useToast();
   const { data, loading } = useLoad(async () => must(await supabase.from('settings').select('*').eq('id', 1).single()) as Settings);
@@ -24,7 +25,8 @@ function useSettingsForm() {
     const { error } = await supabase.from('settings').update({ ...rest, updated_at: new Date().toISOString() }).eq('id', 1);
     if (error) toast(error.message); else { toast('Saved.'); refresh(); }
   };
-  return { s, setS, loading, save };
+  const set = (patch: Partial<Settings>) => setS((cur) => (cur ? { ...cur, ...patch } : cur));
+  return { s, setS, set, loading, save };
 }
 
 const Num = ({ value, onChange, width = 80, suffix }: { value: number; onChange: (n: number) => void; width?: number; suffix?: string }) => (
@@ -35,7 +37,7 @@ export function AdminRestrictions() {
   const { s, setS, loading, save } = useSettingsForm();
   const { data: overrides } = useLoad(async () => must(await supabase.from('profiles').select('*')
     .or('computer_slots.not.is.null,phone_slots.not.is.null,can_add_devices.eq.false,suspended.eq.true')) as Profile[]);
-  if (loading || !s) return <AdminLayout title="Restrictions"><Loading /></AdminLayout>;
+  if (loading || !s) return <AdminLayout title="Restrictions"><FormSkeleton /></AdminLayout>;
   const set = (p: Partial<Settings>) => setS({ ...s, ...p });
   return (
     <AdminLayout title="Restrictions" subtitle="Defaults for every account. Override them per user on the user's page." actions={<button className="btn btn-primary" onClick={() => save()}>Save restrictions</button>}>
@@ -86,6 +88,36 @@ export function AdminRestrictions() {
   );
 }
 
+/** Emails that become admins on sign-up. Kept in their own admin-only table (buyers can read settings). Saves right away. */
+function AdminEmails() {
+  const toast = useToast();
+  const [email, setEmail] = useState('');
+  const { data, reload } = useLoad(async () => must(await supabase.from('admin_allowlist').select('email').order('added_at')) as { email: string }[]);
+  async function add() {
+    const e = email.trim().toLowerCase();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) return toast('Enter a valid email.');
+    const { error } = await supabase.from('admin_allowlist').insert({ email: e });
+    if (error && !/duplicate/i.test(error.message)) return toast(error.message);
+    setEmail(''); toast(`${e} will be an admin.`); reload();
+  }
+  async function remove(e: string) {
+    const { error } = await supabase.from('admin_allowlist').delete().eq('email', e);
+    if (error) return toast(error.message);
+    toast('Removed. Existing admins keep their role until you change it in Users.'); reload();
+  }
+  return (
+    <div className="card col">
+      <h3>Admin emails</h3>
+      <span className="small muted">These emails become admins as soon as they sign up (or right away if they already have an account). Only admins can see this list.</span>
+      {(data ?? []).map(({ email: e }) => (
+        <div key={e} className="spread"><span>{e}</span><button className="btn btn-sm btn-danger" onClick={() => remove(e)}>Remove</button></div>
+      ))}
+      <form className="row" onSubmit={(ev) => { ev.preventDefault(); add(); }}><input className="input grow" type="email" placeholder="name@example.com" value={email} onChange={(e) => setEmail(e.target.value)} aria-label="Admin email" />
+        <button className="btn btn-sm">Add</button></form>
+    </div>
+  );
+}
+
 /** Lets the publisher check their own GCash QR end to end before buyers use it. */
 function TestQrModal({ m, onClose }: { m: PaymentMethod; onClose: () => void }) {
   const [amount, setAmount] = useState('1.00');
@@ -99,7 +131,7 @@ function TestQrModal({ m, onClose }: { m: PaymentMethod; onClose: () => void }) 
       {!info ? <div className="note note-red">This QR could not be read as a QR Ph payment code. Upload a clear screenshot of your {m.name} QR.</div> : (
         <div className="row wrap" style={{ alignItems: 'flex-start', gap: 20 }}>
           <div className="col" style={{ width: 220, gap: 8 }}>
-            {src ? <img src={src} alt={`${m.name} test QR for ₱${value.toFixed(2)}`} style={{ width: 220, height: 220, borderRadius: 12, border: '1px solid var(--line)' }} /> : <Loading />}
+            {src ? <img src={src} alt={`${m.name} test QR for ₱${value.toFixed(2)}`} style={{ width: 220, height: 220, borderRadius: 12, border: '1px solid var(--line)' }} /> : <Bar w={220} h={220} r={12} />}
             <div className="field"><label htmlFor="test-amt">Test amount (₱)</label><input id="test-amt" className="input" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} /></div>
           </div>
           <div className="col grow" style={{ minWidth: 240, gap: 10 }}>
@@ -127,9 +159,8 @@ function TestQrModal({ m, onClose }: { m: PaymentMethod; onClose: () => void }) 
 export function AdminSettings() {
   const { s, setS, loading, save } = useSettingsForm();
   const toast = useToast();
-  const [newAdmin, setNewAdmin] = useState('');
   const [testing, setTesting] = useState<PaymentMethod | null>(null);
-  if (loading || !s) return <AdminLayout title="Settings"><Loading /></AdminLayout>;
+  if (loading || !s) return <AdminLayout title="Settings"><FormSkeleton cards={3} /></AdminLayout>;
   // Upload a payment QR right away and save it, so buyers see it immediately.
   async function uploadQr(i: number, file?: File | null) {
     if (!file || !s) return;
@@ -177,16 +208,8 @@ export function AdminSettings() {
           </div>
           <div className="card col">
             <h3>Receipts</h3>
-            <div className="row wrap">
-              <div className="field grow"><label htmlFor="rb">Business name on receipt</label><input id="rb" className="input" value={s.receipt_business} onChange={(e) => set({ receipt_business: e.target.value })} /></div>
-              <div className="field" style={{ width: 200 }}><label htmlFor="tin">TIN (optional)</label><input id="tin" className="input" value={s.receipt_tin} onChange={(e) => set({ receipt_tin: e.target.value })} /></div>
-            </div>
-            <div className="row wrap">
-              <div className="field" style={{ width: 140 }}><label htmlFor="rp">Receipt prefix</label><input id="rp" className="input" value={s.receipt_prefix} onChange={(e) => set({ receipt_prefix: e.target.value })} /></div>
-              <div className="field" style={{ width: 160 }}><label htmlFor="rn">Next number</label><input id="rn" className="input" inputMode="numeric" value={s.receipt_next} onChange={(e) => set({ receipt_next: Math.max(1, Number(e.target.value.replace(/\D/g, '')) || 1) })} /></div>
-              <div className="field grow"><label htmlFor="rf">Footer note</label><input id="rf" className="input" value={s.receipt_footer} onChange={(e) => set({ receipt_footer: e.target.value })} /></div>
-            </div>
-            <span className="small muted">Next receipt: <b>{s.receipt_prefix}{String(s.receipt_next).padStart(6, '0')}</b></span>
+            <span className="small muted">Business name, TIN, numbering and the receipt design now live on their own page, with a live sample.</span>
+            <Link to="/admin/receipts?tab=design" className="btn btn-sm" style={{ alignSelf: 'flex-start' }}>Open receipt settings</Link>
           </div>
         </div>
         <div className="col" style={{ width: 420, maxWidth: '100%', gap: 16 }}>
@@ -200,15 +223,7 @@ export function AdminSettings() {
             <span className="small muted">Google and Facebook sign-in are switched on in Supabase (Authentication → Providers) with your app's client IDs. See README → "Social sign-in".</span>
             <Link to="/admin/users" className="link">Manage admins in Users →</Link>
           </div>
-          <div className="card col">
-            <h3>Admin emails</h3>
-            <span className="small muted">These emails become admins as soon as they sign up (or right away if they already have an account).</span>
-            {(s.admin_emails ?? []).map((e) => (
-              <div key={e} className="spread"><span>{e}</span><button className="btn btn-sm btn-danger" onClick={() => set({ admin_emails: s.admin_emails.filter((x) => x !== e) })}>Remove</button></div>
-            ))}
-            <div className="row"><input className="input grow" type="email" placeholder="name@example.com" value={newAdmin} onChange={(e) => setNewAdmin(e.target.value)} aria-label="Admin email" />
-              <button className="btn btn-sm" onClick={() => { const e = newAdmin.trim().toLowerCase(); if (e && !s.admin_emails.includes(e)) set({ admin_emails: [...s.admin_emails, e] }); setNewAdmin(''); }}>Add</button></div>
-          </div>
+          <AdminEmails />
         </div>
       </div>
     {testing && <TestQrModal m={testing} onClose={() => setTesting(null)} />}

@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import puppeteer from 'puppeteer-core';
-import { dropUser, makeUser, root, service } from './helpers.mjs';
+import { anon, dropUser, makeUser, root, service } from './helpers.mjs';
 
 const BASE = process.env.E2E_BASE ?? 'http://localhost:5173';
 const CHROME = process.env.CHROME_PATH ?? 'C:/Program Files/Google/Chrome/Application/chrome.exe';
@@ -116,7 +116,7 @@ describe('buyer: browse, buy, read', () => {
   test('no reload: auth wake-ups keep the page, going back to the library is instant', async () => {
     const p = await open(buyer);
     await go(p, '/library');
-    await p.evaluate(() => { window.__blank = 0; new MutationObserver(() => { if (document.body.innerText.includes('Loading MedNotes')) window.__blank++; }).observe(document.body, { childList: true, subtree: true }); });
+    await p.evaluate(() => { window.__blank = 0; new MutationObserver(() => { if (document.querySelector('[aria-label="Loading MedNotes"], .spinner')) window.__blank++; }).observe(document.body, { childList: true, subtree: true }); });
     const rest = [];
     p.on('request', (r) => { if (r.url().includes('/rest/v1/') && r.method() !== 'OPTIONS') rest.push(r.url()); });
     // what supabase-js emits when the tab wakes up and when the token renews
@@ -420,6 +420,142 @@ describe('mobile layout', () => {
       assert.ok(await p.$('.seg'));
       await p.close();
     } finally { await dropUser(u); }
+  });
+});
+
+describe('no spinners, just skeletons', () => {
+  test('every page loads without a spinner', async () => {
+    const p = await open(buyer);
+    await p.evaluateOnNewDocument(() => { window.__spin = 0; new MutationObserver(() => { if (document.querySelector('.spinner')) window.__spin++; }).observe(document, { childList: true, subtree: true }); });
+    let skeletons = 0;
+    for (const path of ['/library', `/file/${FILES.docx}`, '/my-files', '/devices', '/account', `/read/${FILES.pdf}`]) {
+      await p.goto(BASE + path);
+      skeletons += await p.evaluate(() => (document.querySelectorAll('.skeleton').length > 0 ? 1 : 0));
+      await p.waitForNetworkIdle({ idleTime: 400 }).catch(() => {});
+      assert.equal(await p.evaluate(() => window.__spin), 0, `${path}: no spinner`);
+    }
+    assert.ok(skeletons >= 3, `skeletons shown while loading (${skeletons} pages)`);
+    await p.close();
+  });
+});
+
+describe('account settings', () => {
+  test('preferences save to the profile and change the reader', async () => {
+    const u = await makeUser('e2e-prefs');
+    await admin.client.rpc('admin_grant_file', { p_user: u.id, p_file: FILES.docx });
+    try {
+      const p = await open(u);
+      await go(p, '/account');
+      await clickText(p, '.seg button', 'Dark');
+      await p.$eval('input[aria-label="Text size"]', (e) => { const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; set.call(e, '20'); e.dispatchEvent(new Event('input', { bubbles: true })); });
+      await p.select('select[aria-label="Start page"]', 'my-files');
+      await sleep(800);
+      const { data } = await service.from('profiles').select('prefs').eq('id', u.id).single();
+      assert.deepEqual({ t: data.prefs.readerTheme, s: data.prefs.textSize, start: data.prefs.startPage }, { t: 'dark', s: 20, start: 'my-files' });
+      await shot(p, 'account-settings');
+      await go(p, `/read/${FILES.docx}`);
+      await p.waitForSelector('.wm', { timeout: 15000 });
+      const r = await p.evaluate(() => ({ dark: document.querySelector('.reader').classList.contains('rt-dark'), scale: getComputedStyle(document.querySelector('.reader')).getPropertyValue('--reader-scale').trim() }));
+      assert.ok(r.dark, 'reader uses the dark page colour');
+      assert.equal(Number(r.scale).toFixed(2), (20 / 17).toFixed(2), 'text size applied');
+      await go(p, '/');
+      assert.match(p.url(), /my-files/, 'opens on the chosen start page');
+      await p.close();
+    } finally { await dropUser(u); }
+  });
+
+  test('changing the password needs the current one; the new one works', async () => {
+    const u = await makeUser('e2e-pw');
+    try {
+      const p = await open(u);
+      await go(p, '/account');
+      assert.ok((await text(p)).includes('stored scrambled'), 'explains where the password comes from');
+      await p.type('#cur-pw', 'wrong-password');
+      await p.type('#pw', 'N3w-Passw0rd!x'); await p.type('#pw2', 'N3w-Passw0rd!x');
+      assert.equal(await p.$eval('.pw-meter b', (e) => e.textContent), 'Strong');
+      await clickText(p, 'form button', 'Change password');
+      await sleep(1200);
+      assert.match(await p.evaluate(() => document.querySelector('.toast')?.innerText ?? ''), /current password is not right/);
+      await p.$eval('#cur-pw', (e) => e.select());
+      await p.type('#cur-pw', u.password);
+      await clickText(p, 'form button', 'Change password');
+      await sleep(1500);
+      assert.match(await p.evaluate(() => document.querySelector('.toast')?.innerText ?? ''), /Password changed/);
+      const c = anon();
+      assert.ifError((await c.auth.signInWithPassword({ email: u.email, password: 'N3w-Passw0rd!x' })).error);
+      assert.ok((await c.auth.signInWithPassword({ email: u.email, password: u.password })).error, 'old password no longer works');
+      await p.close();
+    } finally { await dropUser(u); }
+  });
+});
+
+describe('admin receipts and appearance', () => {
+  test('receipts: issued list, configurable design with a live sample, buyers see it', async () => {
+    const { data: before } = await service.from('settings').select('receipt_design').eq('id', 1).single();
+    try {
+      const p = await open(admin);
+      await go(p, '/admin/receipts');
+      const rows = await p.$$eval('.rtable .tr:not(.th)', (e) => e.length);
+      assert.ok(rows >= 5, `issued receipts listed (${rows})`);
+      await p.click('.rtable .tr:not(.th)');
+      await p.waitForSelector('.modal .receipt');
+      assert.match(await p.$eval('.modal .receipt', (e) => e.innerText), /OR-\d{6}/);
+      await p.keyboard.press('Escape');
+      await go(p, '/admin/receipts?tab=design');
+      await p.waitForSelector('.rc-preview .receipt.is-sample');
+      await p.$eval('#rd-title', (e) => e.select()); await p.type('#rd-title', 'Sales invoice');
+      await p.type('#rd-address', 'Real St., Ormoc City');
+      await p.$eval('#rd-accent', (e) => { const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; set.call(e, '#7c3aed'); e.dispatchEvent(new Event('input', { bubbles: true })); });
+      await p.select('#rd-paper', 'thermal');
+      const sample = await p.$eval('.rc-preview .receipt', (e) => ({ t: e.innerText, cls: e.className, accent: e.style.getPropertyValue('--rc') }));
+      assert.ok(sample.t.includes('Sales invoice') && sample.t.includes('Real St., Ormoc City') && sample.t.includes('SAMPLE'), 'sample follows the form');
+      assert.ok(sample.cls.includes('paper-thermal') && sample.accent === '#7c3aed', 'paper + accent');
+      await shot(p, 'admin-receipts-design');
+      await clickText(p, 'button', 'Save receipt settings');
+      await sleep(1000);
+      await p.close();
+      const { data: owned } = await service.from('purchases').select('id').eq('user_id', buyer.id).eq('status', 'confirmed').not('receipt_no', 'is', null).limit(1).single();
+      const b = await open(buyer);
+      await go(b, `/receipt/${owned.id}`);
+      const r = await b.$eval('.receipt', (e) => ({ t: e.innerText, cls: e.className }));
+      assert.ok(r.t.includes('Sales invoice') && r.cls.includes('paper-thermal') && !r.t.includes('SAMPLE'), 'buyer receipt uses the design');
+      await b.close();
+    } finally {
+      await service.from('settings').update(before).eq('id', 1);
+    }
+  });
+
+  test('appearance: colours, name, welcome text and background apply everywhere', async () => {
+    const { data: before } = await service.from('settings').select('theme').eq('id', 1).single();
+    try {
+      const p = await open(admin);
+      await go(p, '/admin/appearance');
+      await p.waitForSelector('.ap-preview');
+      await clickText(p, '.ap-preset', 'Berry');
+      await p.type('#ap-name', 'Fritz Review Center');
+      await p.type('#ap-hero', 'Ready for boards?');
+      assert.equal(await p.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--blue').trim()), '#be185d', 'admin screen previews live');
+      await shot(p, 'admin-appearance');
+      await clickText(p, 'button', 'Save appearance');
+      await sleep(1200);
+      await p.close();
+      const { data } = await service.from('settings').select('theme').eq('id', 1).single();
+      assert.equal(data.theme.primary, '#be185d');
+      const b = await open(buyer);
+      await go(b, '/library');
+      const look = await b.evaluate(() => ({ blue: getComputedStyle(document.documentElement).getPropertyValue('--blue').trim(), bg: document.documentElement.hasAttribute('data-app-bg'), t: document.body.innerText }));
+      assert.equal(look.blue, '#be185d');
+      assert.ok(look.bg, 'background applied');
+      assert.ok(look.t.includes('Ready for boards?') && look.t.includes('Fritz Review Center'), 'welcome text + name');
+      await shot(b, 'library-themed');
+      await b.close();
+      const a = await open(null);
+      await go(a, '/sign-in');
+      assert.equal(await a.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--blue').trim()), '#be185d', 'sign-in page themed before login');
+      await a.close();
+    } finally {
+      await service.from('settings').update(before).eq('id', 1);
+    }
   });
 });
 

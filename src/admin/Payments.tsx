@@ -6,8 +6,9 @@ import { must, useLoad } from '../lib/useLoad';
 import { ago, dateTime, errMsg, initials, peso } from '../lib/format';
 import type { Purchase, PurchaseStatus } from '../lib/types';
 import { AdminLayout, invalidateCounts } from '../components/Layouts';
-import { Empty, Loading, Modal, StatusBadge, useIsMobile, useToast } from '../components/ui';
+import { Empty, Modal, StatusBadge, useIsMobile, useToast } from '../components/ui';
 import { Check, Receipt } from '../components/Icons';
+import { Bar, RowsSkeleton } from '../components/Skeletons';
 
 const REASONS = ["Amount doesn't match the price", 'Payment not received / reference not found', 'Proof is unreadable'];
 
@@ -64,7 +65,7 @@ export default function Payments() {
       <div className="spread"><h3>Payment from {sel.profiles?.full_name || sel.profiles?.email}</h3><StatusBadge status={sel.status} reason={sel.reject_reason} /></div>
       <div className="row wrap" style={{ alignItems: 'flex-start', gap: 20 }}>
         <a href={proofUrl ?? undefined} target="_blank" rel="noreferrer" style={{ width: 240, flexShrink: 0 }}>
-          {sel.proof_path ? (proofUrl ? (sel.proof_path.endsWith('.pdf') ? <div className="drop">Open proof (PDF)</div> : <img src={proofUrl} alt="Proof of payment" style={{ width: '100%', borderRadius: 12, border: '1px solid var(--line)' }} />) : <Loading />)
+          {sel.proof_path ? (proofUrl ? (sel.proof_path.endsWith('.pdf') ? <div className="drop">Open proof (PDF)</div> : <img src={proofUrl} alt="Proof of payment" style={{ width: '100%', borderRadius: 12, border: '1px solid var(--line)' }} />) : <Bar h={320} r={12} />)
             : <div className="note note-slate">No proof uploaded{sel.method === 'Granted by admin' ? ' (granted by admin)' : ''}.</div>}
         </a>
         <div className="col grow" style={{ gap: 10, minWidth: 240 }}>
@@ -96,7 +97,7 @@ export default function Payments() {
   return (
     <AdminLayout title="Payments" actions={<div className="chips">{(['pending', 'confirmed', 'rejected'] as PurchaseStatus[]).map((t) => (
       <button key={t} className={`chip${tab === t ? ' on' : ''}`} onClick={() => { setTab(t); setSp({}); }}>{t[0]!.toUpperCase() + t.slice(1)}</button>))}</div>}>
-      {loading ? <Loading /> : error ? <Empty title="Couldn't load payments">{error}</Empty> : mobile ? (sel ? <>{detail}<button className="btn" onClick={() => setSp({})}>← All payments</button></> : list) : (
+      {loading ? <RowsSkeleton rows={5} /> : error ? <Empty title="Couldn't load payments">{error}</Empty> : mobile ? (sel ? <>{detail}<button className="btn" onClick={() => setSp({})}>← All payments</button></> : list) : (
         <div className="row pay-split" style={{ alignItems: 'flex-start', gap: 20 }}>{list}{detail ?? <div className="grow" />}</div>
       )}
       {rejecting && sel && <RejectModal p={sel} onClose={() => setRejecting(false)} onDone={() => { setRejecting(false); invalidateCounts(); setSp({}); reload(); }} />}

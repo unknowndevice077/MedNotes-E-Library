@@ -3,13 +3,17 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 import { coverUrl } from '../lib/supabase';
 import { KIND_TAG, type LibFile, type PurchaseStatus } from '../lib/types';
 import { asset, isNative } from '../lib/platform';
+import { safeImage, useTheme } from '../lib/theme';
 import { Check, Clock, Lock } from './Icons';
 
 export function Logo({ light, short, size = 36 }: { light?: boolean; short?: boolean; size?: number }) {
+  // logo + name can be replaced in Admin → Appearance
+  const { theme, storeName } = useTheme();
+  const custom = safeImage(theme.logo);
   return (
     <span className={`logo${light ? ' light' : ''}`}>
-      <span className={light ? 'tile' : ''}><img src={asset('logo.png')} alt="" style={{ width: size, height: size }} /></span>
-      <span>Med<b>Notes</b>{!short && <> <i>E-Library</i></>}</span>
+      <span className={light ? 'tile' : ''}><img src={custom || asset('logo.png')} alt="" style={{ width: size, height: size, objectFit: 'contain' }} /></span>
+      {storeName ? <span><b>{short ? storeName.split(' ')[0] : storeName}</b></span> : <span>Med<b>Notes</b>{!short && <> <i>E-Library</i></>}</span>}
     </span>
   );
 }

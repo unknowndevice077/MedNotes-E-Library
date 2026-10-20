@@ -26,7 +26,7 @@ export default function RevenueChart({ rows, days = 30 }: { rows: { amount: numb
         <span className="small muted">{h ? `${fmt(h.d)}: ${pesoShort(h.v)}` : 'Hover a bar for the day'}</span>
       </div>
       <svg viewBox={`0 0 ${W} ${H + 22}`} role="img" aria-label={`Revenue over the last ${days} days, total ${pesoShort(total)}`} style={{ width: '100%', height: 'auto' }}>
-        <defs><linearGradient id="rev" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stopColor="#0284c7" /><stop offset="1" stopColor="#059669" /></linearGradient></defs>
+        <defs><linearGradient id="rev" x1="0" x2="0" y1="0" y2="1"><stop offset="0" style={{ stopColor: 'var(--blue)' }} /><stop offset="1" style={{ stopColor: 'var(--green)' }} /></linearGradient></defs>
         {[0.25, 0.5, 0.75, 1].map((t) => <line key={t} x1="0" x2={W} y1={H - H * t} y2={H - H * t} stroke="#eef2f7" />)}
         {series.map((s, i) => {
           const bh = s.v ? Math.max(4, (s.v / max) * (H - 8)) : 2;
