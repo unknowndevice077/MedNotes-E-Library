@@ -46,7 +46,7 @@ export default function Payments() {
   const priceOk = sel ? Number(sel.amount) >= Number(sel.files?.price ?? 0) : true;
 
   const list = (
-    <div className="col" style={{ width: mobile ? '100%' : 420, flexShrink: 0, gap: 10 }}>
+    <div className="col pay-list" style={{ width: mobile ? '100%' : 420, flexShrink: 0, gap: 10 }}>
       {(data ?? []).map((p) => (
         <button key={p.id} className="card row" onClick={() => setSp({ id: p.id })}
           style={{ padding: 14, textAlign: 'left', border: p.id === selectedId ? '2px solid var(--blue)' : undefined }}>
@@ -97,7 +97,7 @@ export default function Payments() {
     <AdminLayout title="Payments" actions={<div className="chips">{(['pending', 'confirmed', 'rejected'] as PurchaseStatus[]).map((t) => (
       <button key={t} className={`chip${tab === t ? ' on' : ''}`} onClick={() => { setTab(t); setSp({}); }}>{t[0]!.toUpperCase() + t.slice(1)}</button>))}</div>}>
       {loading ? <Loading /> : error ? <Empty title="Couldn't load payments">{error}</Empty> : mobile ? (sel ? <>{detail}<button className="btn" onClick={() => setSp({})}>← All payments</button></> : list) : (
-        <div className="row" style={{ alignItems: 'flex-start', gap: 20 }}>{list}{detail ?? <div className="grow" />}</div>
+        <div className="row pay-split" style={{ alignItems: 'flex-start', gap: 20 }}>{list}{detail ?? <div className="grow" />}</div>
       )}
       {rejecting && sel && <RejectModal p={sel} onClose={() => setRejecting(false)} onDone={() => { setRejecting(false); setSp({}); reload(); }} />}
     </AdminLayout>

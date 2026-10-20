@@ -4,7 +4,7 @@ import { must, useLoad } from '../lib/useLoad';
 import { bytes, errMsg, pesoShort } from '../lib/format';
 import { KIND_LABEL, KIND_TAG, kindFromName, type FileKind, type LibFile } from '../lib/types';
 import { AdminLayout } from '../components/Layouts';
-import { Loading, Modal, Toggle, useIsMobile, useToast } from '../components/ui';
+import { Loading, Modal, Toggle, useConfirm, useIsMobile, useToast } from '../components/ui';
 import { Search, Upload } from '../components/Icons';
 
 const ACCEPT = '.epub,.pdf,.mp4,.webm,.mov,.png,.jpg,.jpeg,.webp,.gif,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.csv';
@@ -12,6 +12,7 @@ const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(
 
 export default function AdminFiles() {
   const toast = useToast();
+  const confirm = useConfirm();
   const mobile = useIsMobile();
   const [q, setQ] = useState('');
   const [kind, setKind] = useState<FileKind | 'all'>('all');
@@ -29,7 +30,7 @@ export default function AdminFiles() {
     && (!q || `${f.name} ${f.label}`.toLowerCase().includes(q.toLowerCase()))), [data, q, kind]);
 
   async function remove(f: LibFile) {
-    if (!confirm(`Delete "${f.name}"? Buyers lose access and this can't be undone.`)) return;
+    if (!(await confirm({ title: `Delete "${f.name}"?`, body: "Buyers lose access and this can't be undone.", confirmLabel: 'Delete file', danger: true }))) return;
     const paths = [f.storage_path].filter(Boolean) as string[];
     if (paths.length) await supabase.storage.from('files').remove(paths);
     if (f.cover_path) await supabase.storage.from('covers').remove([f.cover_path]);
@@ -47,7 +48,7 @@ export default function AdminFiles() {
         {(['epub', 'pdf', 'video', 'image', 'docx', 'pptx', 'xlsx'] as FileKind[]).map((k) => <button key={k} className={`chip${kind === k ? ' on' : ''}`} onClick={() => setKind(k)}>{KIND_LABEL[k]}</button>)}
       </div>
       {loading ? <Loading /> : (
-        <div className="table">
+        <div className="table rtable">
           <div className="tr th hide-sm"><span style={{ width: 340 }}>Name</span><span style={{ width: 130 }}>Label</span><span style={{ width: 80 }}>Type</span><span style={{ width: 90 }}>Price</span><span style={{ width: 60 }}>Sales</span><span style={{ width: 130 }}>Status</span><span className="grow" /></div>
           {shown.map((f) => (
             <div key={f.id} className="tr">
@@ -58,7 +59,7 @@ export default function AdminFiles() {
               <span style={{ width: 130 }}>{f.label && <span className="badge b-blue">{f.label}</span>}</span>
               <span style={{ width: 80 }}>{KIND_TAG[f.kind]}</span>
               <b style={{ width: 90 }}>{pesoShort(f.price)}</b>
-              <span style={{ width: 60 }}>{data?.sales.get(f.id) ?? 0}</span>
+              <span style={{ width: 60 }} className="r-sales">{data?.sales.get(f.id) ?? 0}<i className="r-sold"> sold</i></span>
               <span style={{ width: 130 }}>{f.published ? <span className="badge b-ok">Published</span> : <span className="badge b-lock">Draft</span>}</span>
               <span className="grow" />
               <button className="btn btn-sm" onClick={() => setEditing(f)}>Edit</button>

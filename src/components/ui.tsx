@@ -74,6 +74,39 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 }
 export const useToast = () => useContext(ToastCtx);
 
+export interface ConfirmOptions { title: string; body?: ReactNode; confirmLabel?: string; danger?: boolean; typeToConfirm?: string }
+const ConfirmCtx = createContext<(o: ConfirmOptions) => Promise<boolean>>(async () => false);
+/** In-app replacement for window.confirm / prompt: `if (!(await confirm({ title }))) return;` */
+export function ConfirmProvider({ children }: { children: ReactNode }) {
+  const [req, setReq] = useState<(ConfirmOptions & { resolve: (v: boolean) => void }) | null>(null);
+  const [typed, setTyped] = useState('');
+  const ask = useCallback((o: ConfirmOptions) => new Promise<boolean>((resolve) => { setTyped(''); setReq({ ...o, resolve }); }), []);
+  const done = (v: boolean) => { req?.resolve(v); setReq(null); };
+  const ok = !req?.typeToConfirm || typed.trim().toUpperCase() === req.typeToConfirm;
+  return (
+    <ConfirmCtx.Provider value={ask}>
+      {children}
+      {req && (
+        <Modal onClose={() => done(false)} width={440}>
+          <form className="col" style={{ gap: 14 }} onSubmit={(e) => { e.preventDefault(); if (ok) done(true); }}>
+            <h2>{req.title}</h2>
+            {req.body && <div className="muted">{req.body}</div>}
+            {req.typeToConfirm && (
+              <div className="field"><label htmlFor="confirm-type">Type <b>{req.typeToConfirm}</b> to confirm</label>
+                <input id="confirm-type" className="input" autoFocus autoComplete="off" value={typed} onChange={(e) => setTyped(e.target.value)} /></div>
+            )}
+            <div className="row" style={{ justifyContent: 'flex-end', gap: 10 }}>
+              <button type="button" className="btn" onClick={() => done(false)}>Cancel</button>
+              <button type="submit" className={`btn ${req.danger ? 'btn-danger-solid' : 'btn-primary'}`} disabled={!ok} autoFocus={!req.typeToConfirm}>{req.confirmLabel ?? 'Confirm'}</button>
+            </div>
+          </form>
+        </Modal>
+      )}
+    </ConfirmCtx.Provider>
+  );
+}
+export const useConfirm = () => useContext(ConfirmCtx);
+
 /** Phone-sized layout: always in the Android app, and in narrow browser windows. */
 export function useIsMobile() {
   const q = '(max-width: 760px)';

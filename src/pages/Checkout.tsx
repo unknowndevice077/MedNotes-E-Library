@@ -74,7 +74,7 @@ export default function Checkout() {
       <form className="page" onSubmit={submit} style={{ flexDirection: mobile ? 'column' : 'row', alignItems: 'flex-start', gap: 28, maxWidth: 1180 }}>
         <div className="col grow" style={{ gap: 18, width: '100%' }}>
           {!mobile && <h1>Pay for your file</h1>}
-          <div className="row wrap" style={{ gap: 8 }}><span className="badge b-ok">1 Pay</span><span className="muted">—</span><span className="badge b-lock">2 Publisher confirms</span><span className="muted">—</span><span className="badge b-lock">3 Receipt & unlock</span></div>
+          <div className="row steps" style={{ gap: 8 }}><span className="badge b-ok">1 Pay</span><span className="muted hide-sm">—</span><span className="badge b-lock">2 Publisher confirms</span><span className="muted hide-sm">—</span><span className="badge b-lock">3 Receipt & unlock</span></div>
           <div className="card col">
             <h3>Send payment to</h3>
             {methods.length === 0 ? <span className="muted">The publisher hasn't added payment methods yet.</span> : (

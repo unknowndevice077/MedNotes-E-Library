@@ -145,3 +145,55 @@ a.stat:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
 .table { box-shadow: var(--shadow-sm); }
 .tr:not(.th):hover { background: #f8fbff; }
 .th { position: sticky; top: 72px; z-index: 2; }
+
+/* tablet and small-laptop fixes (found by tests/ui.test.mjs) */
+.head-actions { flex-wrap: wrap; justify-content: flex-end; min-width: 0; }
+.mainhead { flex-wrap: wrap; }
+.admin-mtop { flex-wrap: wrap; height: auto; min-height: 56px; padding-top: 10px; padding-bottom: 10px; row-gap: 8px; }
+.admin-mtop .head-actions .btn { height: 34px; padding: 0 12px; }
+@media (max-width: 1180px) {
+  .auth-side { flex: 1 1 0; min-width: 0; padding: 48px 40px 56px; }
+  .auth-main { flex: 0 0 auto; width: min(480px, 58%); padding: 32px 32px 32px 0; }
+  .hero h1 { font-size: 34px; line-height: 42px; }
+  .pay-split { flex-direction: column; align-items: stretch !important; }
+  .pay-split > .pay-list { width: 100% !important; }
+}
+@media (max-width: 1024px) and (min-width: 761px) {
+  .topbar { gap: 14px; padding-left: 20px; padding-right: 20px; }
+  .top-search { flex: 1 1 160px; min-width: 0; width: auto; max-width: 280px; }
+  .user-chip > span:not(.avatar), .user-chip > b, .user-chip > svg { display: none; }
+}
+@media (max-width: 760px) {
+  .auth-main { width: auto; padding: 0 16px 32px; }
+}
+
+.r-sold { display: none; }
+/* tables: overflow clip (not hidden) so the sticky header sticks to the page, not inside the table */
+.table { overflow: clip; }
+.btn-danger-solid { background: var(--red, #dc2626); color: #fff; border-color: transparent; }
+.btn-danger-solid:disabled { opacity: .5; }
+.steps { flex-wrap: wrap; }
+.more-menu a, .more-menu button { display: flex; align-items: center; gap: 12px; height: 48px; padding: 0 12px; border-radius: 12px; font-weight: 600; color: var(--ink); text-align: left; width: 100%; }
+.more-menu a:hover, .more-menu button:hover { background: var(--surface-2); }
+.more-menu svg { width: 20px; height: 20px; color: var(--slate-600); }
+@media (max-width: 760px) {
+  .steps { flex-wrap: nowrap; gap: 6px !important; overflow-x: auto; }
+  .steps .badge { white-space: nowrap; }
+  .rtable .tr { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 14px; }
+  .rtable .tr > * { width: auto !important; }
+  .rtable .tr > .row:first-child { width: 100% !important; }
+  .rtable .tr > .grow { flex: 1 1 0; min-width: 0; }
+  .rtable .tr > span:empty { display: none; }
+  .r-sales { color: var(--muted); font-size: 13px; }
+  .r-sales i { font-style: normal; }
+}
+@media (max-width: 1100px) {
+  .rtable .tr.th { display: none; }
+  .rtable .tr { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 14px; }
+  .rtable .tr > * { width: auto !important; }
+  .rtable .tr > .row:first-child { width: 100% !important; }
+  .rtable .tr > .grow { flex: 1 1 0; min-width: 0; }
+  .rtable .tr > span:empty { display: none; }
+  .r-sales { color: var(--muted); font-size: 13px; }
+  .r-sales .r-sold { font-style: normal; display: inline; }
+}

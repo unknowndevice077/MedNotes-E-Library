@@ -6,12 +6,13 @@ import { must, useLoad } from '../lib/useLoad';
 import { ago } from '../lib/format';
 import type { Device } from '../lib/types';
 import { ClientLayout } from '../components/Layouts';
-import { Loading, useIsMobile, useToast } from '../components/ui';
+import { Loading, useConfirm, useIsMobile, useToast } from '../components/ui';
 import { Laptop, Phone, Shield } from '../components/Icons';
 
 export default function Devices() {
   const { session, profile, settings } = useAuth();
   const toast = useToast();
+  const confirm = useConfirm();
   const mobile = useIsMobile();
   const [mine, setMine] = useState('');
   useEffect(() => { deviceId().then(setMine); }, []);
@@ -29,7 +30,7 @@ export default function Devices() {
   const swapLimit = profile?.swaps_per_30d ?? settings?.swaps_per_30d ?? 2;
 
   async function remove(d: Device) {
-    if (!confirm(`Sign out ${d.label} and remove it from your account? This uses one of your device swaps.`)) return;
+    if (!(await confirm({ title: `Remove ${d.label}?`, body: 'It is signed out and removed from your account. This uses one of your device swaps.', confirmLabel: 'Remove device', danger: true }))) return;
     const { data: r, error } = await supabase.rpc('remove_device', { p_id: d.id });
     if (error) return toast(error.message);
     if (!r.ok) return toast(deviceReasonText[r.reason] ?? 'Could not remove that device.');

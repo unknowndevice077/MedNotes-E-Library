@@ -1,6 +1,6 @@
 // Run: node --experimental-strip-types scripts/qrph.test.mjs
 import assert from 'node:assert/strict';
-import { crc16, isQrPh, withAmount, describe, parseTlv } from '../src/lib/qrph.ts';
+import { crc16, isQrPh, withAmount, describe, parseTlv, inspect } from '../src/lib/qrph.ts';
 
 // CRC-16/CCITT-FALSE check value
 assert.equal(crc16('123456789'), '29B1');
@@ -23,5 +23,16 @@ assert.equal(parseTlv(dyn).find((t) => t.id === '01').value, '12', 'marked dynam
 assert.equal(describe(withAmount(dyn, 99.5)).amount, 99.5, 'amount replaced, not duplicated');
 assert.equal(parseTlv(withAmount(dyn, 99.5)).filter((t) => t.id === '54').length, 1);
 assert.equal(describe(dyn).name, 'MEDNOTES PUBLISHING');
+// inspect(): what the admin "Test this QR" dialog shows
+const info = inspect(staticQr, 1);
+assert.equal(info.name, 'MEDNOTES PUBLISHING');
+assert.equal(info.city, 'ORMOC CITY');
+assert.equal(info.currency, 'PHP');
+assert.ok(info.staticCode, 'static code detected');
+assert.equal(info.accounts[0].account, '09171234567', 'shows the GCash number');
+assert.ok(info.generatedOk, 'a 1 peso test QR is valid');
+assert.equal(describe(info.generated).amount, 1);
+assert.equal(inspect(dyn, 25.5).staticCode, false, 'dynamic code detected');
+assert.equal(describe(inspect(staticQr, 25.5).generated).amount, 25.5);
 console.log('qrph: all tests passed');
 console.log(dyn);

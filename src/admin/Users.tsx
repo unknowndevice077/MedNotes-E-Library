@@ -6,7 +6,7 @@ import { must, useLoad } from '../lib/useLoad';
 import { ago, errMsg, initials } from '../lib/format';
 import type { Device, LibFile, Profile, Purchase } from '../lib/types';
 import { AdminLayout } from '../components/Layouts';
-import { Loading, Modal, Toggle, useIsMobile, useToast } from '../components/ui';
+import { Loading, Modal, Toggle, useConfirm, useIsMobile, useToast } from '../components/ui';
 import { Laptop, Phone, Search } from '../components/Icons';
 
 export function AdminUsers() {
@@ -28,7 +28,7 @@ export function AdminUsers() {
   return (
     <AdminLayout title="Users" actions={<label className="search" style={{ width: mobile ? 160 : 320 }}><Search width={18} color="var(--slate-400)" /><input placeholder="Search by name or email" value={q} onChange={(e) => setQ(e.target.value)} /></label>}>
       {loading ? <Loading /> : (
-        <div className="table">
+        <div className="table rtable">
           <div className="tr th hide-sm"><span style={{ width: 300 }}>User</span><span style={{ width: 100 }}>Sign-in</span><span style={{ width: 90 }}>Files</span><span style={{ width: 210 }}>Devices</span><span style={{ width: 120 }}>Status</span><span className="grow" /></div>
           {shown.map((u) => {
             const pc = u.computer_slots ?? settings?.computer_slots ?? 1, ph = u.phone_slots ?? settings?.phone_slots ?? 1;
@@ -36,7 +36,7 @@ export function AdminUsers() {
             return (
               <div key={u.id} className="tr" style={{ cursor: 'pointer' }} onClick={() => nav(`/admin/users/${u.id}`)}>
                 <div className="row" style={{ width: mobile ? '100%' : 300 }}><span className="avatar">{initials(u.full_name, u.email)}</span><div className="col" style={{ gap: 0, minWidth: 0 }}><b>{u.full_name || '—'}{u.role === 'admin' && <span className="badge b-blue" style={{ marginLeft: 8 }}>Admin</span>}</b><span className="small muted">{u.email}</span></div></div>
-                <span style={{ width: 100, textTransform: 'capitalize' }}>{u.provider}</span>
+                <span style={{ width: 100, textTransform: 'capitalize' }} className="hide-sm">{u.provider}</span>
                 <span style={{ width: 90 }}>{data!.owned.filter((o) => o.user_id === u.id).length} owned</span>
                 <span style={{ width: 210 }} className="row"><span className={`badge ${count(u.id, 'computer') ? 'b-blue' : 'b-lock'}`}>PC {count(u.id, 'computer')}/{pc}</span><span className={`badge ${count(u.id, 'phone') ? 'b-ok' : 'b-lock'}`}>Phone {count(u.id, 'phone')}/{ph}</span></span>
                 <span style={{ width: 120 }}>{u.suspended ? <span className="badge b-red">Suspended</span> : extra ? <span className="badge b-pending">Extra slot</span> : <span className="badge b-ok">Active</span>}</span>
@@ -67,6 +67,7 @@ export function AdminUserDetail() {
   const { id } = useParams();
   const nav = useNavigate();
   const toast = useToast();
+  const confirm = useConfirm();
   const { settings, profile: me } = useAuth();
   const [o, setO] = useState<Partial<Profile> | null>(null);
   const [granting, setGranting] = useState(false);
@@ -93,7 +94,7 @@ export function AdminUserDetail() {
   return (
     <AdminLayout title={prof.full_name || prof.email} subtitle={prof.email} actions={!isMe && <>
       <button className="btn btn-danger" onClick={() => act(() => supabase.from('profiles').update({ suspended: !prof.suspended }).eq('id', prof.id), prof.suspended ? 'User reactivated.' : 'User suspended.')}>{prof.suspended ? 'Reactivate' : 'Suspend'}</button>
-      <button className="btn btn-danger" onClick={async () => { if (!confirm(`Permanently delete ${prof.email}, their devices and purchases?`)) return; const { error } = await supabase.rpc('admin_delete_user', { p_user: prof.id }); if (error) toast(error.message); else { toast('User deleted.'); nav('/admin/users'); } }}>Delete user</button>
+      <button className="btn btn-danger" onClick={async () => { if (!(await confirm({ title: 'Delete this user?', body: `Permanently deletes ${prof.email}, their devices and purchases.`, confirmLabel: 'Delete user', danger: true }))) return; const { error } = await supabase.rpc('admin_delete_user', { p_user: prof.id }); if (error) toast(error.message); else { toast('User deleted.'); nav('/admin/users'); } }}>Delete user</button>
       <button className="btn" onClick={() => act(() => supabase.from('profiles').update({ role: prof.role === 'admin' ? 'client' : 'admin' }).eq('id', prof.id), 'Role changed.')}>{prof.role === 'admin' ? 'Remove admin' : 'Make admin'}</button></>}>
       <div className="row wrap" style={{ alignItems: 'flex-start', gap: 20 }}>
         <div className="col grow" style={{ gap: 16, minWidth: 320 }}>
@@ -116,7 +117,7 @@ export function AdminUserDetail() {
                 <span className="row"><span className="thumb"><img src={coverUrl(p.files?.cover_path)} alt="" /></span>{p.files?.name}</span>
                 <span className="row">
                   <span className={`badge ${p.status === 'confirmed' ? 'b-ok' : p.status === 'pending' ? 'b-pending' : 'b-red'}`}>{p.status === 'confirmed' ? 'Unlocked' : p.status}</span>
-                  {p.status === 'confirmed' && <button className="btn btn-sm btn-danger" onClick={() => { if (confirm('Revoke access to this file?')) act(() => supabase.from('purchases').delete().eq('id', p.id), 'Access revoked.'); }}>Revoke</button>}
+                  {p.status === 'confirmed' && <button className="btn btn-sm btn-danger" onClick={async () => { if (await confirm({ title: 'Revoke access?', body: `${prof.full_name || prof.email} will no longer be able to open this file.`, confirmLabel: 'Revoke', danger: true })) act(() => supabase.from('purchases').delete().eq('id', p.id), 'Access revoked.'); }}>Revoke</button>}
                   {p.status === 'pending' && <Link to={`/admin/payments?id=${p.id}`} className="btn btn-sm btn-green">Review</Link>}
                 </span>
               </div>

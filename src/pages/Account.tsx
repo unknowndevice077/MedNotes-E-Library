@@ -6,7 +6,7 @@ import { bytes, errMsg, initials } from '../lib/format';
 import { isNative } from '../lib/platform';
 import { listSaved, removeOffline } from '../lib/offline';
 import { ClientLayout } from '../components/Layouts';
-import { useIsMobile, useToast } from '../components/ui';
+import { useConfirm, useIsMobile, useToast } from '../components/ui';
 import { Facebook, Google, Logout } from '../components/Icons';
 
 export default function Account() {
@@ -18,9 +18,9 @@ export default function Account() {
   const [storage, setStorage] = useState<{ n: number; size: number } | null>(null);
   useEffect(() => { if (isNative) listSaved().then((l) => setStorage({ n: l.length, size: l.reduce((a, f) => a + f.size, 0) })); }, []);
   const nav = useNavigate();
+  const confirm = useConfirm();
   async function deleteAccount() {
-    const typed = prompt('This permanently deletes your account, your purchases and access to every file you bought. Type DELETE to confirm.');
-    if (typed?.trim().toUpperCase() !== 'DELETE') return;
+    if (!(await confirm({ title: 'Delete your account?', body: 'This permanently deletes your account, your purchases and your access to every file you bought. It cannot be undone.', confirmLabel: 'Delete my account', danger: true, typeToConfirm: 'DELETE' }))) return;
     try {
       const uid = profile!.id;
       const { data: proofs } = await supabase.storage.from('proofs').list(uid, { limit: 1000 });

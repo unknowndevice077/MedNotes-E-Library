@@ -3,7 +3,7 @@ import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
 import { supabase } from '../lib/supabase';
 import { initials } from '../lib/format';
-import { Logo, useIsMobile } from './ui';
+import { Logo, Modal, useIsMobile } from './ui';
 import { Back, Bell, Book, Chevron, Cog, Files, Grid, Home, Logout, Pay, Phone, Search, Shield, User, Users } from './Icons';
 
 function Avatar({ size }: { size?: number }) {
@@ -134,6 +134,8 @@ export function AdminLayout({ title, subtitle, actions, children }: { title: str
   const [pending, setPending] = useState(0);
   const { signOut } = useAuth();
   const mobile = useIsMobile();
+  const loc = useLocation();
+  const [more, setMore] = useState(false);
   useEffect(() => {
     supabase.from('purchases').select('id', { count: 'exact', head: true }).eq('status', 'pending').then(({ count }) => setPending(count ?? 0));
   }, [title]);
@@ -148,16 +150,27 @@ export function AdminLayout({ title, subtitle, actions, children }: { title: str
   if (mobile) {
     return (
       <div className="with-tabbar">
-        <header className="mobile-top" style={{ background: 'var(--ink)', color: '#fff', borderColor: 'var(--ink)' }}>
-          <b style={{ fontSize: 18 }}>{title}</b><span className="row" style={{ gap: 8 }}>{actions}</span>
+        <header className="mobile-top admin-mtop" style={{ background: 'var(--ink)', color: '#fff', borderColor: 'var(--ink)' }}>
+          <b style={{ fontSize: 18 }}>{title}</b><span className="row head-actions" style={{ gap: 8 }}>{actions}</span>
         </header>
         <div className="content">{children}</div>
         <nav className="tabbar">
           {links.filter((l) => ['Dashboard', 'Files', 'Payments', 'Users'].includes(l.label)).map((l) => (
             <NavLink key={l.to} to={l.to} end={l.end} className="tab">{l.icon}{l.label === 'Dashboard' ? 'Home' : l.label}</NavLink>
           ))}
-          <NavLink to="/admin/settings" className="tab"><Cog />More</NavLink>
+          <button type="button" className={`tab${['/admin/settings', '/admin/restrictions'].includes(loc.pathname) ? ' active' : ''}`} onClick={() => setMore(true)}><Cog />More</button>
         </nav>
+        {more && (
+          <Modal onClose={() => setMore(false)} width={420}>
+            <h2>More</h2>
+            <div className="col more-menu" style={{ gap: 4 }}>
+              <Link to="/admin/restrictions" onClick={() => setMore(false)}><Shield />Restrictions</Link>
+              <Link to="/admin/settings" onClick={() => setMore(false)}><Cog />Settings</Link>
+              <Link to="/library" onClick={() => setMore(false)}><Book />Open library</Link>
+              <button type="button" onClick={() => signOut()}><Logout />Sign out</button>
+            </div>
+          </Modal>
+        )}
       </div>
     );
   }
@@ -175,7 +188,7 @@ export function AdminLayout({ title, subtitle, actions, children }: { title: str
       <main className="main">
         <div className="mainhead">
           <div className="col" style={{ gap: 0 }}><h2>{title}</h2>{subtitle && <span className="small muted">{subtitle}</span>}</div>
-          <div className="row">{actions}</div>
+          <div className="row head-actions">{actions}</div>
         </div>
         <div className="content">{children}</div>
       </main>

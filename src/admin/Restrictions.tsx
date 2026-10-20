@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase, paymentQrUrl } from '../lib/supabase';
-import { decodeQrImage } from '../lib/qrimage';
-import { describe as describeQr, isQrPh } from '../lib/qrph';
+import { decodeQrImage, qrDataUrl } from '../lib/qrimage';
+import { describe as describeQr, inspect, isQrPh } from '../lib/qrph';
 import { useAuth } from '../lib/auth';
 import { must, useLoad } from '../lib/useLoad';
 import { initials } from '../lib/format';
 import type { PaymentMethod, Profile, Settings } from '../lib/types';
 import { AdminLayout } from '../components/Layouts';
-import { Loading, Toggle, useToast } from '../components/ui';
+import { Loading, Modal, Toggle, useToast } from '../components/ui';
 import { Laptop, Shield } from '../components/Icons';
 
 function useSettingsForm() {
@@ -72,10 +72,49 @@ export function AdminRestrictions() {
   );
 }
 
+/** Lets the publisher check their own GCash QR end to end before buyers use it. */
+function TestQrModal({ m, onClose }: { m: PaymentMethod; onClose: () => void }) {
+  const [amount, setAmount] = useState('1.00');
+  const [src, setSrc] = useState<string | null>(null);
+  const value = Math.max(0.01, Number(amount) || 0);
+  const info = (() => { try { return inspect(m.qr_payload!, value); } catch { return null; } })();
+  useEffect(() => { if (info) qrDataUrl(info.generated, 420).then(setSrc); }, [info?.generated]); // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <Modal onClose={onClose} width={640}>
+      <div className="spread"><h2>Test your {m.name} QR</h2><button className="btn btn-sm" onClick={onClose} aria-label="Close">×</button></div>
+      {!info ? <div className="note note-red">This QR could not be read as a QR Ph payment code. Upload a clear screenshot of your {m.name} QR.</div> : (
+        <div className="row wrap" style={{ alignItems: 'flex-start', gap: 20 }}>
+          <div className="col" style={{ width: 220, gap: 8 }}>
+            {src ? <img src={src} alt={`${m.name} test QR for ₱${value.toFixed(2)}`} style={{ width: 220, height: 220, borderRadius: 12, border: '1px solid var(--line)' }} /> : <Loading />}
+            <div className="field"><label htmlFor="test-amt">Test amount (₱)</label><input id="test-amt" className="input" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} /></div>
+          </div>
+          <div className="col grow" style={{ minWidth: 240, gap: 10 }}>
+            <div className="facts" style={{ gridTemplateColumns: '1fr' }}>
+              <div><span className="small muted">Pays to</span><b>{info.name || '—'}</b></div>
+              <div><span className="small muted">Account</span><b>{info.accounts.map((a) => a.account || a.guid).filter(Boolean).join(' · ') || 'Inside the QR'}</b></div>
+              <div><span className="small muted">City · currency</span><b>{info.city || '—'} · {info.currency}</b></div>
+            </div>
+            {info.generatedOk ? <span className="badge b-ok" style={{ alignSelf: 'flex-start' }}>Amount ₱{value.toFixed(2)} built into the QR · checksum OK</span>
+              : <span className="badge b-red" style={{ alignSelf: 'flex-start' }}>The amount could not be added to this QR</span>}
+            {!info.staticCode && <div className="note note-amber">This looks like a one-time (dynamic) QR. Upload your permanent {m.name} "Receive money" QR instead.</div>}
+            <ol className="small" style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <li>Open {m.name} on <b>another</b> phone or account (you can't pay your own number) and scan this code.</li>
+              <li>Check that it shows <b>{info.name || 'your name'}</b> and <b>₱{value.toFixed(2)}</b> already filled in.</li>
+              <li>Pay it. The money goes straight to your {m.name}; MedNotes never touches it.</li>
+              <li>For the full flow, sign in as a buyer, buy a file and confirm it in Payments.</li>
+            </ol>
+          </div>
+        </div>
+      )}
+    </Modal>
+  );
+}
+
 export function AdminSettings() {
   const { s, setS, loading, save } = useSettingsForm();
   const toast = useToast();
   const [newAdmin, setNewAdmin] = useState('');
+  const [testing, setTesting] = useState<PaymentMethod | null>(null);
   if (loading || !s) return <AdminLayout title="Settings"><Loading /></AdminLayout>;
   // Upload a payment QR right away and save it, so buyers see it immediately.
   async function uploadQr(i: number, file?: File | null) {
@@ -108,12 +147,13 @@ export function AdminSettings() {
                 <input className="input grow" style={{ minWidth: 140 }} value={m.holder} onChange={(e) => setMethod(i, { holder: e.target.value })} aria-label="Account name" />
                 <Toggle on={m.enabled} onChange={(v) => setMethod(i, { enabled: v })} label="Shown to buyers" />
                 <button className="btn btn-sm btn-danger" onClick={() => set({ payment_methods: s.payment_methods.filter((_, j) => j !== i) })}>Remove</button>
-                <div className="row" style={{ width: '100%', gap: 12 }}>
+                <div className="row wrap" style={{ width: '100%', gap: 12 }}>
                   {m.qr_path ? <a href={paymentQrUrl(m.qr_path)!} target="_blank" rel="noreferrer"><img src={paymentQrUrl(m.qr_path)!} alt={`${m.name} QR`} style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--line)' }} /></a>
                     : <span className="small muted">No QR yet</span>}
                   <label className="btn btn-sm">{m.qr_path ? 'Replace QR' : 'Upload QR'}<input type="file" accept="image/*" hidden onChange={(e) => uploadQr(i, e.target.files?.[0])} /></label>
                   {m.qr_path && <button className="btn btn-sm" onClick={() => setMethod(i, { qr_path: null, qr_payload: null })}>Remove QR</button>}
-                  {m.qr_path?.includes('demo') ? <span className="badge b-pending">Demo QR: replace with your real {m.name} QR</span>
+                  {m.qr_payload && <button className="btn btn-sm btn-primary" onClick={() => setTesting(m)}>Test this QR</button>}
+                  {m.qr_path?.includes('demo') ? <span className="badge b-pending" title={`Replace it with your real ${m.name} QR`}>Demo QR · replace it</span>
                     : m.qr_payload ? <span className="badge b-ok">QR Ph · amount filled in automatically</span>
                     : m.qr_path ? <span className="badge b-lock">Image only · buyers type the amount</span> : null}
                 </div>
@@ -157,6 +197,7 @@ export function AdminSettings() {
           </div>
         </div>
       </div>
+    {testing && <TestQrModal m={testing} onClose={() => setTesting(null)} />}
     </AdminLayout>
   );
 }

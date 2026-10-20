@@ -2,7 +2,7 @@ import { lazy, Suspense, type ReactNode } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './lib/auth';
 import { isNative } from './lib/platform';
-import { Loading, ToastProvider } from './components/ui';
+import { ConfirmProvider, Loading, ToastProvider } from './components/ui';
 import DeviceGate from './components/DeviceGate';
 import { ForgotPassword, ResetPassword, SignIn, SignUp } from './pages/Auth';
 import Library from './pages/Library';
@@ -52,7 +52,7 @@ export default function App() {
   return (
     <BrowserRouter basename={import.meta.env.BASE_URL}>
       <AuthProvider>
-        <ToastProvider>
+        <ToastProvider><ConfirmProvider>
           <Suspense fallback={<Loading />}>
             <Routes>
               <Route path="/sign-in" element={<PublicOnly><SignIn /></PublicOnly>} />
@@ -84,7 +84,7 @@ export default function App() {
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Suspense>
-        </ToastProvider>
+        </ConfirmProvider></ToastProvider>
       </AuthProvider>
     </BrowserRouter>
   );

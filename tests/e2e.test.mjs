@@ -270,6 +270,33 @@ describe('admin', () => {
     await p.close();
   });
 
+  test('Test this QR: builds a 1 peso GCash QR from the uploaded QR Ph code', async () => {
+    const f = (id, v) => id + String(v.length).padStart(2, '0') + v;
+    const { crc16 } = await import('../src/lib/qrph.ts');
+    const acct = f('00', 'com.p2pqrpay') + f('01', 'GXCHPHM2XXX') + f('02', '99964403') + f('04', '09171234567');
+    const body = f('00', '01') + f('01', '11') + f('27', acct) + f('52', '6016') + f('53', '608') + f('58', 'PH') + f('59', 'MEDNOTES PUBLISHING') + f('60', 'ORMOC CITY') + '6304';
+    const { data: before } = await service.from('settings').select('payment_methods').eq('id', 1).single();
+    const methods = before.payment_methods.map((m, i) => (i === 0 ? { ...m, qr_payload: body + crc16(body) } : m));
+    await service.from('settings').update({ payment_methods: methods }).eq('id', 1);
+    try {
+      const p = await open(admin);
+      await go(p, '/admin/settings');
+      assert.ok(await clickText(p, 'button', 'Test this QR'), 'button shown for a QR Ph code');
+      await p.waitForSelector('.modal img[alt*="test QR"]');
+      let t = await p.$eval('.modal', (m) => m.innerText);
+      for (const x of ['MEDNOTES PUBLISHING', '09171234567', '₱1.00 built into the QR', 'checksum OK', 'another']) assert.ok(t.includes(x), x);
+      await p.$eval('#test-amt', (e) => { e.value = ''; });
+      await p.type('#test-amt', '25');
+      await sleep(400);
+      t = await p.$eval('.modal', (m) => m.innerText);
+      assert.ok(t.includes('₱25.00 built into the QR'));
+      await shot(p, 'admin-test-qr');
+      await p.close();
+    } finally {
+      await service.from('settings').update({ payment_methods: before.payment_methods }).eq('id', 1);
+    }
+  });
+
   test('payments, users, restrictions and settings pages render', async () => {
     const p = await open(admin);
     for (const [path, s] of [['/admin/payments', 'Pending'], ['/admin/users', 'Maria Reyes'], [`/admin/users/${buyer.id}`, 'Restrictions & overrides'], ['/admin/restrictions', 'Device limit'], ['/admin/settings', 'Payment methods']]) {
@@ -307,7 +334,11 @@ describe('account deletion (UI)', () => {
     const p = await open(u);
     await go(p, '/account');
     await clickText(p, 'button', 'Delete my account');
-    await sleep(2000);
+    await p.waitForSelector('.modal #confirm-type');
+    assert.ok(await p.$eval('.modal button[type=submit]', (b) => b.disabled), 'disabled until DELETE is typed');
+    await p.type('#confirm-type', 'delete');
+    await p.click('.modal button[type=submit]');
+    await sleep(2500);
     assert.match(p.url(), /sign-in/);
     assert.equal((await service.from('profiles').select('id').eq('id', u.id)).data.length, 0);
     await p.close();

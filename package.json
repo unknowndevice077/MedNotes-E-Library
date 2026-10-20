@@ -18,8 +18,9 @@
     "seed:storage": "node scripts/seed-storage.mjs",
     "test:unit": "node --experimental-strip-types --no-warnings scripts/qrph.test.mjs",
     "test:backend": "node --test --test-concurrency=1 tests/backend.test.mjs",
-    "test:e2e": "node --test --test-concurrency=1 tests/e2e.test.mjs",
-    "test": "npm run test:unit && npm run test:backend && npm run test:e2e"
+    "test:e2e": "node --test --test-concurrency=1 --experimental-strip-types --no-warnings tests/e2e.test.mjs",
+    "test:ui": "node --test --test-concurrency=1 tests/ui.test.mjs",
+    "test": "npm run test:unit && npm run test:backend && npm run test:e2e && npm run test:ui"
   },
   "dependencies": {
     "@capacitor/android": "^6.1.2",

@@ -59,3 +59,20 @@ export function describe(payload: string) {
   const t = Object.fromEntries(parseTlv(payload).map((x) => [x.id, x.value]));
   return { name: t['59'] ?? '', city: t['60'] ?? '', amount: t['54'] ? Number(t['54']) : null, currency: t['53'] ?? '' };
 }
+
+/** Everything a publisher should check before going live: who gets paid, and that the amount and checksum come out right. */
+export function inspect(payload: string, amount?: number) {
+  const tlvs = parseTlv(payload);
+  const t = Object.fromEntries(tlvs.map((x) => [x.id, x.value]));
+  // Merchant account templates live in tags 26-51; each holds a GUID (00) plus bank/account sub-fields.
+  const accounts = tlvs.filter((x) => Number(x.id) >= 26 && Number(x.id) <= 51).map((x) => {
+    const sub = Object.fromEntries(parseTlv(x.value).map((s) => [s.id, s.value]));
+    return { guid: sub['00'] ?? '', bank: sub['01'] ?? '', account: sub['04'] ?? sub['03'] ?? sub['05'] ?? sub['02'] ?? '' };
+  });
+  const out = withAmount(payload, amount ?? 1);
+  return {
+    name: t['59'] ?? '', city: t['60'] ?? '', currency: t['53'] === '608' ? 'PHP' : t['53'] ?? '',
+    staticCode: t['01'] !== '12', accounts,
+    generated: out, generatedOk: isQrPh(out) && describe(out).amount === Number((amount ?? 1).toFixed(2)),
+  };
+}
