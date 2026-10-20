@@ -197,3 +197,30 @@ a.stat:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
   .r-sales { color: var(--muted); font-size: 13px; }
   .r-sales .r-sold { font-style: normal; display: inline; }
 }
+
+/* library: hover-to-enlarge preview + scroll reveal */
+.pv-anchor { position: relative; }
+.pv-anchor.pv-active .bookcard .cover { transform: translateY(-4px) scale(1.03); box-shadow: 0 18px 36px rgba(15, 23, 42, .22); }
+.pv-pop { position: fixed; z-index: 60; background: #fff; border-radius: 20px; box-shadow: 0 40px 80px -24px rgba(15, 23, 42, .45), 0 12px 28px rgba(15, 23, 42, .14);
+  border: 1px solid var(--line); padding: 18px; cursor: pointer; animation: pv-zoom .26s cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes pv-zoom { from { opacity: 0; transform: scale(.55); } to { opacity: 1; transform: none; } }
+.pv-body { display: flex; gap: 16px; align-items: stretch; }
+.pv-cover { width: 260px; flex-shrink: 0; }
+.pv-cover .cover { animation: pv-cover .5s cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes pv-cover { from { transform: scale(.92); } to { transform: none; } }
+.pv-info { gap: 6px; min-width: 0; flex: 1; }
+.pv-info { padding-top: 6px; }
+.pv-info h3 { font-size: 22px; line-height: 28px; }
+.pv-desc { font-size: 13.5px; line-height: 20px; color: var(--slate-600); display: -webkit-box; -webkit-line-clamp: 7; -webkit-box-orient: vertical; overflow: hidden; margin: 2px 0 0; }
+.pv-info .btn svg { margin-right: 2px; }
+.modal .pv-body { flex-direction: column; align-items: center; text-align: center; }
+.modal .pv-cover { width: 62%; max-width: 220px; }
+.modal .pv-info { align-items: center; width: 100%; }
+.modal .pv-info .row { justify-content: center; }
+.reveal { opacity: 0; transform: translateY(22px); transition: opacity .6s ease, transform .6s cubic-bezier(.2, .7, .2, 1); }
+.reveal.in { opacity: 1; transform: none; }
+.reveal.in .shelf-row > * { animation: rise .5s cubic-bezier(.2, .7, .2, 1) backwards; }
+.reveal.in .shelf-row > :nth-child(2) { animation-delay: .05s; } .reveal.in .shelf-row > :nth-child(3) { animation-delay: .1s; }
+.reveal.in .shelf-row > :nth-child(4) { animation-delay: .15s; } .reveal.in .shelf-row > :nth-child(n+5) { animation-delay: .2s; }
+.pv-anchor .bookcard { height: 100%; }
+@media (prefers-reduced-motion: reduce) { .reveal { opacity: 1; transform: none; } .pv-pop { animation: none; } }

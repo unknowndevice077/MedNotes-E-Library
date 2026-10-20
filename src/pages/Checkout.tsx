@@ -11,7 +11,7 @@ import { isNative } from '../lib/platform';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import { AppLauncher } from '@capacitor/app-launcher';
-import { ClientLayout } from '../components/Layouts';
+import { ClientLayout, invalidateCounts } from '../components/Layouts';
 import { Empty, Loading, Thumb, useIsMobile, useToast } from '../components/ui';
 import { Clock, Download, Upload } from '../components/Icons';
 
@@ -64,7 +64,7 @@ export default function Checkout() {
       });
       if (ins.error) throw ins.error.code === '23505' ? new Error('You already have a payment for this file waiting or confirmed.') : ins.error;
       toast('Payment submitted. The publisher will confirm it and send your receipt.');
-      nav('/my-files', { replace: true });
+      invalidateCounts(); nav('/my-files', { replace: true });
     } catch (e) { setErr(errMsg(e)); }
     finally { setBusy(false); }
   }

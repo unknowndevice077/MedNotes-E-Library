@@ -16,15 +16,24 @@ function Avatar({ size }: { size?: number }) {
 }
 
 /** Pending payments for the signed-in buyer (the bell badge). */
+// Last known badge counts, kept across page changes so the bell doesn't flicker or refetch on every page.
+const counts = new Map<string, number>();
+function useCount(key: string | null, query: () => PromiseLike<{ count: number | null }>) {
+  const [n, setN] = useState(() => (key && counts.get(key)) || 0);
+  useEffect(() => {
+    if (!key) return;
+    const last = counts.get(`${key}:at`) ?? 0;
+    if (Date.now() - last < 30_000) { setN(counts.get(key) ?? 0); return; } // fresh enough
+    query().then(({ count }) => { counts.set(key, count ?? 0); counts.set(`${key}:at`, Date.now()); setN(count ?? 0); });
+  }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
+  return n;
+}
+export const invalidateCounts = () => counts.clear();
+
 function usePendingCount() {
   const { session } = useAuth();
-  const [n, setN] = useState(0);
-  useEffect(() => {
-    if (!session) return;
-    supabase.from('purchases').select('id', { count: 'exact', head: true }).eq('user_id', session.user.id).eq('status', 'pending')
-      .then(({ count }) => setN(count ?? 0));
-  }, [session]);
-  return n;
+  const uid = session?.user.id ?? null;
+  return useCount(uid && `mine:${uid}`, () => supabase.from('purchases').select('id', { count: 'exact', head: true }).eq('user_id', uid!).eq('status', 'pending'));
 }
 
 function UserMenu() {
@@ -131,14 +140,11 @@ export function ClientLayout({ children, title, back, hideTabs, actions }: { chi
 }
 
 export function AdminLayout({ title, subtitle, actions, children }: { title: string; subtitle?: string; actions?: ReactNode; children: ReactNode }) {
-  const [pending, setPending] = useState(0);
   const { signOut } = useAuth();
+  const pending = useCount('admin-pending', () => supabase.from('purchases').select('id', { count: 'exact', head: true }).eq('status', 'pending'));
   const mobile = useIsMobile();
   const loc = useLocation();
   const [more, setMore] = useState(false);
-  useEffect(() => {
-    supabase.from('purchases').select('id', { count: 'exact', head: true }).eq('status', 'pending').then(({ count }) => setPending(count ?? 0));
-  }, [title]);
   const links = [
     { to: '/admin', label: 'Dashboard', icon: <Grid />, end: true },
     { to: '/admin/files', label: 'Files', icon: <Files /> },

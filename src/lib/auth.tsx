@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { App as CapApp } from '@capacitor/app';
 import { Browser } from '@capacitor/browser';
@@ -9,6 +9,7 @@ import { registerDevice, type DeviceCheck } from './device';
 import { appUrl, isNative } from './platform';
 import { markVerified, pruneSaved } from './offline';
 import type { Profile, Settings } from './types';
+import { clearLoadCache } from './useLoad';
 
 interface AuthState {
   loading: boolean;
@@ -34,10 +35,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [online, setOnline] = useState(true);
 
-  const load = useCallback(async (s: Session | null) => {
-    if (!s) { setSession(null); setProfile(null); setDevice(null); setLoading(false); return; }
+  // The user whose profile is loaded. supabase-js re-emits SIGNED_IN / TOKEN_REFRESHED when the tab
+  // wakes up or the token renews; for the same user that must not blank the app and refetch everything.
+  const userRef = useRef<string | null>(null);
+  const load = useCallback(async (s: Session | null, { quiet = false } = {}) => {
+    if (!s) { userRef.current = null; clearLoadCache(); setSession(null); setProfile(null); setDevice(null); setLoading(false); return; }
+    if (userRef.current !== s.user.id) clearLoadCache();
+    userRef.current = s.user.id;
     // hold routing until the profile (role) is known, so admins land on the dashboard
-    setLoading(true);
+    if (!quiet) setLoading(true);
     setSession(s);
     const [p, st] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', s.user.id).single(),
@@ -65,10 +71,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => load(data.session));
+    // INITIAL_SESSION covers the first load, so there is no separate getSession() call.
     const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
-      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED') load(s);
-      else setSession(s);
+      // run outside the auth callback (supabase-js deadlocks if we await its client inside it)
+      setTimeout(() => {
+        if (event === 'SIGNED_OUT' || !s) return load(null);
+        if (event === 'INITIAL_SESSION' || s.user.id !== userRef.current) return load(s);
+        if (event === 'USER_UPDATED') return load(s, { quiet: true });
+        setSession(s); // TOKEN_REFRESHED, or SIGNED_IN again for the same user on tab focus
+      }, 0);
     });
     return () => sub.subscription.unsubscribe();
   }, [load]);
@@ -96,7 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<AuthState>(() => ({
     loading, online, session, profile, settings, device,
-    refresh: async () => { const { data } = await supabase.auth.getSession(); await load(data.session); },
+    refresh: async () => { const { data } = await supabase.auth.getSession(); await load(data.session, { quiet: true }); },
     recheckDevice: async () => setDevice(await registerDevice()),
     signOut: async () => { await supabase.auth.signOut(); },
     signInWithProvider: async (provider) => {

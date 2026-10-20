@@ -8,6 +8,7 @@ import { KIND_LABEL, type FileKind, type LibFile, type Purchase } from '../lib/t
 import { ClientLayout } from '../components/Layouts';
 import { Cover, Empty, useIsMobile } from '../components/ui';
 import { ArrowRight, Book, Clock, Search } from '../components/Icons';
+import { PreviewCard, useReveal } from '../components/BookPreview';
 
 const KINDS: FileKind[] = ['epub', 'pdf', 'video', 'image', 'docx', 'pptx', 'xlsx'];
 type Status = Purchase['status'] | undefined;
@@ -19,6 +20,7 @@ function greeting() {
 
 function BookCard({ f, status }: { f: LibFile; status: Status }) {
   return (
+    <PreviewCard f={f} status={status}>
     <Link to={`/file/${f.id}`} className="bookcard">
       <Cover file={f} locked={status !== 'confirmed'} owned={status === 'confirmed'} />
       <div className="col" style={{ gap: 4 }}>
@@ -32,12 +34,13 @@ function BookCard({ f, status }: { f: LibFile; status: Status }) {
         </div>
       </div>
     </Link>
+    </PreviewCard>
   );
 }
 
 function Shelf({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
   return (
-    <section className="shelf">
+    <section className="shelf reveal">
       <div className="spread"><h2>{title}</h2>{action}</div>
       <div className="shelf-row">{children}</div>
     </section>
@@ -84,10 +87,11 @@ export default function Library() {
   const setQ = (v: string) => { const n = new URLSearchParams(sp); if (v) n.set('q', v); else n.delete('q'); setSp(n, { replace: true }); };
   const first = profile?.full_name?.split(' ')[0];
   const topLabels = labels.slice(0, 3);
+  const revealRef = useReveal<HTMLDivElement>();
 
   return (
     <ClientLayout>
-      <div className="page library">
+      <div className="page library" ref={revealRef}>
         {!filtering && (
           <section className="hero-card">
             <div className="col" style={{ gap: 10, maxWidth: 560 }}>
@@ -121,7 +125,7 @@ export default function Library() {
           </Shelf>
         ))}
 
-        <section className="col" style={{ gap: 16 }}>
+        <section className="col reveal" style={{ gap: 16 }}>
           <div className="filterbar">
             <div className="spread wrap" style={{ gap: 12 }}>
               <div className="col" style={{ gap: 2 }}>

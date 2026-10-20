@@ -1,4 +1,4 @@
-import { lazy, Suspense, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, type ReactNode } from 'react';
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './lib/auth';
 import { isNative } from './lib/platform';
@@ -6,14 +6,32 @@ import { ConfirmProvider, Loading, ToastProvider } from './components/ui';
 import DeviceGate from './components/DeviceGate';
 import { ForgotPassword, ResetPassword, SignIn, SignUp } from './pages/Auth';
 import Library from './pages/Library';
-import FileDetail from './pages/FileDetail';
-import Checkout from './pages/Checkout';
-import MyFiles from './pages/MyFiles';
-import ReceiptPage from './pages/Receipt';
-import Devices from './pages/Devices';
-import Account from './pages/Account';
-import SavedOffline from './pages/SavedOffline';
 import { DataDeletion, Privacy } from './pages/Legal';
+
+// Everything past the library loads on demand; the chunks are warmed up in the background after sign-in.
+const pages = {
+  detail: () => import('./pages/FileDetail'),
+  checkout: () => import('./pages/Checkout'),
+  myFiles: () => import('./pages/MyFiles'),
+  receipt: () => import('./pages/Receipt'),
+  devices: () => import('./pages/Devices'),
+  account: () => import('./pages/Account'),
+  saved: () => import('./pages/SavedOffline'),
+};
+const FileDetail = lazy(pages.detail);
+const Checkout = lazy(pages.checkout);
+const MyFiles = lazy(pages.myFiles);
+const ReceiptPage = lazy(pages.receipt);
+const Devices = lazy(pages.devices);
+const Account = lazy(pages.account);
+const SavedOffline = lazy(pages.saved);
+let prefetched = false;
+function prefetchPages() {
+  if (prefetched) return;
+  prefetched = true;
+  const idle = (window as unknown as { requestIdleCallback?: (f: () => void) => void }).requestIdleCallback ?? ((f: () => void) => setTimeout(f, 1500));
+  idle(() => Object.values(pages).forEach((load) => load().catch(() => undefined)));
+}
 
 const Reader = lazy(() => import('./pages/Reader'));
 const Dashboard = lazy(() => import('./admin/Dashboard'));
@@ -26,6 +44,7 @@ const AdminSettings = lazy(() => import('./admin/Restrictions').then((m) => ({ d
 
 function RequireAuth({ children, admin }: { children: ReactNode; admin?: boolean }) {
   const { loading, session, profile, online } = useAuth();
+  useEffect(() => { if (session) prefetchPages(); }, [session]);
   const loc = useLocation();
   if (loading) return <Loading label="Loading MedNotes…" />;
   if (!session) return <Navigate to="/sign-in" replace state={{ from: loc.pathname }} />;

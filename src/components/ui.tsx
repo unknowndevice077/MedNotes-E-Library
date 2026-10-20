@@ -17,7 +17,7 @@ export function Logo({ light, short, size = 36 }: { light?: boolean; short?: boo
 export function Cover({ file, owned, locked, showTag = true }: { file: Pick<LibFile, 'cover_path' | 'kind' | 'name'>; owned?: boolean; locked?: boolean; showTag?: boolean }) {
   return (
     <div className="cover">
-      <img src={coverUrl(file.cover_path)} alt={file.name} loading="lazy" />
+      <img src={coverUrl(file.cover_path)} alt={file.name} loading="lazy" decoding="async" width={300} height={400} />
       {showTag && <span className="tag">{KIND_TAG[file.kind]}</span>}
       {locked && <span className="lockpill"><Lock color="#fff" /></span>}
       {owned && !locked && <span className="corner badge b-ok">Owned</span>}

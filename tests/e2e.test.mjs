@@ -111,6 +111,55 @@ describe('buyer: browse, buy, read', () => {
     await p.close();
   });
 
+  test('no reload: auth wake-ups keep the page, going back to the library is instant', async () => {
+    const p = await open(buyer);
+    await go(p, '/library');
+    await p.evaluate(() => { window.__blank = 0; new MutationObserver(() => { if (document.body.innerText.includes('Loading MedNotes')) window.__blank++; }).observe(document.body, { childList: true, subtree: true }); });
+    const rest = [];
+    p.on('request', (r) => { if (r.url().includes('/rest/v1/') && r.method() !== 'OPTIONS') rest.push(r.url()); });
+    // what supabase-js emits when the tab wakes up and when the token renews
+    await p.evaluate(async () => { const { supabase } = await import('/src/lib/supabase.ts'); await supabase.auth._recoverAndRefresh(); await supabase.auth.refreshSession(); });
+    await sleep(1200);
+    assert.equal(await p.evaluate(() => window.__blank), 0, 'no full-screen loading');
+    assert.deepEqual(rest, [], 'no refetch');
+    await p.evaluate(() => [...document.querySelectorAll('nav a')].find((a) => a.getAttribute('href').endsWith('/my-files')).click());
+    await sleep(1200);
+    await p.evaluate(() => [...document.querySelectorAll('nav a')].find((a) => a.getAttribute('href').endsWith('/library')).click());
+    await sleep(60);
+    assert.ok(await p.evaluate(() => document.querySelectorAll('.grid .bookcard').length > 5 && !document.querySelector('.skeleton')), 'library shown from cache right away');
+    await p.close();
+  });
+
+  test('hovering a card enlarges it into a preview; press-and-hold on phones', async () => {
+    const p = await open(buyer);
+    await go(p, '/library');
+    await p.evaluate(() => { document.documentElement.style.scrollBehavior = 'auto'; document.querySelector('.grid').scrollIntoView({ block: 'start' }); window.scrollBy(0, -120); });
+    await sleep(700);
+    const card = await p.evaluateHandle(() => [...document.querySelectorAll('.grid .pv-anchor')].find((e) => { const r = e.getBoundingClientRect(); return r.top > 80 && r.bottom < innerHeight; }));
+    const box = await card.boundingBox();
+    await p.mouse.move(box.x + box.width / 2, box.y + box.height / 3);
+    await p.waitForSelector('.pv-pop', { timeout: 3000 });
+    await p.waitForFunction(() => document.querySelector('.pv-pop').getAnimations({ subtree: true }).every((x) => x.playState === 'finished'), { timeout: 3000 });
+    const pv = await p.$eval('.pv-pop', (e) => { const c = e.querySelector('.cover').getBoundingClientRect(); return { w: c.width, text: e.innerText }; });
+    assert.ok(pv.w > box.width, `preview cover (${pv.w}px) is bigger than the card (${box.width}px)`);
+    assert.match(pv.text, /Details/);
+    await shot(p, 'hover-preview');
+    await p.mouse.wheel({ deltaY: 300 });
+    await sleep(300);
+    assert.equal(await p.$('.pv-pop'), null, 'closes on scroll');
+    await p.close();
+    const m = await open(buyer, { mobile: true });
+    await go(m, '/library');
+    const first = await m.$('.shelf .pv-anchor .cover');
+    const b = await first.boundingBox();
+    await m.touchscreen.touchStart(b.x + b.width / 2, b.y + b.height / 2);
+    await sleep(700);
+    await m.touchscreen.touchEnd();
+    await m.waitForSelector('.modal .pv-body', { timeout: 3000 });
+    assert.match(m.url(), /\/library/, 'long-press did not navigate');
+    await m.close();
+  });
+
   test('buy flow: locked detail → GCash QR checkout → pending', async () => {
     const p = await open(buyer);
     await go(p, `/file/${FILES.pdf}`);

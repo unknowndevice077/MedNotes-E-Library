@@ -7,7 +7,7 @@ import { peso } from '../lib/format';
 import { isNative } from '../lib/platform';
 import { listSaved } from '../lib/offline';
 import { KIND_LABEL, type Purchase } from '../lib/types';
-import { ClientLayout } from '../components/Layouts';
+import { ClientLayout, invalidateCounts } from '../components/Layouts';
 import { Empty, Loading, StatusBadge, Thumb, useIsMobile, useToast } from '../components/ui';
 import { Clock, Download, Receipt } from '../components/Icons';
 
@@ -28,7 +28,7 @@ export default function MyFiles() {
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'purchases', filter: `user_id=eq.${session!.user.id}` }, (p) => {
         const row = p.new as Purchase;
         toast(row.status === 'confirmed' ? `Payment confirmed · receipt ${row.receipt_no}` : row.status === 'rejected' ? 'A payment was rejected. See the reason below.' : 'Payment updated');
-        reload();
+        invalidateCounts(); reload();
       }).subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [session, reload, toast]);

@@ -5,7 +5,7 @@ import { useAuth } from '../lib/auth';
 import { must, useLoad } from '../lib/useLoad';
 import { ago, dateTime, errMsg, initials, peso } from '../lib/format';
 import type { Purchase, PurchaseStatus } from '../lib/types';
-import { AdminLayout } from '../components/Layouts';
+import { AdminLayout, invalidateCounts } from '../components/Layouts';
 import { Empty, Loading, Modal, StatusBadge, useIsMobile, useToast } from '../components/ui';
 import { Check, Receipt } from '../components/Icons';
 
@@ -39,7 +39,7 @@ export default function Payments() {
     setBusy(false);
     if (error) return toast(error.message);
     toast(`Confirmed. Receipt ${r.receipt_no} issued and the file is unlocked for the buyer.`);
-    setSp({}); reload();
+    invalidateCounts(); setSp({}); reload();
   }
 
   const nextReceipt = settings ? `${settings.receipt_prefix}${String(settings.receipt_next).padStart(6, '0')}` : 'a new receipt';
@@ -99,7 +99,7 @@ export default function Payments() {
       {loading ? <Loading /> : error ? <Empty title="Couldn't load payments">{error}</Empty> : mobile ? (sel ? <>{detail}<button className="btn" onClick={() => setSp({})}>← All payments</button></> : list) : (
         <div className="row pay-split" style={{ alignItems: 'flex-start', gap: 20 }}>{list}{detail ?? <div className="grow" />}</div>
       )}
-      {rejecting && sel && <RejectModal p={sel} onClose={() => setRejecting(false)} onDone={() => { setRejecting(false); setSp({}); reload(); }} />}
+      {rejecting && sel && <RejectModal p={sel} onClose={() => setRejecting(false)} onDone={() => { setRejecting(false); invalidateCounts(); setSp({}); reload(); }} />}
     </AdminLayout>
   );
 }
