@@ -2,18 +2,19 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
-import { deviceId } from '../lib/device';
 import { deviceLabel, isNative } from '../lib/platform';
 import { errMsg } from '../lib/format';
 import { isSaved, listSaved, offlineExpired, readOffline } from '../lib/offline';
 import type { FileKind, LibFile } from '../lib/types';
 import { Loading } from '../components/ui';
+import { fetchSecureFile } from '../lib/secureFile';
+import { guardMessage, useContentGuard } from '../lib/contentGuard';
 import { blockScreenshots } from '../lib/screenGuard';
 import { Back } from '../components/Icons';
 
 type Source = { kind: FileKind; name: string; mime: string; blob?: Blob; url?: string };
 
-async function loadSource(id: string, preferOffline: boolean, offlineDays: number): Promise<Source> {
+async function loadSource(id: string, preferOffline: boolean, offlineDays: number, onProgress: (p: number) => void): Promise<Source> {
   if (isNative && (preferOffline || (await isSaved(id)))) {
     const meta = (await listSaved()).find((f) => f.id === id);
     if (meta) {
@@ -24,15 +25,9 @@ async function loadSource(id: string, preferOffline: boolean, offlineDays: numbe
   const { data: file, error } = await supabase.from('files').select('*').eq('id', id).single<LibFile>();
   if (error || !file) throw new Error(error?.message ?? 'File not found');
   if (!file.storage_path) throw new Error('The publisher has not uploaded this file yet.');
-  const { data: ok } = await supabase.rpc('device_ok', { p_device_id: await deviceId() });
-  if (!ok) throw new Error('This device is not registered on your account. Open Devices to fix it.');
-  // RLS on storage only signs the URL if the publisher confirmed your payment.
-  const { data: signed, error: se } = await supabase.storage.from('files').createSignedUrl(file.storage_path, file.kind === 'video' ? 3600 : 300);
-  if (se || !signed) throw new Error(se?.message.includes('not found') || se?.message.includes('Object') ? 'You need to unlock this file first.' : se?.message ?? 'Could not open the file');
-  if (file.kind === 'video') return { kind: file.kind, name: file.name, mime: file.mime, url: signed.signedUrl };
-  const res = await fetch(signed.signedUrl);
-  if (!res.ok) throw new Error('Download failed (' + res.status + ')');
-  return { kind: file.kind, name: file.name, mime: file.mime, blob: await res.blob() };
+  // Encrypted, ownership- and device-checked delivery; no storage URL ever reaches the browser.
+  const blob = await fetchSecureFile(file.id, file.mime, (done, total) => onProgress(total ? done / total : 0));
+  return { kind: file.kind, name: file.name, mime: file.mime, blob };
 }
 
 export default function Reader() {
@@ -42,10 +37,12 @@ export default function Reader() {
   const { profile, settings, session } = useAuth();
   const [src, setSrc] = useState<Source | null>(null);
   const [err, setErr] = useState('');
+  const [progress, setProgress] = useState(0);
+  const guard = useContentGuard(!!src);
   const email = profile?.email ?? session?.user.email ?? '';
 
   useEffect(() => {
-    loadSource(id!, sp.get('offline') === '1', settings?.offline_days ?? 30).then(setSrc).catch((e) => setErr(errMsg(e)));
+    loadSource(id!, sp.get('offline') === '1', settings?.offline_days ?? 30, setProgress).then(setSrc).catch((e) => setErr(errMsg(e)));
   }, [id, sp, settings?.offline_days]);
 
   // Android: block screenshots/recording only while paid content is on screen (Restrictions setting).
@@ -64,7 +61,14 @@ export default function Reader() {
         <span className="badge b-lock hide-sm">Read in MedNotes only</span>
       </div>
       <div className="reader-body">
-        {err ? <div className="page"><div className="note note-red">{err}</div></div> : !src ? <Loading label="Opening your file…" /> : <Render src={src} />}
+        {err ? <div className="page"><div className="note note-red">{err}</div></div>
+          : !src ? <Loading label={progress > 0 && progress < 1 ? `Opening securely… ${Math.round(progress * 100)}%` : 'Opening your file securely…'} />
+          : <div className={guard ? 'guarded' : ''} aria-hidden={!!guard}><Render src={src} /></div>}
+        {guard && (
+          <div className="guard-cover" role="alert" onClick={() => window.focus()}>
+            <div className="guard-card"><b>{guardMessage[guard].title}</b><span>{guardMessage[guard].body}</span></div>
+          </div>
+        )}
       </div>
       {(settings?.watermark ?? true) && src && (
         <div className="watermark" aria-hidden>{Array.from({ length: 24 }, (_, i) => <span key={i}>{mark}</span>)}</div>
@@ -86,11 +90,6 @@ function Render({ src }: { src: Source }) {
   }
 }
 
-function useBlobUrl(blob?: Blob) {
-  const [url, setUrl] = useState<string>();
-  useEffect(() => { if (!blob) return; const u = URL.createObjectURL(blob); setUrl(u); return () => URL.revokeObjectURL(u); }, [blob]);
-  return url;
-}
 
 function Epub({ blob }: { blob: Blob }) {
   const el = useRef<HTMLDivElement>(null);
@@ -165,18 +164,36 @@ function PdfPage({ doc, n }: { doc: PdfDoc; n: number }) {
 }
 
 function Video({ src }: { src: Source }) {
-  const blobUrl = useBlobUrl(src.blob);
+  const ref = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    const v = ref.current;
+    if (!v || !src.blob) return;
+    const u = URL.createObjectURL(src.blob);
+    v.src = u;
+    // Drop the blob: URL once the player has the data, so it can't be opened or saved from DevTools.
+    const drop = () => URL.revokeObjectURL(u);
+    v.addEventListener('loadeddata', drop, { once: true });
+    return () => { drop(); v.removeAttribute('src'); v.load(); };
+  }, [src.blob]);
   return (
     <div className="center" style={{ height: '100%', background: '#0b1220' }}>
-      <video src={src.url ?? blobUrl} controls autoPlay playsInline controlsList="nodownload noplaybackrate" disablePictureInPicture
-        style={{ maxWidth: '100%', maxHeight: '100%' }} />
+      <video ref={ref} controls autoPlay playsInline controlsList="nodownload noplaybackrate noremoteplayback" disablePictureInPicture disableRemotePlayback
+        onContextMenu={(e) => e.preventDefault()} style={{ maxWidth: '100%', maxHeight: '100%' }} />
     </div>
   );
 }
 
+/** Images are painted onto a canvas: no <img> element or URL to "Save image as". */
 function ImageView({ blob }: { blob: Blob }) {
-  const url = useBlobUrl(blob);
-  return <div className="center" style={{ padding: 16 }}>{url && <img src={url} alt="" draggable={false} style={{ maxWidth: '100%', borderRadius: 8 }} />}</div>;
+  const ref = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    createImageBitmap(blob).then((bmp) => {
+      const c = ref.current; if (!c) return;
+      c.width = bmp.width; c.height = bmp.height;
+      c.getContext('2d')!.drawImage(bmp, 0, 0);
+    });
+  }, [blob]);
+  return <div className="center" style={{ padding: 16 }}><canvas ref={ref} style={{ maxWidth: '100%', borderRadius: 8 }} /></div>;
 }
 
 function Docx({ blob }: { blob: Blob }) {

@@ -1,8 +1,9 @@
+import { createPortal } from 'react-dom';
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { coverUrl } from '../lib/supabase';
 import { KIND_TAG, type LibFile, type PurchaseStatus } from '../lib/types';
 import { asset, isNative } from '../lib/platform';
-import { Check, Clock, Lock, Play } from './Icons';
+import { Check, Clock, Lock } from './Icons';
 
 export function Logo({ light, short, size = 36 }: { light?: boolean; short?: boolean; size?: number }) {
   return (
@@ -20,7 +21,6 @@ export function Cover({ file, owned, locked, showTag = true }: { file: Pick<LibF
       {showTag && <span className="tag">{KIND_TAG[file.kind]}</span>}
       {locked && <span className="lockpill"><Lock color="#fff" /></span>}
       {owned && !locked && <span className="corner badge b-ok">Owned</span>}
-      {file.kind === 'video' && locked && <span className="center" style={{ position: 'absolute', inset: 0 }}><Play width={52} height={52} /></span>}
     </div>
   );
 }
@@ -48,10 +48,13 @@ export function Modal({ children, onClose, width = 520 }: { children: ReactNode;
     window.addEventListener('keydown', k);
     return () => window.removeEventListener('keydown', k);
   }, [onClose]);
-  return (
+  // Portal to <body>: an animated/transformed ancestor would otherwise trap the fixed overlay
+  // under the sticky headers (the admin upload dialog bug).
+  return createPortal(
     <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && onClose?.()}>
-      <div className="modal" style={{ maxWidth: width }}>{children}</div>
-    </div>
+      <div className="modal" role="dialog" aria-modal="true" style={{ maxWidth: width }}>{children}</div>
+    </div>,
+    document.body,
   );
 }
 

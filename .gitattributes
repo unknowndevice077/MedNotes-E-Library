@@ -9,3 +9,8 @@ android/gradlew text eol=lf
 *.xlsx binary
 *.mp4 binary
 *.jks binary
+
+# Design sources (Figma HTML) are documentation, not app code: keep GitHub language stats on the React/TypeScript app
+design/** linguist-documentation
+supabase/sample/** linguist-vendored
+public/pdfjs/** linguist-vendored

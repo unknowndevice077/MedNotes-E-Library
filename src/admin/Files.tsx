@@ -1,6 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
 import { supabase, coverUrl } from '../lib/supabase';
-import { useAuth } from '../lib/auth';
 import { must, useLoad } from '../lib/useLoad';
 import { bytes, errMsg, pesoShort } from '../lib/format';
 import { KIND_LABEL, KIND_TAG, kindFromName, type FileKind, type LibFile } from '../lib/types';
@@ -17,7 +16,7 @@ export default function AdminFiles() {
   const [q, setQ] = useState('');
   const [kind, setKind] = useState<FileKind | 'all'>('all');
   const [editing, setEditing] = useState<LibFile | 'new' | null>(null);
-  const { data, loading, reload, setData } = useLoad(async () => {
+  const { data, loading, reload } = useLoad(async () => {
     const [f, s] = await Promise.all([
       supabase.from('files').select('*').order('created_at', { ascending: false }),
       supabase.from('purchases').select('file_id').eq('status', 'confirmed'),
@@ -29,11 +28,6 @@ export default function AdminFiles() {
   const shown = useMemo(() => (data?.files ?? []).filter((f) => (kind === 'all' || f.kind === kind)
     && (!q || `${f.name} ${f.label}`.toLowerCase().includes(q.toLowerCase()))), [data, q, kind]);
 
-  async function toggleDownload(f: LibFile) {
-    const { error } = await supabase.from('files').update({ allow_download: !f.allow_download }).eq('id', f.id);
-    if (error) return toast(error.message);
-    setData((d) => d && { ...d, files: d.files.map((x) => (x.id === f.id ? { ...x, allow_download: !x.allow_download } : x)) });
-  }
   async function remove(f: LibFile) {
     if (!confirm(`Delete "${f.name}"? Buyers lose access and this can't be undone.`)) return;
     const paths = [f.storage_path].filter(Boolean) as string[];
@@ -54,7 +48,7 @@ export default function AdminFiles() {
       </div>
       {loading ? <Loading /> : (
         <div className="table">
-          <div className="tr th hide-sm"><span style={{ width: 340 }}>Name</span><span style={{ width: 130 }}>Label</span><span style={{ width: 80 }}>Type</span><span style={{ width: 90 }}>Price</span><span style={{ width: 60 }}>Sales</span><span style={{ width: 130 }}>Allow download</span><span className="grow" /></div>
+          <div className="tr th hide-sm"><span style={{ width: 340 }}>Name</span><span style={{ width: 130 }}>Label</span><span style={{ width: 80 }}>Type</span><span style={{ width: 90 }}>Price</span><span style={{ width: 60 }}>Sales</span><span style={{ width: 130 }}>Status</span><span className="grow" /></div>
           {shown.map((f) => (
             <div key={f.id} className="tr">
               <div className="row" style={{ width: mobile ? '100%' : 340 }}>
@@ -65,7 +59,7 @@ export default function AdminFiles() {
               <span style={{ width: 80 }}>{KIND_TAG[f.kind]}</span>
               <b style={{ width: 90 }}>{pesoShort(f.price)}</b>
               <span style={{ width: 60 }}>{data?.sales.get(f.id) ?? 0}</span>
-              <span style={{ width: 130 }}><Toggle on={f.allow_download} onChange={() => toggleDownload(f)} label={`Allow download for ${f.name}`} /></span>
+              <span style={{ width: 130 }}>{f.published ? <span className="badge b-ok">Published</span> : <span className="badge b-lock">Draft</span>}</span>
               <span className="grow" />
               <button className="btn btn-sm" onClick={() => setEditing(f)}>Edit</button>
               <button className="btn btn-sm btn-danger" onClick={() => remove(f)}>Delete</button>
@@ -80,11 +74,11 @@ export default function AdminFiles() {
 }
 
 function FileEditor({ file, onClose, onSaved }: { file: LibFile | null; onClose: () => void; onSaved: () => void }) {
-  const { settings } = useAuth();
+
   const toast = useToast();
   const [f, setF] = useState({
     name: file?.name ?? '', label: file?.label ?? '', description: file?.description ?? '', price: String(file?.price ?? ''),
-    meta: file?.meta ?? '', allow_download: file?.allow_download ?? settings?.allow_download_default ?? false, published: file?.published ?? true,
+    meta: file?.meta ?? '', published: file?.published ?? true,
   });
   const [upload, setUpload] = useState<File | null>(null);
   const [cover, setCover] = useState<File | null>(null);
@@ -107,7 +101,7 @@ function FileEditor({ file, onClose, onSaved }: { file: LibFile | null; onClose:
     setErr('');
     try {
       const base = slug(f.name) + '-' + Date.now().toString(36);
-      const row: Partial<LibFile> = { name: f.name.trim(), label: f.label.trim(), description: f.description.trim(), price: Number(f.price), meta: f.meta.trim(), allow_download: f.allow_download, published: f.published };
+      const row: Partial<LibFile> = { name: f.name.trim(), label: f.label.trim(), description: f.description.trim(), price: Number(f.price), meta: f.meta.trim(), published: f.published };
       if (upload) {
         setBusy('Uploading file…');
         const ext = upload.name.split('.').pop()!.toLowerCase();
@@ -159,7 +153,7 @@ function FileEditor({ file, onClose, onSaved }: { file: LibFile | null; onClose:
           </div>
           <div className="field"><label htmlFor="fdesc">Description</label><textarea id="fdesc" className="input" value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} /></div>
           <div className="field"><label htmlFor="fmeta">Length (shown on the card)</label><input id="fmeta" className="input" value={f.meta} onChange={(e) => setF({ ...f, meta: e.target.value })} placeholder="e.g. 320 pages, 2h 14m, 62 slides" /></div>
-          <div className="card setting" style={{ padding: '12px 14px' }}><div className="col" style={{ gap: 0 }}><b>Allow download</b><span className="small muted">Off: buyers can only read or watch inside MedNotes</span></div><Toggle on={f.allow_download} onChange={(v) => setF({ ...f, allow_download: v })} label="Allow download" /></div>
+          <div className="note note-blue"><span>Buyers can only view this file inside MedNotes. It is never downloadable.</span></div>
           <div className="card setting" style={{ padding: '12px 14px' }}><div className="col" style={{ gap: 0 }}><b>Published</b><span className="small muted">Visible in the library</span></div><Toggle on={f.published} onChange={(v) => setF({ ...f, published: v })} label="Published" /></div>
         </div>
       </div>

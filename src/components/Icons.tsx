@@ -24,6 +24,10 @@ export const Shield = base(<path d="M12 3 5 6v6c0 4.5 3 7.5 7 9 4-1.5 7-4.5 7-9V
 export const Cog = base(<><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1" /></>);
 export const Bell = base(<><path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z" /><path d="M10 21h4" /></>);
 export const Back = base(<path d="m15 18-6-6 6-6" />);
+export const Chevron = base(<path d="m6 9 6 6 6-6" />);
+export const ArrowRight = base(<><path d="M5 12h14" /><path d="m13 6 6 6-6 6" /></>);
+export const Eye = base(<><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" /><circle cx="12" cy="12" r="3" /></>);
+export const Trend = base(<><path d="m3 17 6-6 4 4 8-8" /><path d="M15 7h6v6" /></>);
 export const Close = base(<path d="M6 6l12 12M18 6 6 18" />);
 export const Logout = base(<><path d="M15 4h4v16h-4" /><path d="M10 8l-4 4 4 4M6 12h10" /></>);
 export const Wifi = base(<><path d="M2 8.5a15 15 0 0 1 20 0M5 12a10 10 0 0 1 14 0M8.5 15.5a5 5 0 0 1 7 0" /><path d="M12 19h.01" /></>);

@@ -1,61 +1,131 @@
-import { useEffect, useState, type ReactNode } from 'react';
-import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
 import { supabase } from '../lib/supabase';
 import { initials } from '../lib/format';
 import { Logo, useIsMobile } from './ui';
-import { Back, Bell, Book, Cog, Files, Grid, Home, Logout, Pay, Phone, Shield, User, Users } from './Icons';
+import { Back, Bell, Book, Chevron, Cog, Files, Grid, Home, Logout, Pay, Phone, Search, Shield, User, Users } from './Icons';
 
-function Avatar() {
+function Avatar({ size }: { size?: number }) {
   const { profile } = useAuth();
   return (
-    <span className="avatar">
+    <span className="avatar" style={size ? { width: size, height: size, borderRadius: size / 2 } : undefined}>
       {profile?.avatar_url ? <img src={profile.avatar_url} alt="" referrerPolicy="no-referrer" /> : initials(profile?.full_name ?? '', profile?.email)}
     </span>
   );
 }
 
-/** Client pages: top bar on desktop, compact header + bottom tabs on phones and in the app. */
+/** Pending payments for the signed-in buyer (the bell badge). */
+function usePendingCount() {
+  const { session } = useAuth();
+  const [n, setN] = useState(0);
+  useEffect(() => {
+    if (!session) return;
+    supabase.from('purchases').select('id', { count: 'exact', head: true }).eq('user_id', session.user.id).eq('status', 'pending')
+      .then(({ count }) => setN(count ?? 0));
+  }, [session]);
+  return n;
+}
+
+function UserMenu() {
+  const { profile, signOut } = useAuth();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const close = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, []);
+  return (
+    <div className="menu-wrap" ref={ref}>
+      <button className="user-chip" onClick={() => setOpen((o) => !o)} aria-haspopup="menu" aria-expanded={open}>
+        <Avatar size={34} /><span className="hide-sm">{profile?.full_name?.split(' ')[0] || 'Account'}</span><Chevron width={16} />
+      </button>
+      {open && (
+        <div className="menu" role="menu" onClick={() => setOpen(false)}>
+          <div className="menu-head"><Avatar size={40} /><div className="col" style={{ gap: 0, minWidth: 0 }}><b>{profile?.full_name || 'Your account'}</b><span className="small muted ellipsis">{profile?.email}</span></div></div>
+          <Link to="/account" role="menuitem"><User />Account</Link>
+          <Link to="/my-files" role="menuitem"><Book />My files</Link>
+          <Link to="/devices" role="menuitem"><Phone />Devices</Link>
+          {profile?.role === 'admin' && <Link to="/admin" role="menuitem"><Grid />Admin dashboard</Link>}
+          <button role="menuitem" className="danger" onClick={signOut}><Logout />Sign out</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SiteFooter() {
+  return (
+    <footer className="site-footer">
+      <div className="site-footer-inner">
+        <div className="col" style={{ gap: 8, maxWidth: 360 }}>
+          <Logo />
+          <span className="small muted">Medical notes, e-books, lectures and slides from trusted publishers. Files are view-only and protected for each buyer.</span>
+        </div>
+        <div className="footer-links">
+          <div className="col"><b className="small">Library</b><Link to="/library">Browse</Link><Link to="/my-files">My files</Link><Link to="/devices">Devices</Link></div>
+          <div className="col"><b className="small">Help</b><Link to="/privacy">Privacy policy</Link><Link to="/data-deletion">Delete your data</Link><Link to="/account">Account</Link></div>
+        </div>
+      </div>
+      <div className="site-footer-bottom small muted">© {new Date().getFullYear()} MedNotes E-Library · Files are licensed to your account and can only be viewed in MedNotes.</div>
+    </footer>
+  );
+}
+
+/** Client pages: top bar + footer on desktop, compact header + bottom tabs on phones and in the app. */
 export function ClientLayout({ children, title, back, hideTabs, actions }: { children: ReactNode; title?: string; back?: string | true; hideTabs?: boolean; actions?: ReactNode }) {
   const mobile = useIsMobile();
   const nav = useNavigate();
-  const { profile } = useAuth();
+  const loc = useLocation();
+  const pending = usePendingCount();
+  const [q, setQ] = useState(() => new URLSearchParams(loc.search).get('q') ?? '');
+  const search = (e: FormEvent) => { e.preventDefault(); nav(`/library${q.trim() ? `?q=${encodeURIComponent(q.trim())}` : ''}`); };
   if (mobile) {
     return (
-      <div className={hideTabs ? '' : 'with-tabbar'}>
+      <div className={hideTabs ? 'm-shell' : 'm-shell with-tabbar'}>
         <header className="mobile-top">
-          {back ? <button onClick={() => (back === true ? nav(-1) : nav(back))} aria-label="Back"><Back width={22} /></button>
-            : title ? <b style={{ fontSize: 18 }}>{title}</b> : <Logo short size={30} />}
-          {back && <b>{title}</b>}
-          <span className="row" style={{ gap: 8 }}>{actions}{!back && !title && <Link to="/account"><Avatar /></Link>}{back && !actions && <span style={{ width: 22 }} />}</span>
+          {back ? <button className="icon-btn" onClick={() => (back === true ? nav(-1) : nav(back))} aria-label="Back"><Back width={22} /></button>
+            : title ? <b style={{ fontSize: 19 }}>{title}</b> : <Logo short size={30} />}
+          {back && <b className="ellipsis" style={{ maxWidth: '62vw' }}>{title}</b>}
+          <span className="row" style={{ gap: 6 }}>
+            {actions}
+            {!back && <Link to="/my-files" className="icon-btn bell" aria-label="Payments"><Bell width={21} />{pending > 0 && <i className="dot">{pending}</i>}</Link>}
+            {!back && !title && <Link to="/account"><Avatar size={32} /></Link>}
+            {back && !actions && <span style={{ width: 36 }} />}
+          </span>
         </header>
-        {children}
+        <div className="m-body">{children}</div>
         {!hideTabs && (
-          <nav className="tabbar">
-            <NavLink to="/library" className="tab"><Home />Library</NavLink>
-            <NavLink to="/my-files" className="tab"><Book />My files</NavLink>
-            <NavLink to="/devices" className="tab"><Phone />Devices</NavLink>
-            <NavLink to="/account" className="tab"><User />Account</NavLink>
+          <nav className="tabbar" aria-label="Main">
+            <NavLink to="/library" className="tab"><span className="tab-ico"><Home /></span>Library</NavLink>
+            <NavLink to="/my-files" className="tab"><span className="tab-ico"><Book />{pending > 0 && <i className="dot sm" />}</span>My files</NavLink>
+            <NavLink to="/devices" className="tab"><span className="tab-ico"><Phone /></span>Devices</NavLink>
+            <NavLink to="/account" className="tab"><span className="tab-ico"><User /></span>Account</NavLink>
           </nav>
         )}
       </div>
     );
   }
   return (
-    <div>
+    <div className="d-shell">
       <header className="topbar">
-        <Link to="/library"><Logo /></Link>
-        <nav className="nav">
+        <Link to="/library" aria-label="MedNotes home"><Logo /></Link>
+        <nav className="nav" aria-label="Main">
           <NavLink to="/library">Library</NavLink>
           <NavLink to="/my-files">My files</NavLink>
           <NavLink to="/devices">Devices</NavLink>
-          {profile?.role === 'admin' && <NavLink to="/admin">Admin</NavLink>}
         </nav>
+        <form className="search top-search" onSubmit={search} role="search">
+          <Search width={18} color="var(--slate-400)" />
+          <input placeholder="Search notes, books, lectures…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search the library" />
+        </form>
         <span className="grow" />
-        <Link to="/my-files" aria-label="Notifications" style={{ color: 'var(--slate-600)' }}><Bell width={22} /></Link>
-        <Link to="/account"><Avatar /></Link>
+        <Link to="/my-files" className="icon-btn bell" aria-label={pending ? `${pending} payments waiting` : 'Payments'}><Bell width={21} />{pending > 0 && <i className="dot">{pending}</i>}</Link>
+        <UserMenu />
       </header>
-      {children}
+      <main className="d-main">{children}</main>
+      <SiteFooter />
     </div>
   );
 }

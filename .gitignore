@@ -14,3 +14,4 @@ android/app/release
 *.jks
 design/out
 .env.*.local
+tests/screenshots

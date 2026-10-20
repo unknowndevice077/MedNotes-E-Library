@@ -1,7 +1,7 @@
 // Uploads sample covers and files into the LOCAL Supabase storage buckets.
 // Reads the local API URL and service-role key from `supabase status`, so it never needs secrets in the repo.
 import { readdirSync, readFileSync } from 'node:fs';
-import { join, extname } from 'node:path';
+import { join, extname, relative, sep } from 'node:path';
 import { execSync } from 'node:child_process';
 import { createClient } from '@supabase/supabase-js';
 
@@ -19,9 +19,12 @@ const types = { '.png': 'image/png', '.jpg': 'image/jpeg', '.epub': 'application
   '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
   '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' };
 
-for (const [bucket, dir] of [['covers', 'covers'], ['files', 'files'], ['payment-qr', 'payment-qr']]) {
+for (const [bucket, dir] of [['covers', 'covers'], ['files', 'files'], ['payment-qr', 'payment-qr'], ['proofs', 'proofs']]) {
   const folder = join(root, 'supabase', 'sample', dir);
-  for (const name of readdirSync(folder)) {
+  // proofs live in <user id>/ folders; the rest are flat
+  const names = readdirSync(folder, { recursive: true, withFileTypes: true }).filter((d) => d.isFile())
+    .map((d) => relative(folder, join(d.parentPath ?? d.path, d.name)).split(sep).join('/'));
+  for (const name of names) {
     const body = readFileSync(join(folder, name));
     const { error } = await sb.storage.from(bucket).upload(name, body, { upsert: true, contentType: types[extname(name)] });
     console.log(error ? `✗ ${bucket}/${name}: ${error.message}` : `✓ ${bucket}/${name}`);

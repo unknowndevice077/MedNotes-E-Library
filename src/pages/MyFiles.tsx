@@ -40,18 +40,26 @@ export default function MyFiles() {
     return [...by.values()];
   })();
   const pending = rows.filter((r) => r.status === 'pending').length;
+  const [tab, setTab] = useState<'all' | Purchase['status']>('all');
+  const counts = { all: rows.length, confirmed: rows.filter((r) => r.status === 'confirmed').length, pending, rejected: rows.filter((r) => r.status === 'rejected').length };
+  const visible = tab === 'all' ? rows : rows.filter((r) => r.status === tab);
 
   return (
     <ClientLayout title="My files">
       <div className="page">
-        {!mobile && <h1>My files</h1>}
+        {!mobile && <div className="col" style={{ gap: 4 }}><h1>My files</h1><span className="muted">Everything you bought, with payment status and receipts.</span></div>}
+        <div className="seg" role="tablist">
+          {([['all', 'All'], ['confirmed', 'Unlocked'], ['pending', 'Waiting'], ['rejected', 'Rejected']] as const).map(([k, l]) => (
+            <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}<i>{counts[k]}</i></button>
+          ))}
+        </div>
         {pending > 0 && <div className="note note-amber"><Clock /><span><b>{pending} payment{pending > 1 ? 's are' : ' is'} waiting for the publisher's confirmation.</b> We'll update this page and your receipt appears here as soon as it's confirmed.</span></div>}
         {isNative && <Link to="/saved" className="note note-blue" style={{ alignItems: 'center' }}><Download /><b className="grow">Saved for offline · {savedCount} file{savedCount === 1 ? '' : 's'}</b>→</Link>}
-        {loading ? <Loading /> : error ? <Empty title="Couldn't load your files">{error}</Empty> : rows.length === 0 ? (
-          <Empty title="No files yet">Browse the <Link to="/library" className="link">library</Link> and unlock your first file.</Empty>
+        {loading ? <Loading /> : error ? <Empty title="Couldn't load your files">{error}</Empty> : visible.length === 0 ? (
+          <Empty title={rows.length ? 'Nothing here' : 'No files yet'}>Browse the <Link to="/library" className="link">library</Link> and unlock your first file.</Empty>
         ) : mobile ? (
           <div className="col">
-            {rows.map((r) => (
+            {visible.map((r) => (
               <div key={r.id} className="card row" style={{ padding: 12 }}>
                 <Thumb file={r.files} />
                 <div className="col grow" style={{ gap: 4 }}>
@@ -68,7 +76,7 @@ export default function MyFiles() {
         ) : (
           <div className="table">
             <div className="tr th"><span style={{ width: 380 }}>File</span><span style={{ width: 120 }}>Paid</span><span style={{ width: 280 }}>Status</span><span style={{ width: 150 }}>Receipt</span><span className="grow" /></div>
-            {rows.map((r) => (
+            {visible.map((r) => (
               <div key={r.id} className="tr">
                 <div className="row" style={{ width: 380 }}><Thumb file={r.files} /><div className="col" style={{ gap: 0 }}><b>{r.files?.name}</b><span className="small muted">{r.files ? KIND_LABEL[r.files.kind] : ''} · Ref {r.reference_no || '—'}</span></div></div>
                 <span style={{ width: 120 }}>{peso(r.amount)}</span>

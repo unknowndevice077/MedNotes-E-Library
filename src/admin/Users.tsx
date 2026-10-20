@@ -77,7 +77,7 @@ export function AdminUserDetail() {
       supabase.from('purchases').select('*, files(*)').eq('user_id', id!).order('created_at', { ascending: false }),
     ]);
     const prof = must(p) as Profile;
-    setO({ computer_slots: prof.computer_slots, phone_slots: prof.phone_slots, swaps_per_30d: prof.swaps_per_30d, allow_download: prof.allow_download, can_add_devices: prof.can_add_devices, admin_note: prof.admin_note });
+    setO({ computer_slots: prof.computer_slots, phone_slots: prof.phone_slots, swaps_per_30d: prof.swaps_per_30d, can_add_devices: prof.can_add_devices, admin_note: prof.admin_note });
     return { prof, devices: must(d) as Device[], purchases: must(pu) as Purchase[] };
   }, [id]);
   if (loading || !data || !o) return <AdminLayout title="User"><Loading /></AdminLayout>;
@@ -128,7 +128,6 @@ export function AdminUserDetail() {
           <div className="setting"><div className="col" style={{ gap: 0 }}><b>Computer slots</b><span className="small muted">Default: {settings?.computer_slots}</span></div><Stepper value={o.computer_slots ?? null} placeholder={settings?.computer_slots ?? 1} onChange={(v) => setO({ ...o, computer_slots: v })} /></div>
           <div className="setting"><div className="col" style={{ gap: 0 }}><b>Phone slots</b><span className="small muted">Default: {settings?.phone_slots}</span></div><Stepper value={o.phone_slots ?? null} placeholder={settings?.phone_slots ?? 1} onChange={(v) => setO({ ...o, phone_slots: v })} /></div>
           <div className="setting"><div className="col" style={{ gap: 0 }}><b>Device swaps per 30 days</b><span className="small muted">Default: {settings?.swaps_per_30d}</span></div><Stepper value={o.swaps_per_30d ?? null} placeholder={settings?.swaps_per_30d ?? 2} onChange={(v) => setO({ ...o, swaps_per_30d: v })} /></div>
-          <div className="setting"><div className="col" style={{ gap: 0 }}><b>Allow downloads</b><span className="small muted">Overrides each file's setting for this user{o.allow_download === null ? ' (using file setting)' : ''}</span></div><Toggle on={!!o.allow_download} onChange={(v) => setO({ ...o, allow_download: v })} label="Allow downloads" /></div>
           <div className="setting"><div className="col" style={{ gap: 0 }}><b>Can add new devices</b><span className="small muted">Off locks the current devices</span></div><Toggle on={o.can_add_devices ?? settings?.users_can_add_devices ?? true} onChange={(v) => setO({ ...o, can_add_devices: v })} label="Can add new devices" /></div>
           <div className="field"><label htmlFor="anote">Admin note</label><textarea id="anote" className="input" value={o.admin_note ?? ''} onChange={(e) => setO({ ...o, admin_note: e.target.value })} /></div>
           <button className="btn btn-primary" onClick={saveOverrides}>Save overrides</button>

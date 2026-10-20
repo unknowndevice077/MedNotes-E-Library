@@ -33,7 +33,7 @@ const Num = ({ value, onChange, width = 80, suffix }: { value: number; onChange:
 export function AdminRestrictions() {
   const { s, setS, loading, save } = useSettingsForm();
   const { data: overrides } = useLoad(async () => must(await supabase.from('profiles').select('*')
-    .or('computer_slots.not.is.null,phone_slots.not.is.null,allow_download.not.is.null,can_add_devices.eq.false,suspended.eq.true')) as Profile[]);
+    .or('computer_slots.not.is.null,phone_slots.not.is.null,can_add_devices.eq.false,suspended.eq.true')) as Profile[]);
   if (loading || !s) return <AdminLayout title="Restrictions"><Loading /></AdminLayout>;
   const set = (p: Partial<Settings>) => setS({ ...s, ...p });
   return (
@@ -49,7 +49,7 @@ export function AdminRestrictions() {
           </div>
           <div className="card col" style={{ gap: 14 }}>
             <div className="row"><Shield width={22} color="var(--blue)" /><h3>Content protection</h3></div>
-            <div className="setting"><div className="col" style={{ gap: 0 }}><b>Allow file export by default</b><span className="small muted">New files start with this setting. Each file can change it.</span></div><Toggle on={s.allow_download_default} onChange={(v) => set({ allow_download_default: v })} /></div>
+            <div className="setting"><div className="col" style={{ gap: 0 }}><b>Downloads</b><span className="small muted">Always off: files are delivered encrypted and only viewable inside MedNotes</span></div><span className="badge b-lock">Off</span></div>
             <div className="setting"><div className="col" style={{ gap: 0 }}><b>Watermark with buyer email</b><span className="small muted">On the reader and videos</span></div><Toggle on={s.watermark} onChange={(v) => set({ watermark: v })} /></div>
             <div className="setting"><div className="col" style={{ gap: 0 }}><b>Block screenshots in the app</b><span className="small muted">Android secure screen</span></div><Toggle on={s.block_screenshots} onChange={(v) => set({ block_screenshots: v })} /></div>
             <div className="setting"><div className="col" style={{ gap: 0 }}><b>Offline saving (mobile app only)</b><span className="small muted">Encrypted copies inside the app</span></div><Toggle on={s.offline_saving} onChange={(v) => set({ offline_saving: v })} /></div>
@@ -62,8 +62,8 @@ export function AdminRestrictions() {
           {(overrides ?? []).map((u) => (
             <Link key={u.id} to={`/admin/users/${u.id}`} className="spread" style={{ color: 'inherit' }}>
               <span className="row"><span className="avatar">{initials(u.full_name, u.email)}</span>{u.full_name || u.email}</span>
-              <span className={`badge ${u.suspended || u.can_add_devices === false ? 'b-red' : u.allow_download ? 'b-blue' : 'b-pending'}`}>
-                {u.suspended ? 'Suspended' : u.can_add_devices === false ? 'Devices locked' : u.allow_download ? 'Downloads on' : 'Custom slots'}</span>
+              <span className={`badge ${u.suspended || u.can_add_devices === false ? 'b-red' : 'b-pending'}`}>
+                {u.suspended ? 'Suspended' : u.can_add_devices === false ? 'Devices locked' : 'Custom slots'}</span>
             </Link>
           ))}
         </div>
