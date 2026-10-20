@@ -15,7 +15,7 @@ const W = 600, H = 380;
 const finePointer = () => window.matchMedia('(hover: hover) and (pointer: fine)').matches;
 
 function PreviewBody({ f, status, onGo }: { f: LibFile; status: Status; onGo?: () => void }) {
-  const owned = status === 'confirmed';
+  const owned = status === 'confirmed' || f.is_free;
   const publisher = usePublisher();
   return (
     <div className="pv-body">

@@ -6,7 +6,7 @@ import { Network } from '@capacitor/network';
 import { Preferences } from '@capacitor/preferences';
 import { supabase, NATIVE_REDIRECT } from './supabase';
 import { registerDevice, type DeviceCheck } from './device';
-import { appUrl, isNative } from './platform';
+import { appUrl, deviceLabel, isNative } from './platform';
 import { markVerified, pruneSaved } from './offline';
 import type { Profile, Settings } from './types';
 import { clearLoadCache } from './useLoad';
@@ -78,6 +78,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // run outside the auth callback (supabase-js deadlocks if we await its client inside it)
       setTimeout(() => {
         if (event === 'SIGNED_OUT' || !s) return load(null);
+        if (event === 'SIGNED_IN' && s.user.id !== userRef.current) {
+          // Admin → Logs: one line per real sign-in (the server ignores repeats within a minute)
+          supabase.rpc('log_event', { p_action: 'sign_in', p_detail: deviceLabel() }).then(() => undefined, () => undefined);
+        }
         if (event === 'INITIAL_SESSION' || s.user.id !== userRef.current) return load(s);
         if (event === 'USER_UPDATED') return load(s, { quiet: true });
         setSession(s); // TOKEN_REFRESHED, or SIGNED_IN again for the same user on tab focus
@@ -112,7 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     patchProfile: (patch) => setProfile((cur) => (cur ? { ...cur, ...patch } : cur)),
     refresh: async () => { const { data } = await supabase.auth.getSession(); await load(data.session, { quiet: true }); },
     recheckDevice: async () => setDevice(await registerDevice()),
-    signOut: async () => { await supabase.auth.signOut(); },
+    signOut: async () => { await supabase.rpc('log_event', { p_action: 'sign_out', p_detail: deviceLabel() }).then(() => undefined, () => undefined); await supabase.auth.signOut(); },
     signInWithProvider: async (provider) => {
       if (isNative) {
         const { data, error } = await supabase.auth.signInWithOAuth({ provider, options: { redirectTo: NATIVE_REDIRECT, skipBrowserRedirect: true } });

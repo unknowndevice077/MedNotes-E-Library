@@ -9,6 +9,9 @@ import type { Theme } from './types';
 export const THEME_DEFAULTS = {
   primary: '#0284c7', accent: '#059669', ink: '#0f172a', radius: 14, font: 'Inter' as NonNullable<Theme['font']>,
   heroTitle: 'What are you reviewing today?', heroText: 'Preview any cover for free. Unlock a file once, then read it on your computer and phone.',
+  authTitle: 'Your medical review library, in one place.',
+  authText: 'Notes, e-books, lectures and slides from trusted publishers. Preview the cover for free and unlock the full file once your payment is confirmed.',
+  footerText: 'Medical notes, e-books, lectures and slides from trusted publishers. Files are view-only and protected for each buyer.',
 };
 
 export const PRESETS: { name: string; theme: Theme }[] = [
@@ -74,6 +77,18 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     if (data) { setSaved({ theme: data.theme ?? {}, store_name: data.store_name ?? '' }); try { localStorage.setItem(CACHE, JSON.stringify(data)); } catch { /* private mode */ } }
   }, []);
   useEffect(() => { reload(); }, [reload]);
+  // live: when the admin saves Appearance, every open copy of the site and app restyles right away
+  useEffect(() => {
+    const ch = supabase.channel('site-look')
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'settings' }, (p) => {
+        const row = p.new as { theme?: Theme; store_name?: string };
+        if (row.theme === undefined) return;
+        const next = { theme: row.theme ?? {}, store_name: row.store_name ?? '' };
+        setSaved(next);
+        try { localStorage.setItem(CACHE, JSON.stringify(next)); } catch { /* private mode */ }
+      }).subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [reload]);
   const theme = draft ?? saved.theme;
 
   useEffect(() => {

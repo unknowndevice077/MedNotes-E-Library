@@ -53,6 +53,7 @@ function Preview({ t }: { t: Theme }) {
   return (
     <div className="ap-preview" style={{ ...vars, background: (vars as Record<string, string>)['--app-bg'] ?? 'var(--bg)', fontFamily: 'var(--font)' }} aria-label="Preview of the library">
       <div className="ap-top"><Logo size={26} /><span className="ap-search"><Search width={14} /> Search notes…</span></div>
+      {t.announcement?.trim() && <div className="announce" style={{ margin: 0 }}>{t.announcement}</div>}
       <div className="hero-card ap-hero"><span className="eyebrow light">Good morning, Maria</span><b>{t.heroTitle?.trim() || THEME_DEFAULTS.heroTitle}</b><span>{t.heroText?.trim() || THEME_DEFAULTS.heroText}</span></div>
       <div className="row" style={{ gap: 10 }}>
         {['Pharmacology Made Easy', 'Anatomy Atlas'].map((n, i) => (
@@ -87,14 +88,14 @@ export default function AdminAppearance() {
     const { error } = await supabase.from('settings').update({ theme: t, updated_at: new Date().toISOString() }).eq('id', 1);
     setSaving(false);
     if (error) return toast(error.message);
-    await reload(); toast('Saved. Buyers see the new look on their next page load.');
+    await reload(); toast('Saved. Open copies of the website and app update right away.');
   }
   async function reset() {
     if (await confirm({ title: 'Reset to the default look?', body: 'Colours, backgrounds, logo, font and welcome text go back to the MedNotes defaults. Save to apply.', confirmLabel: 'Reset' })) setT({});
   }
 
   return (
-    <AdminLayout title="Appearance" subtitle="How the website and the app look. Features stay the same."
+    <AdminLayout title="Appearance" subtitle="Edit how the website and the app look and read. Changes go live everywhere when you save."
       actions={<><button className="btn" onClick={reset}>Reset</button><button className="btn btn-primary" disabled={!dirty || saving} onClick={save}>{saving ? 'Saving…' : dirty ? 'Save appearance' : 'Saved'}</button></>}>
       <div className="row wrap" style={{ alignItems: 'flex-start', gap: 24 }}>
         <div className="col grow" style={{ gap: 16, minWidth: 320, flexBasis: 460 }}>
@@ -146,6 +147,14 @@ export default function AdminAppearance() {
             <ImagePick label="Sign-in background" hint="Shown behind the sign-in and sign-up forms" value={t.authImage} onChange={(authImage) => set({ authImage })} />
             <div className="field"><label htmlFor="ap-hero">Library welcome title</label><input id="ap-hero" className="input" maxLength={70} placeholder={THEME_DEFAULTS.heroTitle} value={t.heroTitle ?? ''} onChange={(e) => set({ heroTitle: e.target.value })} /></div>
             <div className="field"><label htmlFor="ap-hero-text">Welcome text</label><textarea id="ap-hero-text" className="input" maxLength={180} rows={2} placeholder={THEME_DEFAULTS.heroText} value={t.heroText ?? ''} onChange={(e) => set({ heroText: e.target.value })} /></div>
+          </div>
+          <div className="card col">
+            <h3>Website text</h3>
+            <span className="small muted">Saved changes show up right away on every open copy of the website and the app.</span>
+            <div className="field"><label htmlFor="ap-announce">Announcement bar (optional)</label><input id="ap-announce" className="input" maxLength={140} placeholder="e.g. New: Pharmacology board review, 20% off this week" value={t.announcement ?? ''} onChange={(e) => set({ announcement: e.target.value })} /></div>
+            <div className="field"><label htmlFor="ap-auth-title">Sign-in headline</label><input id="ap-auth-title" className="input" maxLength={80} placeholder={THEME_DEFAULTS.authTitle} value={t.authTitle ?? ''} onChange={(e) => set({ authTitle: e.target.value })} /></div>
+            <div className="field"><label htmlFor="ap-auth-text">Sign-in text</label><textarea id="ap-auth-text" className="input" maxLength={220} rows={2} placeholder={THEME_DEFAULTS.authText} value={t.authText ?? ''} onChange={(e) => set({ authText: e.target.value })} /></div>
+            <div className="field"><label htmlFor="ap-footer">Footer text</label><input id="ap-footer" className="input" maxLength={160} placeholder={THEME_DEFAULTS.footerText} value={t.footerText ?? ''} onChange={(e) => set({ footerText: e.target.value })} /></div>
           </div>
           <div className="card col">
             <h3>Shape & type</h3>

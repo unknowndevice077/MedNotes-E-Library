@@ -8,6 +8,7 @@ export interface Settings {
   allow_download_default: boolean; offline_saving: boolean; offline_days: number; watermark: boolean; block_screenshots: boolean;
   payment_methods: PaymentMethod[];
   receipt_design: ReceiptDesign; theme: Theme;
+  slot_sales: boolean; slot_price_computer: number; slot_price_phone: number; stats_reset_at: string | null;
 }
 export interface ReceiptDesign {
   title?: string; accent?: string; showLogo?: boolean; address?: string; contact?: string; showTin?: boolean;
@@ -18,8 +19,9 @@ export interface Theme {
   background?: { type: 'plain' | 'gradient' | 'image'; color?: string; color2?: string; image?: string; overlay?: number };
   authImage?: string; logo?: string; storeName?: string; heroTitle?: string; heroText?: string;
   radius?: number; font?: 'Inter' | 'Poppins' | 'Nunito' | 'Merriweather' | 'System';
+  authTitle?: string; authText?: string; footerText?: string; announcement?: string;
 }
-export interface UserPrefs { readerTheme?: 'light' | 'sepia' | 'dark'; textSize?: number; reduceMotion?: boolean; startPage?: 'library' | 'my-files' }
+export interface UserPrefs { readerTheme?: 'light' | 'sepia' | 'dark'; textSize?: number; reduceMotion?: boolean; startPage?: 'library' | 'my-files'; adminDark?: boolean }
 export interface PaymentMethod { name: string; account: string; holder: string; enabled: boolean; qr_path?: string | null; qr_payload?: string | null }
 
 export interface Profile {
@@ -32,7 +34,7 @@ export interface Profile {
 export interface LibFile {
   id: string; name: string; label: string; description: string; price: number; kind: FileKind; mime: string;
   storage_path: string | null; cover_path: string | null; size_bytes: number; meta: string;
-  allow_download: boolean; published: boolean; created_at: string;
+  allow_download: boolean; published: boolean; created_at: string; is_free: boolean;
 }
 
 export interface Purchase {
@@ -61,4 +63,16 @@ export function kindFromName(name: string, mime = ''): FileKind {
   if (['pptx', 'ppt'].includes(ext)) return 'pptx';
   if (['xlsx', 'xls', 'csv'].includes(ext)) return 'xlsx';
   return 'other';
+}
+
+export interface DeviceOrder {
+  id: string; user_id: string; kind: 'computer' | 'phone'; qty: number; amount: number; method: string; reference_no: string;
+  proof_path: string | null; status: PurchaseStatus; reject_reason: string; note_to_buyer: string; receipt_no: string | null;
+  created_at: string; confirmed_at: string | null; decided_by: string | null;
+  profiles?: Pick<Profile, 'id' | 'email' | 'full_name' | 'avatar_url'> | null;
+}
+export interface AuditEntry {
+  id: number; at: string; actor: string | null; actor_email: string; actor_role: 'admin' | 'client' | 'system'; action: string;
+  entity: string; entity_id: string; subject_user: string | null; summary: string; before: Record<string, unknown> | null;
+  after: Record<string, unknown> | null; revert_of: number | null; reverted_at: string | null; reverted_by: string | null;
 }

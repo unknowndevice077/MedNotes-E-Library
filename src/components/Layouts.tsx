@@ -1,11 +1,12 @@
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type FormEvent, type ReactNode, useLayoutEffect } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../lib/auth';
 import { supabase } from '../lib/supabase';
 import { initials } from '../lib/format';
 import { Logo, Modal, useIsMobile } from './ui';
-import { useTheme } from '../lib/theme';
-import { Back, Bell, Book, Chevron, Cog, Files, Grid, Home, Logout, Palette, Pay, Phone, Receipt, Search, Shield, User, Users } from './Icons';
+import { THEME_DEFAULTS, useTheme } from '../lib/theme';
+import { usePrefs } from '../lib/prefs';
+import { Back, Bell, Book, Chevron, Clock, Cog, Files, Grid, Home, Logout, Palette, Pay, Phone, Receipt, Search, Shield, Trend, User, Users } from './Icons';
 
 function Avatar({ size }: { size?: number }) {
   const { profile } = useAuth();
@@ -66,13 +67,13 @@ function UserMenu() {
 }
 
 function SiteFooter() {
-  const { storeName } = useTheme();
+  const { storeName, theme } = useTheme();
   return (
     <footer className="site-footer">
       <div className="site-footer-inner">
         <div className="col" style={{ gap: 8, maxWidth: 360 }}>
           <Logo />
-          <span className="small muted">Medical notes, e-books, lectures and slides from trusted publishers. Files are view-only and protected for each buyer.</span>
+          <span className="small muted">{theme.footerText?.trim() || THEME_DEFAULTS.footerText}</span>
         </div>
         <div className="footer-links">
           <div className="col"><b className="small">Library</b><Link to="/library">Browse</Link><Link to="/my-files">My files</Link><Link to="/devices">Devices</Link></div>
@@ -141,9 +142,29 @@ export function ClientLayout({ children, title, back, hideTabs, actions }: { chi
   );
 }
 
+/** Admin dark mode (Admin → Settings): the admin's own preference, with a local copy so the first paint is right. */
+export function useAdminDark(): [boolean, (v: boolean) => void] {
+  const { profile } = useAuth();
+  const { save } = usePrefs();
+  const dark = profile?.prefs?.adminDark ?? (() => { try { return localStorage.getItem('mn.admin-dark') === '1'; } catch { return false; } })();
+  const set = (v: boolean) => { try { localStorage.setItem('mn.admin-dark', v ? '1' : '0'); } catch { /* private mode */ } save({ adminDark: v }); };
+  return [!!dark, set];
+}
+
 export function AdminLayout({ title, subtitle, actions, children }: { title: string; subtitle?: string; actions?: ReactNode; children: ReactNode }) {
   const { signOut } = useAuth();
-  const pending = useCount('admin-pending', () => supabase.from('purchases').select('id', { count: 'exact', head: true }).eq('status', 'pending'));
+  const [dark] = useAdminDark();
+  useLayoutEffect(() => {
+    document.documentElement.toggleAttribute('data-admin-dark', !!dark);
+    return () => document.documentElement.removeAttribute('data-admin-dark');
+  }, [dark]);
+  const pending = useCount('admin-pending', async () => {
+    const [a, b] = await Promise.all([
+      supabase.from('purchases').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+      supabase.from('device_orders').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+    ]);
+    return { count: (a.count ?? 0) + (b.count ?? 0) };
+  });
   const mobile = useIsMobile();
   const loc = useLocation();
   const [more, setMore] = useState(false);
@@ -153,6 +174,8 @@ export function AdminLayout({ title, subtitle, actions, children }: { title: str
     { to: '/admin/payments', label: 'Payments', icon: <Pay />, count: pending },
     { to: '/admin/users', label: 'Users', icon: <Users /> },
     { to: '/admin/receipts', label: 'Receipts', icon: <Receipt /> },
+    { to: '/admin/statistics', label: 'Statistics', icon: <Trend /> },
+    { to: '/admin/logs', label: 'Logs', icon: <Clock /> },
     { to: '/admin/restrictions', label: 'Restrictions', icon: <Shield /> },
     { to: '/admin/appearance', label: 'Appearance', icon: <Palette /> },
     { to: '/admin/settings', label: 'Settings', icon: <Cog /> },
@@ -168,13 +191,15 @@ export function AdminLayout({ title, subtitle, actions, children }: { title: str
           {links.filter((l) => ['Dashboard', 'Files', 'Payments', 'Users'].includes(l.label)).map((l) => (
             <NavLink key={l.to} to={l.to} end={l.end} className="tab">{l.icon}{l.label === 'Dashboard' ? 'Home' : l.label}</NavLink>
           ))}
-          <button type="button" className={`tab${['/admin/settings', '/admin/restrictions', '/admin/receipts', '/admin/appearance'].includes(loc.pathname) ? ' active' : ''}`} onClick={() => setMore(true)}><Cog />More</button>
+          <button type="button" className={`tab${['/admin/settings', '/admin/restrictions', '/admin/receipts', '/admin/appearance', '/admin/logs', '/admin/statistics'].includes(loc.pathname) ? ' active' : ''}`} onClick={() => setMore(true)}><Cog />More</button>
         </nav>
         {more && (
           <Modal onClose={() => setMore(false)} width={420}>
             <h2>More</h2>
             <div className="col more-menu" style={{ gap: 4 }}>
               <Link to="/admin/receipts" onClick={() => setMore(false)}><Receipt />Receipts</Link>
+              <Link to="/admin/statistics" onClick={() => setMore(false)}><Trend />Statistics</Link>
+              <Link to="/admin/logs" onClick={() => setMore(false)}><Clock />Logs</Link>
               <Link to="/admin/restrictions" onClick={() => setMore(false)}><Shield />Restrictions</Link>
               <Link to="/admin/appearance" onClick={() => setMore(false)}><Palette />Appearance</Link>
               <Link to="/admin/settings" onClick={() => setMore(false)}><Cog />Settings</Link>

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { supabase, paymentQrUrl } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { must, useLoad } from '../lib/useLoad';
@@ -13,13 +13,19 @@ import { Share } from '@capacitor/share';
 import { AppLauncher } from '@capacitor/app-launcher';
 import { ClientLayout, invalidateCounts } from '../components/Layouts';
 import { Empty, Thumb, useIsMobile, useToast } from '../components/ui';
-import { Clock, Download, Upload } from '../components/Icons';
+import { Clock, Download, Laptop, Phone, Upload } from '../components/Icons';
 import { CheckoutSkeleton } from '../components/Skeletons';
 
 const MAX = 10 * 1024 * 1024;
 
+/**
+ * Pay by GCash/Maya/bank and upload proof. Used for files (/checkout/:id) and for extra device
+ * slots (/checkout/slot/:slotKind); the publisher confirms either one and a receipt is issued.
+ */
 export default function Checkout() {
-  const { id } = useParams();
+  const { id, slotKind } = useParams();
+  const slot = slotKind === 'computer' || slotKind === 'phone' ? slotKind : null;
+  const [qty, setQty] = useState(1);
   const nav = useNavigate();
   const toast = useToast();
   const mobile = useIsMobile();
@@ -33,13 +39,20 @@ export default function Checkout() {
   const [err, setErr] = useState('');
   const input = useRef<HTMLInputElement>(null);
   const { data: file, loading } = useLoad(async () => {
+    if (slot) return null;
     const f = must(await supabase.from('files').select('*').eq('id', id!).single()) as LibFile;
     setAmount(String(f.price));
     return f;
-  }, [id]);
+  }, [id, slot]);
+  const unitSlot = slot ? Number(slot === 'computer' ? settings?.slot_price_computer : settings?.slot_price_phone) || 0 : 0;
+  useEffect(() => { if (slot) setAmount(String(unitSlot * qty)); }, [slot, unitSlot, qty]);
 
-  if (loading) return <ClientLayout back title="Pay"><div className="page"><CheckoutSkeleton /></div></ClientLayout>;
-  if (!file) return <ClientLayout back title="Pay"><div className="page"><Empty title="File not found" /></div></ClientLayout>;
+  if (!slot && loading) return <ClientLayout back title="Pay"><div className="page"><CheckoutSkeleton /></div></ClientLayout>;
+  if (!slot && !file) return <ClientLayout back title="Pay"><div className="page"><Empty title="File not found" /></div></ClientLayout>;
+  if (file?.is_free) return <Navigate to={`/file/${file.id}`} replace />;
+  if (slot && settings && !settings.slot_sales) return <ClientLayout back title="Pay"><div className="page"><Empty title="Extra devices aren't for sale">Ask the publisher to add a device for you.</Empty></div></ClientLayout>;
+  const price = slot ? unitSlot * qty : Number(file!.price);
+  const itemName = slot ? `Extra ${slot} slot${qty > 1 ? ` ×${qty}` : ''}` : file!.name;
 
   function pick(f?: File | null) {
     if (!f) return;
@@ -56,26 +69,26 @@ export default function Checkout() {
     try {
       const uid = session!.user.id;
       const ext = proof.name.split('.').pop() || 'jpg';
-      const path = `${uid}/${file!.id}-${Date.now()}.${ext}`;
+      const path = `${uid}/${slot ? `slot-${slot}` : file!.id}-${Date.now()}.${ext}`;
       const up = await supabase.storage.from('proofs').upload(path, proof, { contentType: proof.type });
       if (up.error) throw up.error;
-      const ins = await supabase.from('purchases').insert({
-        user_id: uid, file_id: file!.id, amount: Number(amount) || file!.price, method: methods[method]?.name ?? 'Other',
-        reference_no: ref.trim(), proof_path: path,
-      });
+      const common = { user_id: uid, amount: Number(amount) || price, method: methods[method]?.name ?? 'Other', reference_no: ref.trim(), proof_path: path };
+      const ins = slot
+        ? await supabase.from('device_orders').insert({ ...common, kind: slot, qty })
+        : await supabase.from('purchases').insert({ ...common, file_id: file!.id });
       if (ins.error) throw ins.error.code === '23505' ? new Error('You already have a payment for this file waiting or confirmed.') : ins.error;
-      toast('Payment submitted. The publisher will confirm it and send your receipt.');
-      invalidateCounts(); nav('/my-files', { replace: true });
+      toast(slot ? 'Payment submitted. Your extra device slot is added once the publisher confirms it.' : 'Payment submitted. The publisher will confirm it and send your receipt.');
+      invalidateCounts(); nav(slot ? '/devices' : '/my-files', { replace: true });
     } catch (e) { setErr(errMsg(e)); }
     finally { setBusy(false); }
   }
 
   return (
-    <ClientLayout back title={`Pay ${peso(file.price)}`} hideTabs>
+    <ClientLayout back title={`Pay ${peso(price)}`} hideTabs>
       <form className="page" onSubmit={submit} style={{ flexDirection: mobile ? 'column' : 'row', alignItems: 'flex-start', gap: 28, maxWidth: 1180 }}>
         <div className="col grow" style={{ gap: 18, width: '100%' }}>
-          {!mobile && <h1>Pay for your file</h1>}
-          <div className="row steps" style={{ gap: 8 }}><span className="badge b-ok">1 Pay</span><span className="muted hide-sm">—</span><span className="badge b-lock">2 Publisher confirms</span><span className="muted hide-sm">—</span><span className="badge b-lock">3 Receipt & unlock</span></div>
+          {!mobile && <h1>{slot ? `Add a ${slot} to your account` : 'Pay for your file'}</h1>}
+          <div className="row steps" style={{ gap: 8 }}><span className="badge b-ok">1 Pay</span><span className="muted hide-sm">—</span><span className="badge b-lock">2 Publisher confirms</span><span className="muted hide-sm">—</span><span className="badge b-lock">{slot ? '3 Receipt & extra slot' : '3 Receipt & unlock'}</span></div>
           <div className="card col">
             <h3>Send payment to</h3>
             {methods.length === 0 ? <span className="muted">The publisher hasn't added payment methods yet.</span> : (
@@ -88,7 +101,7 @@ export default function Checkout() {
                 ))}
               </div>
             )}
-            {methods[method] && (methods[method]!.qr_payload || methods[method]!.qr_path) && <PayQr m={methods[method]!} price={Number(file.price)} fileName={file.name} />}
+            {methods[method] && (methods[method]!.qr_payload || methods[method]!.qr_path) && <PayQr m={methods[method]!} price={price} fileName={itemName} />}
           </div>
           <div className="card col">
             <h3>Upload proof of payment</h3>
@@ -105,12 +118,20 @@ export default function Checkout() {
           </div>
           {err && <span className="error">{err}</span>}
           {!mobile && <button className="btn btn-primary btn-lg" disabled={busy}>{busy ? 'Submitting…' : 'Submit payment for confirmation'}</button>}
-          {mobile && <div className="note note-slate"><Clock /><span>The publisher confirms your payment and sends a receipt. The file then unlocks.</span></div>}
+          {mobile && <div className="note note-slate"><Clock /><span>The publisher confirms your payment and sends a receipt. {slot ? 'Your extra slot is then added.' : 'The file then unlocks.'}</span></div>}
         </div>
         <div className="card col" style={{ width: mobile ? '100%' : 360, flexShrink: 0 }}>
           <h3>Order summary</h3>
-          <div className="row"><Thumb file={file} /><div className="col grow" style={{ gap: 0 }}><b>{file.name}</b><span className="small muted">{KIND_LABEL[file.kind]}{file.meta ? ` · ${file.meta}` : ''}</span></div></div>
-          <div className="spread" style={{ borderTop: '1px solid var(--line)', paddingTop: 12 }}><b>Total</b><b style={{ color: 'var(--green)', fontSize: 20 }}>{peso(file.price)}</b></div>
+          {slot ? (
+            <>
+              <div className="row"><span className="slot-ico">{slot === 'computer' ? <Laptop /> : <Phone />}</span><div className="col grow" style={{ gap: 0 }}><b>Extra {slot} slot</b><span className="small muted">{peso(unitSlot)} each · added to your account for good</span></div></div>
+              <div className="setting"><b>How many</b>
+                <span className="row" style={{ gap: 6 }}><button type="button" className="btn btn-sm" aria-label="Fewer" onClick={() => setQty(Math.max(1, qty - 1))}>−</button><b style={{ width: 22, textAlign: 'center' }}>{qty}</b><button type="button" className="btn btn-sm" aria-label="More" onClick={() => setQty(Math.min(5, qty + 1))}>+</button></span></div>
+            </>
+          ) : (
+            <div className="row"><Thumb file={file!} /><div className="col grow" style={{ gap: 0 }}><b>{file!.name}</b><span className="small muted">{KIND_LABEL[file!.kind]}{file!.meta ? ` · ${file!.meta}` : ''}</span></div></div>
+          )}
+          <div className="spread" style={{ borderTop: '1px solid var(--line)', paddingTop: 12 }}><b>Total</b><b style={{ color: 'var(--green)', fontSize: 20 }}>{peso(price)}</b></div>
           <span className="small muted">The publisher checks every payment by hand. This usually takes less than 24 hours.</span>
         </div>
         {mobile && <div className="bottom-bar" style={{ width: '100%', margin: '0 -16px -24px' }}><button className="btn btn-primary btn-block" style={{ height: 50 }} disabled={busy}>{busy ? 'Submitting…' : 'Submit for confirmation'}</button></div>}

@@ -6,6 +6,7 @@ import { must, useLoad } from '../lib/useLoad';
 import { ago, errMsg, initials } from '../lib/format';
 import type { Device, LibFile, Profile, Purchase } from '../lib/types';
 import { AdminLayout } from '../components/Layouts';
+import { LogList } from './Logs';
 import { Modal, Toggle, useConfirm, useIsMobile, useToast } from '../components/ui';
 import { Laptop, Phone, Search } from '../components/Icons';
 import { FormSkeleton, RowsSkeleton } from '../components/Skeletons';
@@ -134,6 +135,10 @@ export function AdminUserDetail() {
           <div className="field"><label htmlFor="anote">Admin note</label><textarea id="anote" className="input" value={o.admin_note ?? ''} onChange={(e) => setO({ ...o, admin_note: e.target.value })} /></div>
           <button className="btn btn-primary" onClick={saveOverrides}>Save overrides</button>
         </div>
+      </div>
+      <div className="card col" style={{ gap: 12 }}>
+        <div className="spread"><h3>Activity</h3><Link to={`/admin/logs?q=${encodeURIComponent(prof.email)}`} className="link">All activity →</Link></div>
+        <LogList user={prof.id} compact />
       </div>
       {granting && <GrantModal userId={prof.id} owned={new Set(purchases.filter((p) => p.status === 'confirmed').map((p) => p.file_id))} onClose={() => setGranting(false)} onDone={() => { setGranting(false); reload(); }} />}
     </AdminLayout>

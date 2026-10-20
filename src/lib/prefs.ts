@@ -3,7 +3,7 @@ import { supabase } from './supabase';
 import { useAuth } from './auth';
 import type { UserPrefs } from './types';
 
-export const DEFAULT_PREFS: Required<UserPrefs> = { readerTheme: 'light', textSize: 17, reduceMotion: false, startPage: 'library' };
+export const DEFAULT_PREFS: Required<UserPrefs> = { readerTheme: 'light', textSize: 17, reduceMotion: false, startPage: 'library', adminDark: false };
 
 /** The signed-in user's own settings (saved on their profile, so they follow them to every device). */
 export function usePrefs() {

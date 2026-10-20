@@ -6,10 +6,12 @@ import { errMsg } from '../lib/format';
 import { appUrl, asset, isNative } from '../lib/platform';
 import { Logo, Toggle } from '../components/ui';
 import { Facebook, Google, Laptop } from '../components/Icons';
+import { THEME_DEFAULTS, useTheme } from '../lib/theme';
 
 const PLAY_URL = import.meta.env.VITE_PLAY_STORE_URL || 'https://play.google.com/store/apps/details?id=com.mednotes.elibrary';
 
 function AuthShell({ children, withHero = true }: { children: ReactNode; withHero?: boolean }) {
+  const { theme } = useTheme();
   return (
     <div className="auth">
       {withHero ? (
@@ -29,8 +31,8 @@ function AuthShell({ children, withHero = true }: { children: ReactNode; withHer
             )}
           </div>
           <div className="hero col shadowed" style={{ gap: 14 }}>
-            <h1>Your medical review library, in one place.</h1>
-            <p>Notes, e-books, lectures and slides from trusted publishers. Preview the cover for free and unlock the full file once your payment is confirmed.</p>
+            <h1>{theme.authTitle?.trim() || THEME_DEFAULTS.authTitle}</h1>
+            <p>{theme.authText?.trim() || THEME_DEFAULTS.authText}</p>
           </div>
         </aside>
       ) : null}

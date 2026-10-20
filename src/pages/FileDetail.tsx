@@ -64,6 +64,7 @@ export default function FileDetail() {
   const pending = purchases.find((p) => p.status === 'pending');
   const rejected = !owned && !pending ? purchases.find((p) => p.status === 'rejected') : undefined;
   const current = owned ?? pending ?? rejected;
+  const free = file.is_free && !owned; // free samples open for everyone, no payment
 
   async function saveForOffline() {
     setSaving(true);
@@ -75,8 +76,8 @@ export default function FileDetail() {
     finally { setSaving(false); }
   }
 
-  const cta = owned ? (
-    <button className="btn btn-primary btn-lg btn-block" onClick={() => nav(`/read/${file.id}`)}><Eye /> Read now</button>
+  const cta = owned || free ? (
+    <button className="btn btn-primary btn-lg btn-block" onClick={() => nav(`/read/${file.id}`)}><Eye /> {free ? 'Read free sample' : 'Read now'}</button>
   ) : pending ? (
     <button className="btn btn-lg btn-block" disabled><Clock /> Waiting for confirmation</button>
   ) : (
@@ -87,21 +88,23 @@ export default function FileDetail() {
     <aside className="buy-panel card">
       {owned ? (
         <div className="spread"><span className="badge b-ok"><Check /> You own this</span><span className="small muted">since {dateOnly(owned.confirmed_at)}</span></div>
+      ) : free ? (
+        <div className="spread"><span className="badge b-ok"><Check /> Free sample</span><span className="small muted">No payment needed</span></div>
       ) : (
         <div className="spread"><span className="muted">Price</span><span className="big-price">{peso(file.price)}</span></div>
       )}
       {!mobile && cta}
-      {owned && isNative && settings?.offline_saving && (
+      {(owned || free) && isNative && settings?.offline_saving && (
         <button className="btn btn-outline-blue btn-block" disabled={saving || saved} onClick={saveForOffline}><Download />{saved ? 'Saved for offline' : saving ? 'Saving…' : 'Save for offline'}</button>
       )}
       {rejected && <div className="note note-red"><span>Last payment rejected: <b>{rejected.reject_reason}</b>{rejected.note_to_buyer ? `. ${rejected.note_to_buyer}` : ''}</span></div>}
-      <Timeline p={current} />
+      {!free && <Timeline p={current} />}
       {owned?.receipt_no && <Link to={`/receipt/${owned.id}`} className="row link"><Receipt width={18} /> View receipt {owned.receipt_no}</Link>}
       <ul className="perks">
         <li><Eye /> View-only inside MedNotes, never downloadable</li>
         <li><Laptop /> Read on 1 computer in your browser</li>
         <li><Phone /> and 1 phone in the app{settings?.offline_saving ? ', even offline' : ''}</li>
-        <li><Shield /> Watermarked with your email</li>
+        <li><Shield /> Watermarked by the publisher</li>
       </ul>
     </aside>
   );
@@ -112,8 +115,8 @@ export default function FileDetail() {
         {!mobile && <nav className="crumbs small"><Link to="/library">Library</Link><span>/</span>{file.label && <><Link to={`/library?q=${encodeURIComponent(file.label)}`}>{file.label}</Link><span>/</span></>}<span className="muted ellipsis">{file.name}</span></nav>}
         <div className="detail-grid">
           <div className="detail-cover">
-            <Cover file={file} showTag={false} locked={!owned} />
-            <span className="badge cover-flag">{KIND_TAG[file.kind]} · {owned ? 'OWNED' : 'FREE PREVIEW: COVER'}</span>
+            <Cover file={file} showTag={false} locked={!owned && !free} />
+            <span className="badge cover-flag">{KIND_TAG[file.kind]} · {owned ? 'OWNED' : free ? 'FREE SAMPLE' : 'FREE PREVIEW: COVER'}</span>
           </div>
           <div className="col detail-main" style={{ gap: 18 }}>
             <div className="row wrap" style={{ gap: 8 }}>
@@ -152,7 +155,7 @@ export default function FileDetail() {
           </section>
         )}
       </div>
-      {mobile && <div className="bottom-bar">{!owned && !pending && <div className="col" style={{ gap: 0 }}><span className="small muted">Price</span><span className="price" style={{ fontSize: 20 }}>{peso(file.price)}</span></div>}<div className="grow">{cta}</div></div>}
+      {mobile && <div className="bottom-bar">{!owned && !pending && !free && <div className="col" style={{ gap: 0 }}><span className="small muted">Price</span><span className="price" style={{ fontSize: 20 }}>{peso(file.price)}</span></div>}<div className="grow">{cta}</div></div>}
     </ClientLayout>
   );
 }

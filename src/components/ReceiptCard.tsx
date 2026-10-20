@@ -33,7 +33,7 @@ export default function ReceiptCard({ r, settings, sample }: {
   const d = { ...RECEIPT_DEFAULTS, ...(settings?.receipt_design ?? {}) };
   const footer = d.footer || settings?.receipt_footer || '';
   return (
-    <div className={`card col receipt paper-${d.paper}${sample ? ' is-sample' : ''}`} style={{ '--rc': d.accent } as React.CSSProperties}>
+    <div className={`card col receipt paper-card${sample ? ' is-sample' : ''}`} style={{ '--rc': d.accent } as React.CSSProperties}>
       <div className="rc-band" />
       <div className="spread">{d.showLogo ? <Logo /> : <b className="rc-biz">{settings?.receipt_business}</b>}<span className="badge rc-paid"><Check /> PAID</span></div>
       <div className="col" style={{ gap: 2 }}>

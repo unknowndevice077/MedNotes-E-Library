@@ -44,12 +44,12 @@ Deno.serve(async (req) => {
       asUser.rpc('device_ok', { p_device_id: device_id }),
       asUser.rpc('is_admin'),
       service.from('profiles').select('suspended').eq('id', user.id).single(),
-      service.from('files').select('id, storage_path, mime').eq('id', file_id).single(),
+      service.from('files').select('id, name, storage_path, mime, is_free').eq('id', file_id).single(),
     ]);
     if (!file?.storage_path) return fail(404, 'File not found.');
     if (profile?.suspended) return fail(403, 'Your account is suspended.');
     if (!deviceOk) return fail(403, 'This device is not registered on your account.');
-    if (!isAdmin) {
+    if (!isAdmin && !file.is_free) { // free samples are open to every signed-in buyer
       const { data: owned } = await service.from('purchases').select('id')
         .eq('user_id', user.id).eq('file_id', file_id).eq('status', 'confirmed').limit(1).maybeSingle();
       if (!owned) return fail(403, 'You need to unlock this file first.');
@@ -57,6 +57,14 @@ Deno.serve(async (req) => {
 
     // Byte range (chunked reads keep memory small for large lectures).
     const from = Math.max(0, Number(start ?? 0));
+    if (from === 0) {
+      // one activity-log line per opening (the first chunk), for Admin → Logs
+      const { data: who } = await service.from('profiles').select('email, role').eq('id', user.id).single();
+      await service.from('audit_log').insert({
+        actor: user.id, actor_email: who?.email ?? '', actor_role: who?.role === 'admin' ? 'admin' : 'client', action: 'open_file',
+        entity: 'files', entity_id: file.id, subject_user: user.id, summary: `Opened "${file.name}"`,
+      }).then(() => undefined, () => undefined);
+    }
     const to = end == null ? from + MAX_CHUNK - 1 : Math.min(Number(end), from + MAX_CHUNK - 1);
     const { data: signed, error: se } = await service.storage.from('files').createSignedUrl(file.storage_path, 60);
     if (se || !signed) return fail(500, 'Storage error');

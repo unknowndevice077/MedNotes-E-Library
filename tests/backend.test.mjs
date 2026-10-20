@@ -226,6 +226,139 @@ describe('read-file (encrypted delivery)', () => {
   });
 });
 
+describe('free samples', () => {
+  const FREE_PDF = 'a0000000-0000-0000-0000-000000000019';
+  test('any signed-in buyer on a registered device can read them, without paying', async () => {
+    const u = await makeUser('free');
+    try {
+      assert.ok((await registerDevice(u.client, 'free-pc')).data.ok);
+      const r = await readSecure(u, FREE_PDF, 'free-pc');
+      assert.equal(r.status, 200);
+      assert.ok(r.plain.subarray(0, 4).toString() === '%PDF');
+      assert.equal((await readSecure(u, FREE_PDF, 'unregistered-device')).status, 403, 'device rule still applies');
+      assert.equal((await readSecure(u, PDF, 'free-pc')).status, 403, 'paid files stay locked');
+    } finally { await dropUser(u); }
+  });
+  test("can't be bought", async () => {
+    const { error } = await other.client.from('purchases').insert({ user_id: other.id, file_id: FREE_PDF, amount: 0, method: 'GCash' });
+    assert.ok(error);
+  });
+});
+
+describe('extra device slots', () => {
+  test('buyer orders a slot; confirming adds it and issues the next receipt', async () => {
+    const u = await makeUser('slots');
+    try {
+      const { data: before } = await service.from('settings').select('receipt_next, computer_slots').eq('id', 1).single();
+      const { data: o, error } = await u.client.from('device_orders').insert({ user_id: u.id, kind: 'computer', qty: 2, amount: 398, method: 'GCash', reference_no: 'S-1' }).select().single();
+      assert.ifError(error);
+      assert.ok((await u.client.rpc('confirm_device_order', { p_id: o.id })).error, "buyers can't confirm their own order");
+      assert.ok((await u.client.from('device_orders').insert({ user_id: u.id, kind: 'phone', amount: 1, status: 'confirmed' })).error, "can't insert a confirmed order");
+      const { data: r, error: ce } = await admin.client.rpc('confirm_device_order', { p_id: o.id, p_note: 'enjoy' });
+      assert.ifError(ce);
+      assert.equal(r.receipt_no, `OR-${String(before.receipt_next).padStart(6, '0')}`);
+      const { data: p } = await service.from('profiles').select('computer_slots').eq('id', u.id).single();
+      assert.equal(p.computer_slots, before.computer_slots + 2);
+      // the extra slot really works: two computers now register
+      assert.ok((await registerDevice(u.client, 'pc-1')).data.ok);
+      assert.ok((await registerDevice(u.client, 'pc-2')).data.ok);
+      assert.ok((await registerDevice(u.client, 'pc-3')).data.ok);
+      assert.equal((await registerDevice(u.client, 'pc-4')).data.ok, false, 'limit is 1 + 2');
+      const { data: mine } = await other.client.from('device_orders').select('id').eq('id', o.id);
+      assert.deepEqual(mine, [], "others can't see the order");
+    } finally { await dropUser(u); }
+  });
+  test('admin can switch slot sales off', async () => {
+    await service.from('settings').update({ slot_sales: false }).eq('id', 1);
+    try {
+      assert.ok((await other.client.from('device_orders').insert({ user_id: other.id, kind: 'phone', amount: 149 })).error);
+    } finally { await service.from('settings').update({ slot_sales: true }).eq('id', 1); }
+  });
+});
+
+describe('activity log', () => {
+  const latest = async (filter) => {
+    let q = service.from('audit_log').select('*').order('id', { ascending: false }).limit(1);
+    for (const [k, v] of Object.entries(filter)) q = q.eq(k, v);
+    return (await q.single()).data;
+  };
+  test('admin and buyer changes are logged with before/after; only admins can read the log', async () => {
+    const { data: f } = await service.from('files').select('meta').eq('id', PDF).single();
+    const meta = `96 pages (logged ${Date.now()})`;
+    await admin.client.from('files').update({ meta }).eq('id', PDF);
+    const e = await latest({ entity: 'files', entity_id: PDF });
+    await service.from('files').update({ meta: f.meta }).eq('id', PDF);
+    assert.equal(e.actor, admin.id);
+    assert.equal(e.actor_role, 'admin');
+    assert.equal(e.after.meta, meta);
+    assert.equal(e.before.meta, f.meta);
+    await other.client.from('profiles').update({ full_name: 'Logged Name' }).eq('id', other.id);
+    const p = await latest({ entity: 'profiles', entity_id: other.id });
+    assert.equal(p.actor_role, 'client');
+    assert.equal(p.subject_user, other.id);
+    assert.deepEqual((await other.client.from('audit_log').select('id').limit(5)).data, [], 'buyers see nothing');
+    assert.ok((await admin.client.from('audit_log').select('id').limit(5)).data.length > 0);
+    assert.ok((await other.client.from('audit_log').insert({ action: 'fake' })).error, 'nobody writes the log directly');
+  });
+  test('file opens and sign-ins are logged', async () => {
+    await readSecure(buyer, PDF, 'b-pc');
+    await registerDevice(buyer.client, 'b-pc');
+    await readSecure(buyer, PDF, 'b-pc');
+    const open = await latest({ action: 'open_file', actor: buyer.id });
+    assert.ok(open && open.summary.includes('Anatomy Atlas'));
+    await buyer.client.rpc('log_event', { p_action: 'sign_in', p_detail: 'Test PC' });
+    await buyer.client.rpc('log_event', { p_action: 'sign_in', p_detail: 'Test PC' }); // repeat within a minute: ignored
+    await buyer.client.rpc('log_event', { p_action: 'confirm_purchase' }); // not allowed from clients: ignored
+    const { data } = await service.from('audit_log').select('action').eq('actor', buyer.id).in('action', ['sign_in', 'confirm_purchase']);
+    assert.deepEqual(data.map((d) => d.action), ['sign_in']);
+  });
+  test('revert undoes an edit, an insert and a delete; edit changes a record directly', async () => {
+    const { data: f } = await service.from('files').select('price').eq('id', XLSX).single();
+    await admin.client.from('files').update({ price: 999 }).eq('id', XLSX);
+    const edit = await latest({ entity: 'files', entity_id: XLSX });
+    assert.ok((await other.client.rpc('admin_revert', { p_log: edit.id })).error, 'admins only');
+    assert.ifError((await admin.client.rpc('admin_revert', { p_log: edit.id })).error);
+    assert.equal(Number((await service.from('files').select('price').eq('id', XLSX).single()).data.price), Number(f.price));
+    const back = await latest({ entity: 'files', entity_id: XLSX });
+    assert.equal(back.revert_of, edit.id, 'the revert is logged and linked');
+    assert.ok((await admin.client.rpc('admin_revert', { p_log: edit.id })).error, "can't revert twice");
+
+    const email = `revert-${Date.now()}@mednotes.test`;
+    await admin.client.from('admin_allowlist').insert({ email });
+    const ins = await latest({ entity: 'admin_allowlist', entity_id: email });
+    assert.ifError((await admin.client.rpc('admin_revert', { p_log: ins.id })).error);
+    assert.deepEqual((await service.from('admin_allowlist').select('email').eq('email', email)).data, [], 'insert undone');
+    const del = await latest({ entity: 'admin_allowlist', entity_id: email, action: 'admin_allowlist.delete' });
+    assert.ifError((await admin.client.rpc('admin_revert', { p_log: del.id })).error);
+    assert.equal((await service.from('admin_allowlist').select('email').eq('email', email)).data.length, 1, 'delete undone');
+    await service.from('admin_allowlist').delete().eq('email', email);
+
+    assert.ifError((await admin.client.rpc('admin_edit', { p_entity: 'files', p_id: XLSX, p_patch: { meta: '4 sheets (edited)' } })).error);
+    assert.equal((await service.from('files').select('meta').eq('id', XLSX).single()).data.meta, '4 sheets (edited)');
+    assert.ok((await other.client.rpc('admin_edit', { p_entity: 'files', p_id: XLSX, p_patch: { price: 1 } })).error, 'admins only');
+    await service.from('files').update({ meta: '4 sheets' }).eq('id', XLSX);
+  });
+});
+
+describe('statistics', () => {
+  test('reset starts the dashboard over; monthly history is kept; the reset can be reverted', async () => {
+    const { data: s0 } = await service.from('settings').select('stats_reset_at').eq('id', 1).single();
+    const { data: months0 } = await admin.client.rpc('admin_monthly_stats', { p_months: 24 });
+    const totalBefore = months0.reduce((a, m) => a + Number(m.revenue), 0);
+    assert.ok(totalBefore > 0, 'history has sales');
+    assert.ok((await other.client.rpc('admin_reset_stats')).error, 'admins only');
+    assert.ifError((await admin.client.rpc('admin_reset_stats')).error);
+    const { data: st } = await admin.client.rpc('admin_stats');
+    assert.ok(st.since, 'dashboard knows when it was reset');
+    assert.equal(Number(st.revenue_month), 0, 'counters start from zero');
+    const { data: months1 } = await admin.client.rpc('admin_monthly_stats', { p_months: 24 });
+    assert.equal(months1.reduce((a, m) => a + Number(m.revenue), 0), totalBefore, 'monthly history untouched');
+    const reset = (await service.from('audit_log').select('*').eq('entity', 'settings').ilike('summary', 'Reset%').order('id', { ascending: false }).limit(1).single()).data;
+    assert.ifError((await admin.client.rpc('admin_revert', { p_log: reset.id })).error);
+    assert.equal((await service.from('settings').select('stats_reset_at').eq('id', 1).single()).data.stats_reset_at, s0.stats_reset_at);
+  });
+});
+
 describe('accounts', () => {
   test('allow-listed email becomes admin on sign-up; others stay clients', async () => {
     const email = `test-allow-${Date.now()}@mednotes.test`;

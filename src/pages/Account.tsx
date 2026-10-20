@@ -8,6 +8,7 @@ import { isNative } from '../lib/platform';
 import { listSaved, removeOffline } from '../lib/offline';
 import type { UserPrefs } from '../lib/types';
 import { ClientLayout } from '../components/Layouts';
+import ProfileEditor from '../components/ProfileEditor';
 import { Toggle, useConfirm, useIsMobile, useToast } from '../components/ui';
 import { Facebook, Google, Logout, Mail } from '../components/Icons';
 
@@ -22,7 +23,7 @@ function strength(pw: string) {
 }
 const STRENGTH = ['Too short', 'Weak', 'Okay', 'Good', 'Strong'];
 
-function PasswordCard({ hasPassword, email }: { hasPassword: boolean; email: string }) {
+export function PasswordCard({ hasPassword, email }: { hasPassword: boolean; email: string }) {
   const toast = useToast();
   const [cur, setCur] = useState('');
   const [pw, setPw] = useState('');
@@ -125,10 +126,9 @@ function PrefsCard() {
 }
 
 export default function Account() {
-  const { profile, session, signOut, patchProfile } = useAuth();
+  const { profile, session, signOut } = useAuth();
   const toast = useToast();
   const mobile = useIsMobile();
-  const [name, setName] = useState(profile?.full_name ?? '');
   const [storage, setStorage] = useState<{ n: number; size: number } | null>(null);
   useEffect(() => { if (isNative) listSaved().then((l) => setStorage({ n: l.length, size: l.reduce((a, f) => a + f.size, 0) })); }, []);
   const nav = useNavigate();
@@ -150,15 +150,7 @@ export default function Account() {
   const providers: string[] = [...new Set([...(session?.user.app_metadata.providers ?? []), profile?.provider ?? 'email'])];
   const email = profile?.email ?? session?.user.email ?? '';
 
-  async function saveName(e: FormEvent) {
-    e.preventDefault();
-    const full_name = name.trim();
-    const { error } = await supabase.from('profiles').update({ full_name }).eq('id', profile!.id);
-    if (error) return toast(error.message);
-    await supabase.auth.updateUser({ data: { full_name } });
-    patchProfile({ full_name });
-    toast('Profile saved.');
-  }
+
 
   return (
     <ClientLayout title="Account">
@@ -171,12 +163,7 @@ export default function Account() {
           <div className="col grow" style={{ gap: 2 }}><b>{profile?.full_name || 'No name yet'}</b><span className="small muted">{email}</span></div>
           {profile?.role === 'admin' && <Link to="/admin" className="btn btn-sm">Admin</Link>}
         </div>
-        <form className="card col" onSubmit={saveName}>
-          <h3>Profile</h3>
-          <div className="field"><label htmlFor="nm">Full name</label><input id="nm" className="input" value={name} onChange={(e) => setName(e.target.value)} /></div>
-          <span className="small muted">Shown on your receipts.</span>
-          <button className="btn btn-primary" style={{ alignSelf: 'flex-start' }}>Save changes</button>
-        </form>
+        <ProfileEditor />
         <PrefsCard />
         <div className="card col">
           <h3>Sign-in methods</h3>

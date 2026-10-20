@@ -10,6 +10,7 @@ import { Cover, Empty, useIsMobile } from '../components/ui';
 import { ArrowRight, Book, Clock, Search } from '../components/Icons';
 import { PreviewCard, useReveal } from '../components/BookPreview';
 import { THEME_DEFAULTS, useTheme } from '../lib/theme';
+import CategoryPicker from '../components/CategoryPicker';
 
 const KINDS: FileKind[] = ['epub', 'pdf', 'video', 'image', 'docx', 'pptx', 'xlsx'];
 type Status = Purchase['status'] | undefined;
@@ -19,7 +20,8 @@ function greeting() {
   return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
 }
 
-function BookCard({ f, status }: { f: LibFile; status: Status }) {
+function BookCard({ f, status: bought }: { f: LibFile; status: Status }) {
+  const status: Status = f.is_free ? 'confirmed' : bought; // free samples read like owned files
   return (
     <PreviewCard f={f} status={status}>
     <Link to={`/file/${f.id}`} className="bookcard">
@@ -29,7 +31,8 @@ function BookCard({ f, status }: { f: LibFile; status: Status }) {
         <h3 className="clamp-2">{f.name}</h3>
         <div className="spread">
           <span className="small muted">{KIND_LABEL[f.kind]}{f.meta ? ` · ${f.meta}` : ''}</span>
-          {status === 'confirmed' ? <span className="badge b-ok">Unlocked</span>
+          {f.is_free && bought !== 'confirmed' ? <span className="badge b-free">Free</span>
+            : status === 'confirmed' ? <span className="badge b-ok">Unlocked</span>
             : status === 'pending' ? <span className="badge b-pending">Pending</span>
             : <span className="price-pill">{pesoShort(f.price)}</span>}
         </div>
@@ -74,6 +77,7 @@ export default function Library() {
     return m;
   }, [data]);
   const labels = useMemo(() => [...new Set((data?.files ?? []).map((f) => f.label).filter(Boolean))].sort(), [data]);
+  const labelCounts = useMemo(() => { const m = new Map<string, number>(); for (const f of data?.files ?? []) if (f.label) m.set(f.label, (m.get(f.label) ?? 0) + 1); return m; }, [data]);
   const owned = (data?.files ?? []).filter((f) => status.get(f.id) === 'confirmed');
   const pendingCount = (data?.files ?? []).filter((f) => status.get(f.id) === 'pending').length;
   const filtering = !!q || kind !== 'all' || !!label;
@@ -94,6 +98,7 @@ export default function Library() {
   return (
     <ClientLayout>
       <div className="page library" ref={revealRef}>
+        {theme.announcement?.trim() && <div className="announce" role="status">{theme.announcement}</div>}
         {!filtering && (
           <section className="hero-card">
             <div className="col" style={{ gap: 10, maxWidth: 560 }}>
@@ -118,8 +123,13 @@ export default function Library() {
             {owned.slice(0, 8).map((f) => <BookCard key={f.id} f={f} status="confirmed" />)}
           </Shelf>
         )}
+        {!filtering && data && data.files.some((f) => f.is_free) && (
+          <Shelf title="Free samples" action={<span className="small muted">Read these without paying</span>}>
+            {data.files.filter((f) => f.is_free).map((f) => <BookCard key={f.id} f={f} status={status.get(f.id)} />)}
+          </Shelf>
+        )}
         {!filtering && data && (
-          <Shelf title="New arrivals">{data.files.slice(0, 8).map((f) => <BookCard key={f.id} f={f} status={status.get(f.id)} />)}</Shelf>
+          <Shelf title="New arrivals">{data.files.filter((f) => !f.is_free).slice(0, 8).map((f) => <BookCard key={f.id} f={f} status={status.get(f.id)} />)}</Shelf>
         )}
         {!filtering && data && topLabels.map((l) => (
           <Shelf key={l} title={l} action={<button className="link row" style={{ gap: 4 }} onClick={() => setLabel(l)}>See all <ArrowRight width={16} /></button>}>
@@ -142,12 +152,10 @@ export default function Library() {
               <button className={`chip${kind === 'all' ? ' on' : ''}`} onClick={() => setKind('all')}>All types</button>
               {KINDS.map((k) => <button key={k} className={`chip${kind === k ? ' on' : ''}`} onClick={() => setKind(k)}>{KIND_LABEL[k]}</button>)}
             </div>
-            {labels.length > 0 && (
-              <div className="chips">
-                <button className={`chip soft${!label ? ' on' : ''}`} onClick={() => setLabel(null)}>All subjects</button>
-                {labels.map((l) => <button key={l} className={`chip soft${label === l ? ' on' : ''}`} onClick={() => setLabel(label === l ? null : l)}>{l}</button>)}
-              </div>
-            )}
+            <div className="row wrap" style={{ gap: 10 }}>
+              <div style={{ flex: '0 1 340px', minWidth: 220 }}><CategoryPicker id="subject" value={label} onChange={setLabel} counts={labelCounts} allLabel="All subjects" placeholder="Search a subject" /></div>
+              {[...labelCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([l]) => <button key={l} className={`chip soft${label === l ? ' on' : ''}`} onClick={() => setLabel(label === l ? null : l)}>{l}</button>)}
+            </div>
           </div>
           {loading ? <SkeletonGrid /> : error ? <Empty title="Couldn't load the library">{error}</Empty>
             : shown.length === 0 ? <Empty title="No files match">Try another search or filter.</Empty>

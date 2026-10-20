@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase, paymentQrUrl } from '../lib/supabase';
 import { decodeQrImage, qrDataUrl } from '../lib/qrimage';
@@ -9,6 +9,11 @@ import { initials } from '../lib/format';
 import type { PaymentMethod, Profile, Settings } from '../lib/types';
 import { AdminLayout } from '../components/Layouts';
 import { Modal, Toggle, useToast } from '../components/ui';
+import ProfileEditor from '../components/ProfileEditor';
+import ReceiptCard, { sampleReceipt } from '../components/ReceiptCard';
+import { PasswordCard } from '../pages/Account';
+import { useAdminDark } from '../components/Layouts';
+import { downloadReceiptImage } from '../lib/receiptImage';
 import { markTile, publisherOf, watermarkLine } from '../lib/watermark';
 import { Laptop, Shield } from '../components/Icons';
 import { Bar, FormSkeleton } from '../components/Skeletons';
@@ -48,11 +53,17 @@ export function AdminRestrictions() {
             <div className="setting"><div className="col" style={{ gap: 0 }}><b>Computers per account</b><span className="small muted">Desktop or laptop, in the web browser</span></div><Num value={s.computer_slots} onChange={(n) => set({ computer_slots: n })} /></div>
             <div className="setting"><div className="col" style={{ gap: 0 }}><b>Phones per account</b><span className="small muted">Android app (APK) or mobile browser</span></div><Num value={s.phone_slots} onChange={(n) => set({ phone_slots: n })} /></div>
             <div className="setting"><div className="col" style={{ gap: 0 }}><b>Device swaps per 30 days</b><span className="small muted">Stops people from sharing one account</span></div><Num value={s.swaps_per_30d} onChange={(n) => set({ swaps_per_30d: n })} /></div>
+            <div className="setting"><div className="col" style={{ gap: 0 }}><b>Sell extra device slots</b><span className="small muted">Buyers pay by GCash on their Devices page; confirming adds the slot</span></div><Toggle on={s.slot_sales} onChange={(v) => set({ slot_sales: v })} label="Sell extra device slots" /></div>
+            {s.slot_sales && (
+              <div className="row wrap" style={{ gap: 16, paddingLeft: 2 }}>
+                <div className="setting" style={{ flex: '1 1 220px' }}><span>Price per extra computer</span><Num value={s.slot_price_computer} onChange={(n) => set({ slot_price_computer: n })} suffix="₱" /></div>
+                <div className="setting" style={{ flex: '1 1 220px' }}><span>Price per extra phone</span><Num value={s.slot_price_phone} onChange={(n) => set({ slot_price_phone: n })} suffix="₱" /></div>
+              </div>
+            )}
             <div className="setting"><div className="col" style={{ gap: 0 }}><b>Users can add new devices</b><span className="small muted">Off: only admins can reset devices</span></div><Toggle on={s.users_can_add_devices} onChange={(v) => set({ users_can_add_devices: v })} /></div>
           </div>
           <div className="card col" style={{ gap: 14 }}>
             <div className="row"><Shield width={22} color="var(--blue)" /><h3>Content protection</h3></div>
-            <div className="setting"><div className="col" style={{ gap: 0 }}><b>Downloads</b><span className="small muted">Always off: files are delivered encrypted and only viewable inside MedNotes</span></div><span className="badge b-lock">Off</span></div>
             <div className="setting"><div className="col" style={{ gap: 0 }}><b>Publisher watermark</b><span className="small muted">Stamped on every page, image, slide and video buyers open</span></div><Toggle on={s.watermark} onChange={(v) => set({ watermark: v })} label="Publisher watermark" /></div>
             {s.watermark && (
               <div className="wm-editor">
@@ -156,8 +167,35 @@ function TestQrModal({ m, onClose }: { m: PaymentMethod; onClose: () => void }) 
   );
 }
 
+/** Admin dark mode, saved on the admin's own profile. */
+function AdminLook() {
+  const [dark, setDark] = useAdminDark();
+  return (
+    <div className="card col">
+      <h3>Admin appearance</h3>
+      <div className="setting"><div className="col" style={{ gap: 0 }}><b>Dark mode</b><span className="small muted">Only for the admin pages, only for you. Buyers keep the site look.</span></div><Toggle on={dark} onChange={setDark} label="Dark mode" /></div>
+    </div>
+  );
+}
+
+/** The receipt buyers get, as they'll see it, with what's on it editable on the Receipts page. */
+function ReceiptSampleCard({ s }: { s: Settings }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const toast = useToast();
+  return (
+    <div className="card col receipt-sample-card">
+      <div className="spread wrap" style={{ gap: 8 }}><h3>Receipt buyers get</h3><Link to="/admin/receipts?tab=design" className="btn btn-sm">Edit what it says</Link></div>
+      <span className="small muted">Sent when you confirm a payment. Buyers can save it as a picture or PDF, the only thing they can download.</span>
+      <div ref={ref} className="receipt-shot"><ReceiptCard settings={s} r={sampleReceipt(s)} sample /></div>
+      <button type="button" className="btn btn-sm" style={{ alignSelf: 'flex-start' }} onClick={() => ref.current && downloadReceiptImage(ref.current, 'sample-receipt').catch((e) => toast(String(e)))}>Download sample image</button>
+    </div>
+  );
+}
+
 export function AdminSettings() {
   const { s, setS, loading, save } = useSettingsForm();
+  const { profile, session } = useAuth();
+  const adminHasPassword = [...(session?.user.app_metadata.providers ?? []), profile?.provider].includes('email');
   const toast = useToast();
   const [testing, setTesting] = useState<PaymentMethod | null>(null);
   if (loading || !s) return <AdminLayout title="Settings"><FormSkeleton cards={3} /></AdminLayout>;
@@ -181,6 +219,14 @@ export function AdminSettings() {
   const setMethod = (i: number, p: Partial<PaymentMethod>) => set({ payment_methods: s.payment_methods.map((m, j) => (j === i ? { ...m, ...p } : m)) });
   return (
     <AdminLayout title="Settings" actions={<button className="btn btn-primary" onClick={() => save()}>Save settings</button>}>
+      <section className="col" style={{ gap: 12 }}>
+        <span className="eyebrow">Your admin account</span>
+        <div className="row wrap" style={{ alignItems: 'flex-start', gap: 20 }}>
+          <div className="col grow" style={{ gap: 16, minWidth: 300, flexBasis: 360 }}><ProfileEditor hint="Shown in the admin and on the activity log." /><AdminLook /></div>
+          <div className="col grow" style={{ gap: 16, minWidth: 300, flexBasis: 360 }}><PasswordCard hasPassword={adminHasPassword} email={profile?.email ?? ''} /></div>
+        </div>
+      </section>
+      <span className="eyebrow">Payments & receipts</span>
       <div className="row wrap" style={{ alignItems: 'flex-start', gap: 20 }}>
         <div className="col grow" style={{ gap: 16, minWidth: 320 }}>
           <div className="card col">
@@ -206,11 +252,7 @@ export function AdminSettings() {
             ))}
             <button className="btn btn-sm" style={{ alignSelf: 'flex-start' }} onClick={() => set({ payment_methods: [...s.payment_methods, { name: 'New method', account: '', holder: s.receipt_business, enabled: true }] })}>+ Add payment method</button>
           </div>
-          <div className="card col">
-            <h3>Receipts</h3>
-            <span className="small muted">Business name, TIN, numbering and the receipt design now live on their own page, with a live sample.</span>
-            <Link to="/admin/receipts?tab=design" className="btn btn-sm" style={{ alignSelf: 'flex-start' }}>Open receipt settings</Link>
-          </div>
+          <ReceiptSampleCard s={s} />
         </div>
         <div className="col" style={{ width: 420, maxWidth: '100%', gap: 16 }}>
           <div className="card col">

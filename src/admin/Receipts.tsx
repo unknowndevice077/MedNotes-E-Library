@@ -1,33 +1,46 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import { downloadReceiptImage } from '../lib/receiptImage';
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { must, useLoad } from '../lib/useLoad';
 import { dateTime, peso } from '../lib/format';
-import type { Purchase, ReceiptDesign } from '../lib/types';
+import type { DeviceOrder, Purchase, ReceiptDesign } from '../lib/types';
 import { AdminLayout } from '../components/Layouts';
 import { Empty, Modal, Toggle } from '../components/ui';
 import { Receipt, Search } from '../components/Icons';
 import { FormSkeleton, RowsSkeleton } from '../components/Skeletons';
-import ReceiptCard, { RECEIPT_DEFAULTS, sampleReceipt } from '../components/ReceiptCard';
-import { toReceipt } from '../pages/Receipt';
+import ReceiptCard, { RECEIPT_DEFAULTS, sampleReceipt, type ReceiptData } from '../components/ReceiptCard';
+import { slotReceipt, toReceipt } from '../pages/Receipt';
 import { useSettingsForm } from './Restrictions';
 
 const PRINT_CSS = `@media print { body * { visibility: hidden !important; } .print-me, .print-me * { visibility: visible !important; }
   .print-me { position: absolute; left: 0; top: 0; width: 100%; } .print-me .receipt { box-shadow: none !important; border: none !important; } }`;
 
+type Row = { id: string; receipt: ReceiptData; p?: Purchase };
+
 function Issued() {
   const [q, setQ] = useState('');
-  const [open, setOpen] = useState<Purchase | null>(null);
+  const [open, setOpen] = useState<Row | null>(null);
   const { settings } = useAuth();
-  const { data, loading } = useLoad(async () =>
-    must(await supabase.from('purchases').select('*, files(name, kind), profiles!purchases_user_id_fkey(email, full_name)')
-      .eq('status', 'confirmed').not('receipt_no', 'is', null).order('confirmed_at', { ascending: false }).limit(500)) as Purchase[]);
+  const { data, loading } = useLoad(async (): Promise<Row[]> => {
+    const [f, d] = await Promise.all([
+      supabase.from('purchases').select('*, files(name, kind), profiles!purchases_user_id_fkey(email, full_name)')
+        .eq('status', 'confirmed').not('receipt_no', 'is', null).order('confirmed_at', { ascending: false }).limit(500),
+      supabase.from('device_orders').select('*, profiles!device_orders_user_id_fkey(email, full_name)')
+        .eq('status', 'confirmed').order('confirmed_at', { ascending: false }).limit(500),
+    ]);
+    const rows: Row[] = [
+      ...(must(f) as Purchase[]).map((p) => ({ id: p.id, receipt: toReceipt(p, p.profiles), p })),
+      ...(must(d) as DeviceOrder[]).map((o) => ({ id: o.id, receipt: slotReceipt(o, o.profiles) })),
+    ];
+    return rows.sort((a, b) => String(b.receipt.issued_at).localeCompare(String(a.receipt.issued_at)));
+  });
   const shown = useMemo(() => {
     const s = q.trim().toLowerCase();
-    return (data ?? []).filter((p) => !s || `${p.receipt_no} ${p.profiles?.full_name} ${p.profiles?.email} ${p.files?.name} ${p.reference_no}`.toLowerCase().includes(s));
+    return (data ?? []).filter(({ receipt: r }) => !s || `${r.receipt_no} ${r.buyer_name} ${r.buyer_email} ${r.item} ${r.reference}`.toLowerCase().includes(s));
   }, [data, q]);
-  const total = shown.reduce((a, p) => a + Number(p.amount), 0);
+  const total = shown.reduce((a, r) => a + r.receipt.amount, 0);
   return (
     <div className="col" style={{ gap: 14 }}>
       <div className="spread wrap" style={{ gap: 12 }}>
@@ -38,23 +51,23 @@ function Issued() {
       {loading ? <RowsSkeleton rows={6} thumb={false} /> : shown.length === 0 ? <Empty title="No receipts yet">Receipts appear here when you confirm a payment.</Empty> : (
         <div className="table rtable">
           <div className="tr th hide-sm"><span style={{ width: 130 }}>Receipt</span><span style={{ width: 240 }}>Buyer</span><span style={{ width: 240 }}>File</span><span style={{ width: 110 }}>Amount</span><span style={{ width: 170 }}>Issued</span><span className="grow" /></div>
-          {shown.map((p) => (
-            <div key={p.id} className="tr" style={{ cursor: 'pointer' }} onClick={() => setOpen(p)}>
-              <b style={{ width: 130 }}>{p.receipt_no}</b>
-              <div className="col" style={{ width: 240, gap: 0, minWidth: 0 }}><span className="ellipsis">{p.profiles?.full_name || p.profiles?.email}</span><span className="small muted ellipsis">{p.profiles?.email}</span></div>
-              <span style={{ width: 240 }} className="ellipsis">{p.files?.name}</span>
-              <b style={{ width: 110 }}>{peso(p.amount)}</b>
-              <span style={{ width: 170 }} className="small muted">{dateTime(p.confirmed_at)}</span>
+          {shown.map((row) => { const r = row.receipt; return (
+            <div key={row.id} className="tr" style={{ cursor: 'pointer' }} onClick={() => setOpen(row)}>
+              <b style={{ width: 130 }}>{r.receipt_no}</b>
+              <div className="col" style={{ width: 240, gap: 0, minWidth: 0 }}><span className="ellipsis">{r.buyer_name || r.buyer_email}</span><span className="small muted ellipsis">{r.buyer_email}</span></div>
+              <span style={{ width: 240 }} className="ellipsis">{r.item}</span>
+              <b style={{ width: 110 }}>{peso(r.amount)}</b>
+              <span style={{ width: 170 }} className="small muted">{dateTime(r.issued_at)}</span>
               <span className="grow" />
-              <button className="btn btn-sm" onClick={(e) => { e.stopPropagation(); setOpen(p); }}><Receipt width={15} /> View</button>
+              <button className="btn btn-sm" onClick={(e) => { e.stopPropagation(); setOpen(row); }}><Receipt width={15} /> View</button>
             </div>
-          ))}
+          ); })}
         </div>
       )}
       {open && (
         <Modal onClose={() => setOpen(null)} width={600}>
           <style>{PRINT_CSS}</style>
-          <div className="print-me"><ReceiptCard settings={settings} r={toReceipt(open, open.profiles)} /></div>
+          <div className="print-me"><ReceiptCard settings={settings} r={open.receipt} /></div>
           <div className="row" style={{ justifyContent: 'flex-end' }}><button className="btn" onClick={() => setOpen(null)}>Close</button><button className="btn btn-primary" onClick={() => window.print()}>Print / Save as PDF</button></div>
         </Modal>
       )}
@@ -64,6 +77,7 @@ function Issued() {
 
 function Design() {
   const { s, set, save, loading } = useSettingsForm();
+  const shot = useRef<HTMLDivElement>(null);
   if (loading || !s) return <FormSkeleton cards={2} />;
   const d = { ...RECEIPT_DEFAULTS, ...(s.receipt_design ?? {}) };
   const setD = (patch: Partial<ReceiptDesign>) => set({ receipt_design: { ...(s.receipt_design ?? {}), ...patch } });
@@ -88,10 +102,6 @@ function Design() {
           <div className="row wrap" style={{ gap: 12 }}>
             {text('title', 'Receipt title', 'Official receipt', 40)}
             <div className="field"><label htmlFor="rd-accent">Accent colour</label><input id="rd-accent" type="color" className="color-input" value={d.accent} onChange={(e) => setD({ accent: e.target.value })} /></div>
-            <div className="field" style={{ width: 170 }}><label htmlFor="rd-paper">Paper</label>
-              <select id="rd-paper" className="input" value={d.paper} onChange={(e) => setD({ paper: e.target.value as ReceiptDesign['paper'] })}>
-                <option value="card">Card (screen)</option><option value="a5">A5 page</option><option value="thermal">Thermal slip (58 mm)</option>
-              </select></div>
           </div>
           <div className="setting"><b>Show logo</b><Toggle on={d.showLogo} onChange={(v) => setD({ showLogo: v })} label="Show logo" /></div>
           <div className="setting"><b>Show TIN</b><Toggle on={d.showTin} onChange={(v) => setD({ showTin: v })} label="Show TIN" /></div>
@@ -111,8 +121,8 @@ function Design() {
       </div>
       <div className="col rc-preview" style={{ gap: 12, flexBasis: 420, flexGrow: 1 }}>
         <span className="eyebrow">Live sample</span>
-        <div className="print-me"><ReceiptCard settings={s} r={sampleReceipt(s)} sample /></div>
-        <button className="btn" onClick={() => window.print()}>Print sample</button>
+        <div className="print-me receipt-shot" ref={shot}><ReceiptCard settings={{ ...s, receipt_design: { ...s.receipt_design, paper: 'card' } }} r={sampleReceipt(s)} sample /></div>
+        <div className="row" style={{ gap: 8 }}><button className="btn" onClick={() => window.print()}>Print sample</button><button className="btn" onClick={() => shot.current && downloadReceiptImage(shot.current, 'sample-receipt')}>Download image</button></div>
       </div>
     </div>
   );

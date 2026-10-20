@@ -3,7 +3,7 @@
 // CHROME_PATH can point at another Chrome/Edge binary.
 import { test, before, after, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import puppeteer from 'puppeteer-core';
 import { anon, dropUser, makeUser, root, service } from './helpers.mjs';
@@ -319,19 +319,35 @@ describe('admin', () => {
     const inputs = await p.$$('.modal input[type=file]');
     await inputs[0].uploadFile(join(root, 'supabase', 'sample', 'files', 'anatomy-atlas-upper-limb.pdf'));
     await inputs[1].uploadFile(join(root, 'supabase', 'sample', 'covers', 'surgical-atlas.png'));
-    await p.$eval('#fname', (e) => { e.value = ''; });
     const name = `E2E Upload ${Date.now()}`;
-    await p.type('#fname', name); await p.type('#flabel', 'Testing'); await p.type('#fprice', '99');
+    await p.waitForFunction(() => /\d+ pages?/.test(document.querySelector('#fmeta').value), { timeout: 10000 });
+    assert.equal(await p.$eval('#fmeta', (e) => e.value), '4 pages', 'page count detected from the PDF');
+    await p.click('#fname', { clickCount: 3 }); await p.type('#fname', name); // replace the name taken from the file
+    await p.click('#flabel'); await p.type('#flabel', 'cardio');
+    const opts = await p.$$eval('.catpick-opt', (els) => els.map((e) => e.textContent));
+    assert.ok(opts.includes('Cardiology') && opts.includes('Cardiothoracic Surgery'), `searchable subjects: ${opts.slice(0, 5)}`);
+    await p.keyboard.press('ArrowDown'); // first match after the typed text
+    await p.$$eval('.catpick-opt', (els) => els.find((e) => e.textContent === 'Cardiology').dispatchEvent(new MouseEvent('mousedown', { bubbles: true })));
+    await p.type('#fprice', '99');
     await clickText(p, '.modal button', 'Upload & publish');
     await sleep(2500);
     assert.ok(!(await p.$('.modal')), 'dialog closed');
     assert.ok((await text(p)).includes(name), 'listed in admin files');
-    const { data } = await service.from('files').select('id, storage_path, cover_path, price').eq('name', name).single();
-    assert.equal(Number(data.price), 99);
-    assert.ok(data.storage_path && data.cover_path);
-    await service.storage.from('files').remove([data.storage_path]);
-    await service.storage.from('covers').remove([data.cover_path]);
-    await service.from('files').delete().eq('id', data.id);
+    const { data: rows } = await service.from('files').select('id, storage_path, cover_path, price, label, meta').ilike('name', `%${name}%`);
+    try {
+      assert.equal(rows.length, 1, 'saved under the typed name');
+      const [data] = rows;
+      assert.equal(Number(data.price), 99);
+      assert.equal(data.label, 'Cardiology');
+      assert.equal(data.meta, '4 pages');
+      assert.ok(data.storage_path && data.cover_path);
+    } finally {
+      for (const d of rows ?? []) { // never leave test uploads in the library
+        await service.storage.from('files').remove([d.storage_path]);
+        await service.storage.from('covers').remove([d.cover_path]);
+        await service.from('files').delete().eq('id', d.id);
+      }
+    }
     await p.close();
   });
 
@@ -506,10 +522,9 @@ describe('admin receipts and appearance', () => {
       await p.$eval('#rd-title', (e) => e.select()); await p.type('#rd-title', 'Sales invoice');
       await p.type('#rd-address', 'Real St., Ormoc City');
       await p.$eval('#rd-accent', (e) => { const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; set.call(e, '#7c3aed'); e.dispatchEvent(new Event('input', { bubbles: true })); });
-      await p.select('#rd-paper', 'thermal');
       const sample = await p.$eval('.rc-preview .receipt', (e) => ({ t: e.innerText, cls: e.className, accent: e.style.getPropertyValue('--rc') }));
       assert.ok(sample.t.includes('Sales invoice') && sample.t.includes('Real St., Ormoc City') && sample.t.includes('SAMPLE'), 'sample follows the form');
-      assert.ok(sample.cls.includes('paper-thermal') && sample.accent === '#7c3aed', 'paper + accent');
+      assert.ok(sample.cls.includes('paper-card') && sample.accent === '#7c3aed', 'normal template + accent');
       await shot(p, 'admin-receipts-design');
       await clickText(p, 'button', 'Save receipt settings');
       await sleep(1000);
@@ -518,7 +533,17 @@ describe('admin receipts and appearance', () => {
       const b = await open(buyer);
       await go(b, `/receipt/${owned.id}`);
       const r = await b.$eval('.receipt', (e) => ({ t: e.innerText, cls: e.className }));
-      assert.ok(r.t.includes('Sales invoice') && r.cls.includes('paper-thermal') && !r.t.includes('SAMPLE'), 'buyer receipt uses the design');
+      assert.ok(r.t.includes('Sales invoice') && !r.t.includes('SAMPLE'), 'buyer receipt uses the design');
+      // the receipt is the one thing buyers can download: as a picture
+      const dir = join(SHOTS, 'downloads'); mkdirSync(dir, { recursive: true });
+      const cdp = await b.target().createCDPSession();
+      await cdp.send('Page.setDownloadBehavior', { behavior: 'allow', downloadPath: dir });
+      await clickText(b, 'button', 'Save as image');
+      await b.waitForFunction(() => true, { timeout: 100 });
+      let png = '';
+      for (let i = 0; i < 30 && !png; i++) { await sleep(300); png = readdirSync(dir).find((f) => f.startsWith('receipt-') && f.endsWith('.png')) ?? ''; }
+      assert.ok(png, 'receipt image downloaded');
+      assert.ok(readFileSync(join(dir, png)).subarray(1, 4).toString() === 'PNG');
       await b.close();
     } finally {
       await service.from('settings').update(before).eq('id', 1);
@@ -558,6 +583,157 @@ describe('admin receipts and appearance', () => {
     }
   });
 });
+
+describe('free samples, extra device slots, profile', () => {
+  test('free samples: a shelf in the library and they open without paying', async () => {
+    const u = await makeUser('e2e-free');
+    try {
+      const p = await open(u);
+      await go(p, '/library');
+      const shelf = await p.evaluate(() => [...document.querySelectorAll('.shelf')].find((s) => s.querySelector('h2')?.textContent === 'Free samples')?.querySelectorAll('.bookcard').length ?? 0);
+      assert.equal(shelf, 5, 'one of each: PDF, PPTX, EPUB, Word, Excel');
+      await go(p, '/file/a0000000-0000-0000-0000-000000000019');
+      assert.ok((await text(p)).includes('Read free sample'));
+      await go(p, '/read/a0000000-0000-0000-0000-000000000019');
+      await p.waitForSelector('.reader canvas', { timeout: 15000 });
+      await p.close();
+    } finally { await dropUser(u); }
+  });
+
+  test('buyer pays for an extra computer slot; the admin confirms; the slot appears', async () => {
+    const u = await makeUser('e2e-slot');
+    try {
+      const b = await open(u);
+      await go(b, '/devices');
+      assert.ok((await text(b)).includes('allows 1 computer'));
+      await clickText(b, 'a.slot-offer', 'Extra computer');
+      await b.waitForSelector('input[type=file]');
+      assert.match(b.url(), /checkout\/slot\/computer/);
+      await (await b.$('input[type=file]')).uploadFile(join(root, 'supabase', 'sample', 'proofs', '33333333-0000-0000-0000-000000000001', 'proof-1.png'));
+      await b.type('#ref', 'SLOT-1');
+      await shot(b, 'checkout-slot');
+      await Promise.all([b.waitForNavigation({ waitUntil: 'networkidle0' }).catch(() => {}), clickText(b, 'form button', 'Submit payment')]);
+      await sleep(800);
+      assert.match(b.url(), /devices/);
+      assert.ok((await text(b)).includes('waiting for confirmation'));
+      const a = await open(admin);
+      const { data: o } = await service.from('device_orders').select('id').eq('user_id', u.id).single();
+      await go(a, `/admin/payments?type=slots&id=${o.id}`);
+      assert.ok((await text(a)).includes('Extra computer slot'));
+      await clickText(a, 'button', 'Confirm received');
+      await sleep(1500);
+      assert.match(await a.evaluate(() => document.querySelector('.toast')?.innerText ?? ''), /extra computer slot is added/);
+      await a.close();
+      await b.waitForFunction(() => document.body.innerText.includes('allows 2 computers'), { timeout: 10000 });
+      assert.ok(await b.$('a[href^="/receipt/slot/"]'), 'receipt link');
+      await b.close();
+    } finally { await dropUser(u); }
+  });
+
+  test('profile picture upload', async () => {
+    const u = await makeUser('e2e-avatar');
+    try {
+      const p = await open(u);
+      await go(p, '/account');
+      await (await p.$('input[aria-label="Profile picture"]')).uploadFile(join(root, 'supabase', 'sample', 'covers', 'anatomy.png'));
+      await p.waitForFunction(() => document.querySelector('.avatar-lg img')?.getAttribute('src')?.includes('/avatars/'), { timeout: 10000 });
+      const { data } = await service.from('profiles').select('avatar_url').eq('id', u.id).single();
+      assert.ok(data.avatar_url.includes(`/avatars/${u.id}/`));
+      await p.close();
+      await service.storage.from('avatars').remove([data.avatar_url.split('/avatars/')[1]]);
+    } finally { await dropUser(u); }
+  });
+
+  test('library subject filter is a searchable list of medical subjects', async () => {
+    const p = await open(buyer);
+    await go(p, '/library');
+    await p.click('#subject'); await p.type('#subject', 'cardio');
+    const opts = await p.$$eval('.catpick-opt', (els) => els.map((e) => e.textContent));
+    assert.ok(opts.some((o) => o.startsWith('Cardiology')), 'Cardiology offered');
+    await p.$$eval('.catpick-opt', (els) => els.find((e) => e.textContent.startsWith('Cardiology')).dispatchEvent(new MouseEvent('mousedown', { bubbles: true })));
+    await sleep(400);
+    const labels = await p.$$eval('.grid .bookcard .eyebrow', (els) => els.map((e) => e.textContent));
+    assert.ok(labels.length > 0 && labels.every((l) => /cardiology/i.test(l)), `only cardiology: ${labels}`);
+    await p.close();
+  });
+});
+
+describe('powerful admin', () => {
+  test('logs: a change shows with before/after and can be reverted from the page', async () => {
+    const { data: f } = await service.from('files').select('price').eq('id', FILES.xlsx).single();
+    await admin.client.from('files').update({ price: 777 }).eq('id', FILES.xlsx);
+    const p = await open(admin);
+    await go(p, '/admin/logs?type=files');
+    await p.waitForSelector('.log-row');
+    await p.click('.log-row .log-head');
+    await p.waitForSelector('.log-diff-row');
+    const diff = await p.$eval('.log-body', (e) => e.innerText);
+    assert.ok(diff.includes('777'), 'shows the new value');
+    await shot(p, 'admin-logs');
+    await clickText(p, '.log-body button', 'Revert');
+    await p.waitForSelector('.modal button[type=submit]');
+    await p.click('.modal button[type=submit]');
+    await sleep(1200);
+    assert.equal(Number((await service.from('files').select('price').eq('id', FILES.xlsx).single()).data.price), Number(f.price), 'reverted');
+    await p.close();
+  });
+
+  test('dashboard reset keeps the monthly statistics', async () => {
+    const { data: s0 } = await service.from('settings').select('stats_reset_at').eq('id', 1).single();
+    try {
+      const p = await open(admin);
+      await go(p, '/admin');
+      await clickText(p, 'button', 'Reset statistics');
+      await p.waitForSelector('.modal button[type=submit]');
+      await p.click('.modal button[type=submit]');
+      await p.waitForFunction(() => document.body.innerText.includes('Counting since'), { timeout: 8000 });
+      await go(p, '/admin/statistics');
+      await p.waitForSelector('.rtable .tr:not(.th)');
+      const months = await p.$$eval('.rtable .tr:not(.th)', (e) => e.length);
+      assert.ok(months >= 1);
+      assert.ok(!(await text(p)).includes('₱0.00\n') || months > 0);
+      await shot(p, 'admin-statistics');
+      await p.close();
+    } finally {
+      await service.from('settings').update({ stats_reset_at: s0.stats_reset_at }).eq('id', 1);
+    }
+  });
+
+  test('admin dark mode lives in Settings and stays on across admin pages', async () => {
+    const p = await open(admin);
+    await go(p, '/admin/settings');
+    assert.ok(/your admin account/i.test(await text(p)) && (await text(p)).includes('Receipt buyers get'));
+    await p.click('button[aria-label="Dark mode"]');
+    await sleep(600);
+    const dark = await p.evaluate(() => ({ on: document.documentElement.hasAttribute('data-admin-dark'), bg: getComputedStyle(document.body).backgroundColor }));
+    assert.ok(dark.on && dark.bg === 'rgb(11, 18, 32)', JSON.stringify(dark));
+    await shot(p, 'admin-dark');
+    await go(p, '/admin/payments');
+    assert.ok(await p.evaluate(() => document.documentElement.hasAttribute('data-admin-dark')), 'still dark on other admin pages');
+    await go(p, '/library');
+    assert.ok(!(await p.evaluate(() => document.documentElement.hasAttribute('data-admin-dark'))), 'not on buyer pages');
+    await service.from('profiles').update({ prefs: {} }).eq('id', admin.id);
+    await p.close();
+  });
+
+  test('site edits go live on open pages without reloading', async () => {
+    const { data: before } = await service.from('settings').select('theme').eq('id', 1).single();
+    try {
+      const b = await open(buyer);
+      await go(b, '/library');
+      const a = await open(admin);
+      await go(a, '/admin/appearance');
+      await p_type(a, '#ap-announce', 'Live: board review week!');
+      await clickText(a, 'button', 'Save appearance');
+      await b.waitForFunction(() => document.querySelector('.announce')?.textContent.includes('board review week'), { timeout: 10000 });
+      await a.close(); await b.close();
+    } finally {
+      await service.from('settings').update({ theme: before.theme }).eq('id', 1);
+    }
+  });
+});
+
+const p_type = async (page, sel, value) => { await page.waitForSelector(sel); await page.click(sel); await page.type(sel, value); };
 
 describe('account deletion (UI)', () => {
   test('Delete my account signs out and removes the user', async () => {

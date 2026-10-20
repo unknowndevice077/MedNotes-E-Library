@@ -46,6 +46,8 @@ const AdminRestrictions = lazy(() => import('./admin/Restrictions').then((m) => 
 const AdminSettings = lazy(() => import('./admin/Restrictions').then((m) => ({ default: m.AdminSettings })));
 const AdminReceipts = lazy(() => import('./admin/Receipts'));
 const AdminAppearance = lazy(() => import('./admin/Appearance'));
+const AdminLogs = lazy(() => import('./admin/Logs'));
+const AdminStatistics = lazy(() => import('./admin/Statistics'));
 
 function RequireAuth({ children, admin }: { children: ReactNode; admin?: boolean }) {
   const { loading, session, profile, online } = useAuth();
@@ -94,8 +96,10 @@ export default function App() {
               <Route path="/library" element={<RequireAuth><Library /></RequireAuth>} />
               <Route path="/file/:id" element={<RequireAuth><FileDetail /></RequireAuth>} />
               <Route path="/checkout/:id" element={<RequireAuth><Checkout /></RequireAuth>} />
+              <Route path="/checkout/slot/:slotKind" element={<RequireAuth><Checkout /></RequireAuth>} />
               <Route path="/my-files" element={<RequireAuth><MyFiles /></RequireAuth>} />
               <Route path="/receipt/:id" element={<RequireAuth><ReceiptPage /></RequireAuth>} />
+              <Route path="/receipt/slot/:id" element={<RequireAuth><ReceiptPage /></RequireAuth>} />
               <Route path="/read/:id" element={<RequireAuth><Reader /></RequireAuth>} />
               <Route path="/devices" element={<RequireAuth><Devices /></RequireAuth>} />
               <Route path="/account" element={<RequireAuth><Account /></RequireAuth>} />
@@ -110,6 +114,8 @@ export default function App() {
               <Route path="/admin/settings" element={<RequireAuth admin><AdminSettings /></RequireAuth>} />
               <Route path="/admin/receipts" element={<RequireAuth admin><AdminReceipts /></RequireAuth>} />
               <Route path="/admin/appearance" element={<RequireAuth admin><AdminAppearance /></RequireAuth>} />
+              <Route path="/admin/logs" element={<RequireAuth admin><AdminLogs /></RequireAuth>} />
+              <Route path="/admin/statistics" element={<RequireAuth admin><AdminStatistics /></RequireAuth>} />
 
               <Route path="/" element={<RequireAuth><Home /></RequireAuth>} />
               <Route path="*" element={<Navigate to="/" replace />} />

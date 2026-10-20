@@ -3,6 +3,8 @@ import { supabase, coverUrl } from '../lib/supabase';
 import { must, useLoad } from '../lib/useLoad';
 import { bytes, errMsg, pesoShort } from '../lib/format';
 import { KIND_LABEL, KIND_TAG, kindFromName, type FileKind, type LibFile } from '../lib/types';
+import { detectLength } from '../lib/fileInfo';
+import CategoryPicker from '../components/CategoryPicker';
 import { AdminLayout } from '../components/Layouts';
 import { Modal, Toggle, useConfirm, useIsMobile, useToast } from '../components/ui';
 import { Search, Upload } from '../components/Icons';
@@ -80,8 +82,9 @@ function FileEditor({ file, onClose, onSaved }: { file: LibFile | null; onClose:
   const toast = useToast();
   const [f, setF] = useState({
     name: file?.name ?? '', label: file?.label ?? '', description: file?.description ?? '', price: String(file?.price ?? ''),
-    meta: file?.meta ?? '', published: file?.published ?? true,
+    meta: file?.meta ?? '', published: file?.published ?? true, is_free: file?.is_free ?? false,
   });
+  const [detecting, setDetecting] = useState<'' | 'busy' | 'done' | 'failed'>('');
   const [upload, setUpload] = useState<File | null>(null);
   const [cover, setCover] = useState<File | null>(null);
   const [busy, setBusy] = useState('');
@@ -94,16 +97,21 @@ function FileEditor({ file, onClose, onSaved }: { file: LibFile | null; onClose:
     if (!x) return;
     setUpload(x);
     if (!f.name) setF((s) => ({ ...s, name: x.name.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ') }));
+    // count pages / slides / sheets / running time from the file itself
+    setDetecting('busy');
+    detectLength(x, kindFromName(x.name, x.type)).then((meta) => {
+      if (meta) { setF((s) => ({ ...s, meta })); setDetecting('done'); } else setDetecting('failed');
+    });
   }
 
   async function save() {
     if (!f.name.trim()) return setErr('Give the file a name.');
-    if (f.price === '' || Number.isNaN(Number(f.price))) return setErr('Enter a price (0 for free).');
+    if (!f.is_free && (f.price === '' || Number.isNaN(Number(f.price)))) return setErr('Enter a price, or make it a free sample.');
     if (!file && !upload) return setErr('Choose the file to upload.');
     setErr('');
     try {
       const base = slug(f.name) + '-' + Date.now().toString(36);
-      const row: Partial<LibFile> = { name: f.name.trim(), label: f.label.trim(), description: f.description.trim(), price: Number(f.price), meta: f.meta.trim(), published: f.published };
+      const row: Partial<LibFile> = { name: f.name.trim(), label: f.label.trim(), description: f.description.trim(), price: f.is_free ? 0 : Number(f.price), meta: f.meta.trim(), published: f.published, is_free: f.is_free };
       if (upload) {
         setBusy('Uploading file…');
         const ext = upload.name.split('.').pop()!.toLowerCase();
@@ -150,13 +158,18 @@ function FileEditor({ file, onClose, onSaved }: { file: LibFile | null; onClose:
         <div className="col grow" style={{ gap: 14, minWidth: 260 }}>
           <div className="field"><label htmlFor="fname">Name</label><input id="fname" className="input" value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} /></div>
           <div className="row wrap">
-            <div className="field grow"><label htmlFor="flabel">Label / category</label><input id="flabel" className="input" value={f.label} onChange={(e) => setF({ ...f, label: e.target.value })} placeholder="e.g. Pharmacology" /></div>
-            <div className="field" style={{ width: 150 }}><label htmlFor="fprice">Price (₱)</label><input id="fprice" className="input" inputMode="decimal" value={f.price} onChange={(e) => setF({ ...f, price: e.target.value })} /></div>
+            <div className="field grow" style={{ minWidth: 220 }}><label htmlFor="flabel">Subject / category</label>
+              <CategoryPicker id="flabel" value={f.label || null} onChange={(v) => setF((s) => ({ ...s, label: v ?? '' }))} allowCustom placeholder="Search or type a subject" /></div>
+            <div className="field" style={{ width: 150 }}><label htmlFor="fprice">Price (₱)</label><input id="fprice" className="input" inputMode="decimal" value={f.is_free ? '0' : f.price} disabled={f.is_free} onChange={(e) => setF({ ...f, price: e.target.value })} /></div>
           </div>
           <div className="field"><label htmlFor="fdesc">Description</label><textarea id="fdesc" className="input" value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} /></div>
-          <div className="field"><label htmlFor="fmeta">Length (shown on the card)</label><input id="fmeta" className="input" value={f.meta} onChange={(e) => setF({ ...f, meta: e.target.value })} placeholder="e.g. 320 pages, 2h 14m, 62 slides" /></div>
-          <div className="note note-blue"><span>Buyers can only view this file inside MedNotes. It is never downloadable.</span></div>
+          <div className="field"><label htmlFor="fmeta">Length (shown on the card)
+            {detecting === 'busy' && <span className="small muted"> · counting…</span>}
+            {detecting === 'done' && <span className="small detected"> · detected from the file</span>}
+            {detecting === 'failed' && <span className="small muted"> · couldn't count this one, type it in</span>}</label>
+            <input id="fmeta" className="input" value={f.meta} onChange={(e) => { setF({ ...f, meta: e.target.value }); setDetecting(''); }} placeholder="Filled in automatically when you choose a file" /></div>
           <div className="card setting" style={{ padding: '12px 14px' }}><div className="col" style={{ gap: 0 }}><b>Published</b><span className="small muted">Visible in the library</span></div><Toggle on={f.published} onChange={(v) => setF({ ...f, published: v })} label="Published" /></div>
+          <div className="card setting" style={{ padding: '12px 14px' }}><div className="col" style={{ gap: 0 }}><b>Free sample</b><span className="small muted">Every signed-in buyer can read it without paying</span></div><Toggle on={f.is_free} onChange={(v) => setF({ ...f, is_free: v })} label="Free sample" /></div>
         </div>
       </div>
       {err && <span className="error">{err}</span>}
