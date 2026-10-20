@@ -7,6 +7,8 @@ const env = Object.fromEntries(readFileSync('.env.production', 'utf8').split(/\r
 const ref = new URL(env.VITE_SUPABASE_URL).hostname.split('.')[0];
 const keys = JSON.parse(execFileSync(process.env.SUPABASE_CLI ?? 'node_modules/.bin/supabase', ['projects', 'api-keys', '--project-ref', ref, '-o', 'json'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'inherit'], shell: true }));
 const c = createClient(env.VITE_SUPABASE_URL, keys.find((k) => k.name === 'service_role').api_key, { auth: { persistSession: false } });
+const { data: st } = await c.from('settings').select('publisher_name, watermark_note, watermark').eq('id', 1).single();
+console.log('publisher:', JSON.stringify(st));
 const { data: files } = await c.from('files').select('kind, published, cover_path, storage_path, allow_download');
 console.log('rows', files.length, 'published', files.filter((f) => f.published).length, 'downloadable', files.filter((f) => f.allow_download).length, 'by kind', Object.entries(files.reduce((a, f) => ({ ...a, [f.kind]: (a[f.kind] ?? 0) + 1 }), {})).map((e) => e.join(':')).join(' '));
 let missing = 0;

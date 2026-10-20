@@ -9,6 +9,7 @@ import { initials } from '../lib/format';
 import type { PaymentMethod, Profile, Settings } from '../lib/types';
 import { AdminLayout } from '../components/Layouts';
 import { Loading, Modal, Toggle, useToast } from '../components/ui';
+import { markTile, publisherOf, watermarkLine } from '../lib/watermark';
 import { Laptop, Shield } from '../components/Icons';
 
 function useSettingsForm() {
@@ -50,7 +51,20 @@ export function AdminRestrictions() {
           <div className="card col" style={{ gap: 14 }}>
             <div className="row"><Shield width={22} color="var(--blue)" /><h3>Content protection</h3></div>
             <div className="setting"><div className="col" style={{ gap: 0 }}><b>Downloads</b><span className="small muted">Always off: files are delivered encrypted and only viewable inside MedNotes</span></div><span className="badge b-lock">Off</span></div>
-            <div className="setting"><div className="col" style={{ gap: 0 }}><b>Watermark with buyer email</b><span className="small muted">On the reader and videos</span></div><Toggle on={s.watermark} onChange={(v) => set({ watermark: v })} /></div>
+            <div className="setting"><div className="col" style={{ gap: 0 }}><b>Publisher watermark</b><span className="small muted">Stamped on every page, image, slide and video buyers open</span></div><Toggle on={s.watermark} onChange={(v) => set({ watermark: v })} label="Publisher watermark" /></div>
+            {s.watermark && (
+              <div className="wm-editor">
+                <div className="row wrap" style={{ gap: 12 }}>
+                  <div className="field grow" style={{ minWidth: 200 }}><label htmlFor="wm-name">Publisher name</label>
+                    <input id="wm-name" className="input" value={s.publisher_name} placeholder={s.receipt_business} maxLength={60} onChange={(e) => set({ publisher_name: e.target.value })} /></div>
+                  <div className="field grow" style={{ minWidth: 240 }}><label htmlFor="wm-note">Second line</label>
+                    <input id="wm-note" className="input" value={s.watermark_note} placeholder={watermarkLine({ ...s, watermark_note: '' })} maxLength={90} onChange={(e) => set({ watermark_note: e.target.value })} /></div>
+                </div>
+                <div className="wm-preview" style={{ backgroundImage: markTile(s) }} aria-label="Watermark preview">
+                  <span className="small muted">Preview · also shown as “Published by {publisherOf(s).name}”</span>
+                </div>
+              </div>
+            )}
             <div className="setting"><div className="col" style={{ gap: 0 }}><b>Block screenshots in the app</b><span className="small muted">Android secure screen</span></div><Toggle on={s.block_screenshots} onChange={(v) => set({ block_screenshots: v })} /></div>
             <div className="setting"><div className="col" style={{ gap: 0 }}><b>Offline saving (mobile app only)</b><span className="small muted">Encrypted copies inside the app</span></div><Toggle on={s.offline_saving} onChange={(v) => set({ offline_saving: v })} /></div>
             <div className="setting"><div className="col" style={{ gap: 0 }}><b>Saved copies lock after</b><span className="small muted">Days the phone can stay offline before it must check in</span></div><Num value={s.offline_days} onChange={(n) => set({ offline_days: Math.max(1, n) })} suffix="days" /></div>

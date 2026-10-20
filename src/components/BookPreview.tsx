@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { pesoShort } from '../lib/format';
 import { KIND_LABEL, type LibFile, type Purchase } from '../lib/types';
 import { Cover, Modal } from './ui';
+import { usePublisher } from '../lib/watermark';
 import { Eye, Lock } from './Icons';
 
 type Status = Purchase['status'] | undefined;
@@ -15,13 +16,14 @@ const finePointer = () => window.matchMedia('(hover: hover) and (pointer: fine)'
 
 function PreviewBody({ f, status, onGo }: { f: LibFile; status: Status; onGo?: () => void }) {
   const owned = status === 'confirmed';
+  const publisher = usePublisher();
   return (
     <div className="pv-body">
       <div className="pv-cover"><Cover file={f} locked={!owned} owned={owned} /></div>
       <div className="col pv-info">
         <span className="eyebrow">{f.label || KIND_LABEL[f.kind]}</span>
         <h3>{f.name}</h3>
-        <span className="small muted">{KIND_LABEL[f.kind]}{f.meta ? ` · ${f.meta}` : ''}</span>
+        <span className="small muted">{KIND_LABEL[f.kind]}{f.meta ? ` · ${f.meta}` : ''} · by {publisher.name}</span>
         {f.description && <p className="pv-desc">{f.description}</p>}
         <span className="grow" />
         <div className="row" style={{ gap: 8 }}>

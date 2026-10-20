@@ -2,7 +2,7 @@ export type FileKind = 'epub' | 'pdf' | 'video' | 'image' | 'docx' | 'pptx' | 'x
 export type PurchaseStatus = 'pending' | 'confirmed' | 'rejected';
 
 export interface Settings {
-  store_name: string; support_email: string;
+  store_name: string; support_email: string; publisher_name: string; watermark_note: string;
   receipt_business: string; receipt_tin: string; receipt_prefix: string; receipt_next: number; receipt_footer: string;
   computer_slots: number; phone_slots: number; swaps_per_30d: number; users_can_add_devices: boolean;
   allow_download_default: boolean; offline_saving: boolean; offline_days: number; watermark: boolean; block_screenshots: boolean;

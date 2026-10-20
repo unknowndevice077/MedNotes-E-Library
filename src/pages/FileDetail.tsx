@@ -9,6 +9,7 @@ import { isSaved, saveOffline } from '../lib/offline';
 import { fetchSecureFile } from '../lib/secureFile';
 import { KIND_LABEL, KIND_TAG, type LibFile, type Purchase } from '../lib/types';
 import { ClientLayout } from '../components/Layouts';
+import { publisherOf } from '../lib/watermark';
 import { Cover, Empty, Loading, useIsMobile, useToast } from '../components/ui';
 import { Check, Clock, Download, Eye, Laptop, Lock, Phone, Receipt, Shield } from '../components/Icons';
 
@@ -120,12 +121,14 @@ export default function FileDetail() {
               {file.meta && <span className="badge b-lock">{file.meta}</span>}
             </div>
             <h1 className="detail-title">{file.name}</h1>
+            <span className="byline">Published by <b>{publisherOf(settings).name}</b></span>
             <p className="lead">{file.description}</p>
             <div className="facts">
               <div><span>Format</span><b>{KIND_LABEL[file.kind]}</b></div>
               <div><span>Length</span><b>{file.meta || '—'}</b></div>
               <div><span>Subject</span><b>{file.label || '—'}</b></div>
               <div><span>Access</span><b>View only</b></div>
+              <div className="wide"><span>Publisher</span><b>{publisherOf(settings).name}</b></div>
             </div>
             {mobile && panel}
             {!owned && (

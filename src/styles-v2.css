@@ -224,3 +224,14 @@ a.stat:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
 .reveal.in .shelf-row > :nth-child(4) { animation-delay: .15s; } .reveal.in .shelf-row > :nth-child(n+5) { animation-delay: .2s; }
 .pv-anchor .bookcard { height: 100%; }
 @media (prefers-reduced-motion: reduce) { .reveal { opacity: 1; transform: none; } .pv-pop { animation: none; } }
+
+/* publisher watermark on the file content (see src/lib/watermark.ts) */
+.wm .wm-box, .wm .docx-wrapper > section.docx { position: relative; }
+.wm .wm-box::after, .wm .docx-wrapper > section.docx::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 3; background-image: var(--wm); background-repeat: repeat; }
+.wm .wm-box.wm-dark::after { background-image: var(--wm-dark); }
+.byline { margin-top: -10px; color: var(--muted); font-size: 14px; }
+.byline b { color: var(--ink); font-weight: 600; }
+.facts > .wide { grid-column: 1 / -1; }
+.wm-editor { display: flex; flex-direction: column; gap: 12px; padding: 14px; border-radius: 14px; background: var(--surface-2); }
+.wm-preview { height: 170px; border-radius: 12px; border: 1px solid var(--line); background-color: #fff; background-repeat: repeat; background-size: 300px auto; background-position: center; display: flex; align-items: flex-end; padding: 10px 12px; }

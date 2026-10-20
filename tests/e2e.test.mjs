@@ -29,8 +29,10 @@ async function open(user, { mobile = false, newDevice = false } = {}) {
   const page = await ctx.newPage();
   if (user) {
     const key = `${user.id}:${mobile}`;
-    if (!deviceIds.has(key) || newDevice) deviceIds.set(key, crypto.randomUUID());
-    await page.evaluateOnNewDocument((id) => localStorage.setItem('mn.device_id', id), deviceIds.get(key));
+    if (!deviceIds.has(key)) deviceIds.set(key, crypto.randomUUID());
+    // a "new device" gets a throwaway id, so the user's usual device keeps working afterwards
+    const id = newDevice ? crypto.randomUUID() : deviceIds.get(key);
+    await page.evaluateOnNewDocument((v) => localStorage.setItem('mn.device_id', v), id);
   }
   if (mobile) {
     await page.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true, deviceScaleFactor: 1 });
@@ -230,7 +232,21 @@ describe('buyer: browse, buy, read', () => {
           try { await fetch(v.currentSrc); return false; } catch { return true; } }), // blob URL already revoked
       }[kind];
       assert.ok(await check(), `${kind} rendered`);
-      assert.ok(await p.evaluate(() => !!document.querySelector('.watermark span')?.textContent.includes('@')), 'watermark with email');
+      // the publisher's mark is on the content itself: pixels for PDF/images, a tile over each page otherwise
+      const { data: st } = await service.from('settings').select('publisher_name').eq('id', 1).single();
+      const wm = await p.evaluate(() => decodeURIComponent(getComputedStyle(document.querySelector('.wm')).getPropertyValue('--wm')));
+      assert.ok(wm.includes(`© ${st.publisher_name}`) && wm.includes('do not share'), `publisher watermark: ${wm.slice(0, 200)}`);
+      assert.ok(!wm.includes(buyer.email), 'no buyer email in the watermark');
+      assert.equal(await p.$('.watermark'), null, 'no full-screen overlay');
+      if (['docx', 'pptx', 'xlsx', 'epub', 'video'].includes(kind)) {
+        const over = await p.evaluate(() => { const box = document.querySelector('.wm .wm-box, .wm .docx-wrapper > section.docx'); return box && getComputedStyle(box, '::after').backgroundImage; });
+        assert.match(over ?? '', /svg/, `${kind}: mark tiled over the page`);
+      } else {
+        // drawn into the canvas: a page/image region that was plain white now has the tinted text in it
+        const tinted = await p.evaluate(() => { const c = document.querySelector('.reader canvas'); const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+          let n = 0; for (let i = 0; i < d.length; i += 4 * 97) if (d[i + 2] > d[i] + 8 && d[i + 2] > 200 && d[i] > 150) n++; return n; });
+        assert.ok(tinted > 20, `${kind}: mark drawn into the pixels (${tinted} tinted samples)`);
+      }
       if (kind === 'pdf') await shot(p, 'reader-pdf');
       await p.close();
     });
@@ -343,6 +359,36 @@ describe('admin', () => {
       await p.close();
     } finally {
       await service.from('settings').update({ payment_methods: before.payment_methods }).eq('id', 1);
+    }
+  });
+
+  test('admin sets the watermark name and line; readers see it', async () => {
+    const { data: before } = await service.from('settings').select('publisher_name, watermark_note').eq('id', 1).single();
+    try {
+      const p = await open(admin);
+      await go(p, '/admin/restrictions');
+      await p.$eval('#wm-name', (e) => e.select());
+      await p.type('#wm-name', 'Dr. Test Publisher');
+      await p.$eval('#wm-note', (e) => e.select());
+      await p.type('#wm-note', 'For enrolled students only');
+      const preview = await p.$eval('.wm-preview', (e) => decodeURIComponent(e.style.backgroundImage));
+      assert.ok(preview.includes('© Dr. Test Publisher') && preview.includes('For enrolled students only'), 'live preview');
+      await clickText(p, 'button', 'Save restrictions');
+      await sleep(1000);
+      const { data: st } = await service.from('settings').select('publisher_name, watermark_note').eq('id', 1).single();
+      assert.deepEqual(st, { publisher_name: 'Dr. Test Publisher', watermark_note: 'For enrolled students only' });
+      await shot(p, 'admin-watermark');
+      await p.close();
+      const b = await open(buyer);
+      await go(b, `/file/${FILES.docx}`);
+      assert.ok((await text(b)).includes('Published by Dr. Test Publisher'), 'credited on the file page');
+      await go(b, `/read/${FILES.docx}`);
+      await b.waitForSelector('.wm', { timeout: 15000 });
+      const wm = await b.evaluate(() => decodeURIComponent(getComputedStyle(document.querySelector('.wm')).getPropertyValue('--wm')));
+      assert.ok(wm.includes('© Dr. Test Publisher') && wm.includes('For enrolled students only'), 'reader uses it');
+      await b.close();
+    } finally {
+      await service.from('settings').update(before).eq('id', 1);
     }
   });
 

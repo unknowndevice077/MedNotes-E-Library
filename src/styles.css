@@ -185,7 +185,9 @@ textarea.input { height: 96px; padding: 12px 14px; resize: vertical; }
 .reader-body { flex: 1; overflow: auto; position: relative; }
 .reader-page { max-width: 820px; margin: 24px auto; background: #fff; border-radius: 12px; box-shadow: 0 6px 20px rgba(15, 23, 42, .08); overflow: hidden; }
 .watermark { position: fixed; inset: 0; pointer-events: none; z-index: 45; display: flex; flex-wrap: wrap; align-content: space-around; justify-content: space-around; overflow: hidden; opacity: .07; }
-.watermark span { transform: rotate(-24deg); font-weight: 700; font-size: 22px; color: var(--blue); white-space: nowrap; padding: 40px; }
+.watermark span { transform: rotate(-24deg); color: var(--blue); white-space: nowrap; padding: 40px; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.watermark span b { font-weight: 800; font-size: 22px; letter-spacing: .2px; }
+.watermark span small { font-weight: 600; font-size: 12px; }
 .slide { aspect-ratio: 16 / 9; background: #fff; border-radius: 10px; box-shadow: 0 6px 20px rgba(15, 23, 42, .08); padding: 32px 40px; position: relative; overflow: hidden; }
 .slide::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 8px; background: #c4462a; }
 .sheet table { border-collapse: collapse; font-size: 13px; background: #fff; }

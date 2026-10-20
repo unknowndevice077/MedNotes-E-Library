@@ -1,9 +1,11 @@
 # Generates covers + a few sample images for the extra demo catalog (supabase/seed.sql "demo catalog").
 # Covers are original artwork (gradient, title, specialty), not copies of real books.
-# usage: python scripts/make_demo_catalog.py
+# usage: python scripts/make_demo_catalog.py 'Publisher Name'   (the admin; shown on every cover)
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
-import random, textwrap
+import random, sys, textwrap
+
+PUBLISHER = sys.argv[1] if len(sys.argv) > 1 else 'MedNotes Publishing'
 
 root = Path(__file__).resolve().parent.parent
 covers = root / 'supabase' / 'sample' / 'covers'
@@ -11,8 +13,9 @@ files = root / 'supabase' / 'sample' / 'files'
 proofs = root / 'supabase' / 'sample' / 'proofs'
 for d in (covers, files, proofs): d.mkdir(parents=True, exist_ok=True)
 
-def font(size, bold=True):
-    for f in (['C:/Windows/Fonts/segoeuib.ttf', 'C:/Windows/Fonts/arialbd.ttf'] if bold else ['C:/Windows/Fonts/segoeui.ttf', 'C:/Windows/Fonts/arial.ttf']):
+def font(size, bold=True, semi=False):
+    names = ['C:/Windows/Fonts/seguisb.ttf', 'C:/Windows/Fonts/arialbd.ttf'] if semi else         (['C:/Windows/Fonts/segoeuib.ttf', 'C:/Windows/Fonts/arialbd.ttf'] if bold else ['C:/Windows/Fonts/segoeui.ttf', 'C:/Windows/Fonts/arial.ttf'])
+    for f in names:
         try: return ImageFont.truetype(f, size)
         except OSError: pass
     return ImageFont.load_default()
@@ -51,10 +54,27 @@ def cover(slug, title, label, tag, colors):
     for line in textwrap.wrap(title, 14):
         d.text((48, y), line, font=font(64), fill='white'); y += 76
     d.rectangle([48, y + 18, 150, y + 24], fill=(255, 255, 255))
-    d.text((48, H - 80), 'MEDNOTES PRESS', font=font(22), fill=(255, 255, 255, 180))
+    d.text((48, H - 92), 'PUBLISHED BY', font=font(16), fill=(255, 255, 255, 150))
+    d.text((48, H - 70), PUBLISHER, font=font(26), fill=(255, 255, 255, 225))
     img.convert('RGB').save(covers / f'{slug}.png', optimize=True)
 
 for c in CATALOG: cover(*c)
+
+# The two original artwork covers had made-up bylines: paint over them in the background colour
+# (sampled per row, so gradients stay seamless) and credit the publisher instead.
+def rebyline(slug, box, lines):
+    p = covers / f'{slug}.png'
+    img = Image.open(p).convert('RGB'); d = ImageDraw.Draw(img)
+    x0, y0, x1, y1 = box
+    for y in range(y0, y1):
+        d.line([(x0, y), (x1, y)], fill=img.getpixel((x1 + 2, y)))
+    for (x, y, text, f, fill) in lines:
+        d.text((x, y), text, font=f, fill=fill)
+    img.save(p, optimize=True)
+
+rebyline('ecg', (14, 366, 292, 384), [(17, 367, f'{PUBLISHER} · Cardiology', font(11, False), (148, 163, 184))])
+rebyline('pharmacology', (20, 345, 290, 381), [(24, 346, PUBLISHER, font(14, semi=True), (255, 255, 255)),
+                                              (24, 368, 'PUBLISHER  ·  2ND EDITION', font(8), (148, 163, 184))])
 
 # Sample IMAGE-type files (charts) for the image reader.
 def chart(path, title, color, rows):
@@ -68,7 +88,7 @@ def chart(path, title, color, rows):
         d.line([(640, y + 40), (760, y + 40)], fill=color, width=6)
         d.rounded_rectangle([760, y, 1340, y + 80], radius=18, fill=(241, 245, 249), outline=color, width=3)
         d.text((790, y + 22), b, font=font(30, False), fill=(15, 23, 42))
-    d.text((40, H - 50), 'MedNotes sample image - demo data', font=font(22, False), fill=(100, 116, 139))
+    d.text((40, H - 50), f'Published by {PUBLISHER} · sample image', font=font(22, False), fill=(100, 116, 139))
     img.save(path, optimize=True)
 
 chart(files / 'biochem-pathways.png', 'Glycolysis at a glance', (234, 88, 12),

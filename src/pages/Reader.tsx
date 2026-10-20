@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
-import { deviceLabel, isNative } from '../lib/platform';
+import { isNative } from '../lib/platform';
 import { errMsg } from '../lib/format';
 import { isSaved, listSaved, offlineExpired, readOffline } from '../lib/offline';
 import type { FileKind, LibFile } from '../lib/types';
@@ -11,6 +11,7 @@ import { fetchSecureFile } from '../lib/secureFile';
 import { guardMessage, useContentGuard } from '../lib/contentGuard';
 import { blockScreenshots } from '../lib/screenGuard';
 import { Back } from '../components/Icons';
+import { stampCanvas, useMark, usePublisher, type Mark } from '../lib/watermark';
 
 type Source = { kind: FileKind; name: string; mime: string; blob?: Blob; url?: string };
 
@@ -34,12 +35,11 @@ export default function Reader() {
   const { id } = useParams();
   const [sp] = useSearchParams();
   const nav = useNavigate();
-  const { profile, settings, session } = useAuth();
+  const { settings } = useAuth();
   const [src, setSrc] = useState<Source | null>(null);
   const [err, setErr] = useState('');
   const [progress, setProgress] = useState(0);
   const guard = useContentGuard(!!src);
-  const email = profile?.email ?? session?.user.email ?? '';
 
   useEffect(() => {
     loadSource(id!, sp.get('offline') === '1', settings?.offline_days ?? 30, setProgress).then(setSrc).catch((e) => setErr(errMsg(e)));
@@ -52,42 +52,47 @@ export default function Reader() {
     return () => { blockScreenshots(false); };
   }, [settings?.block_screenshots]);
 
-  const mark = `${email} · ${deviceLabel()}`;
+  const mark = useMark();
+  const publisher = usePublisher();
   return (
     <div className="reader" onContextMenu={(e) => e.preventDefault()}>
       <div className="reader-top">
         <button onClick={() => nav(-1)} aria-label="Back" className="row" style={{ gap: 6, fontWeight: 600 }}><Back width={22} /><span style={{ maxWidth: '60vw', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{src?.name ?? 'Opening…'}</span></button>
         <span className="grow" />
+        <span className="small muted hide-sm">© {publisher.name}</span>
         <span className="badge b-lock hide-sm">Read in MedNotes only</span>
       </div>
       <div className="reader-body">
         {err ? <div className="page"><div className="note note-red">{err}</div></div>
           : !src ? <Loading label={progress > 0 && progress < 1 ? `Opening securely… ${Math.round(progress * 100)}%` : 'Opening your file securely…'} />
-          : <div className={guard ? 'guarded' : ''} aria-hidden={!!guard}><Render src={src} /></div>}
+          : <div className={guard ? 'guarded' : ''} aria-hidden={!!guard}><Render src={src} mark={mark} /></div>}
         {guard && (
           <div className="guard-cover" role="alert" onClick={() => window.focus()}>
             <div className="guard-card"><b>{guardMessage[guard].title}</b><span>{guardMessage[guard].body}</span></div>
           </div>
         )}
       </div>
-      {(settings?.watermark ?? true) && src && (
-        <div className="watermark" aria-hidden>{Array.from({ length: 24 }, (_, i) => <span key={i}>{mark}</span>)}</div>
-      )}
     </div>
   );
 }
 
-function Render({ src }: { src: Source }) {
-  switch (src.kind) {
-    case 'epub': return <Epub blob={src.blob!} />;
-    case 'pdf': return <Pdf blob={src.blob!} />;
-    case 'video': return <Video src={src} />;
-    case 'image': return <ImageView blob={src.blob!} />;
-    case 'docx': return <Docx blob={src.blob!} />;
-    case 'xlsx': return <Sheet blob={src.blob!} />;
-    case 'pptx': return <Slides blob={src.blob!} />;
-    default: return <div className="page"><div className="note note-slate">This file type can't be previewed in the reader.</div></div>;
-  }
+// PDF pages and images get the mark drawn into their pixels; the HTML-rendered types
+// (Word, slides, sheets, e-books, video) get it tiled over each page box (.wm-box) via --wm.
+function Render({ src, mark }: { src: Source; mark: Mark | null }) {
+  const style = mark ? ({ '--wm': mark.tile, '--wm-dark': mark.tileDark } as React.CSSProperties) : undefined;
+  const body = (() => {
+    switch (src.kind) {
+      case 'epub': return <Epub blob={src.blob!} />;
+      case 'pdf': return <Pdf blob={src.blob!} mark={mark} />;
+      case 'video': return <Video src={src} />;
+      case 'image': return <ImageView blob={src.blob!} mark={mark} />;
+      case 'docx': return <Docx blob={src.blob!} />;
+      case 'xlsx': return <Sheet blob={src.blob!} />;
+      case 'pptx': return <Slides blob={src.blob!} />;
+      default: return <div className="page"><div className="note note-slate">This file type can't be previewed in the reader.</div></div>;
+    }
+  })();
+  return <div className={mark ? 'wm' : undefined} style={{ ...style, height: '100%' }}>{body}</div>;
 }
 
 
@@ -117,7 +122,7 @@ function Epub({ blob }: { blob: Blob }) {
           {toc.map((t) => <option key={t.href} value={t.href}>{t.label}</option>)}
         </select>
       )}
-      <div ref={el} style={{ flex: 1, minHeight: 0 }} />
+      <div className="wm-box" style={{ flex: 1, minHeight: 0 }}><div ref={el} style={{ height: '100%' }} /></div>
       <div className="spread" style={{ padding: 10, borderTop: '1px solid var(--line)' }}>
         <button className="btn btn-sm" onClick={() => rendition.current?.prev()}>← Previous</button>
         <button className="btn btn-sm" onClick={() => rendition.current?.next()}>Next →</button>
@@ -128,7 +133,7 @@ function Epub({ blob }: { blob: Blob }) {
 
 type PdfDoc = import('pdfjs-dist').PDFDocumentProxy;
 
-function Pdf({ blob }: { blob: Blob }) {
+function Pdf({ blob, mark }: { blob: Blob; mark: Mark | null }) {
   const [doc, setDoc] = useState<PdfDoc | null>(null);
   useEffect(() => {
     let alive = true;
@@ -142,10 +147,10 @@ function Pdf({ blob }: { blob: Blob }) {
     return () => { alive = false; loaded?.destroy(); };
   }, [blob]);
   if (!doc) return <Loading />;
-  return <div style={{ padding: '0 12px 24px' }}>{Array.from({ length: doc.numPages }, (_, i) => <PdfPage key={i} doc={doc} n={i + 1} />)}</div>;
+  return <div style={{ padding: '0 12px 24px' }}>{Array.from({ length: doc.numPages }, (_, i) => <PdfPage key={i} doc={doc} n={i + 1} mark={mark} />)}</div>;
 }
 
-function PdfPage({ doc, n }: { doc: PdfDoc; n: number }) {
+function PdfPage({ doc, n, mark }: { doc: PdfDoc; n: number; mark: Mark | null }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     let task: { cancel: () => void; promise: Promise<void> } | null = null;
@@ -156,10 +161,10 @@ function PdfPage({ doc, n }: { doc: PdfDoc; n: number }) {
       const vp = page.getViewport({ scale: (width / page.getViewport({ scale: 1 }).width) * (window.devicePixelRatio || 1) });
       canvas.current.width = vp.width; canvas.current.height = vp.height;
       task = page.render({ canvasContext: canvas.current.getContext('2d')!, viewport: vp });
-      task.promise.catch(() => undefined);
+      task.promise.then(() => { if (alive && canvas.current) stampCanvas(canvas.current, mark); }).catch(() => undefined);
     });
     return () => { alive = false; task?.cancel(); };
-  }, [doc, n]);
+  }, [doc, n, mark]);
   return <div className="reader-page"><canvas ref={canvas} style={{ width: '100%', display: 'block' }} aria-label={`Page ${n}`} /></div>;
 }
 
@@ -176,7 +181,7 @@ function Video({ src }: { src: Source }) {
     return () => { drop(); v.removeAttribute('src'); v.load(); };
   }, [src.blob]);
   return (
-    <div className="center" style={{ height: '100%', background: '#0b1220' }}>
+    <div className="center wm-box wm-dark" style={{ height: '100%', background: '#0b1220' }}>
       <video ref={ref} controls autoPlay playsInline controlsList="nodownload noplaybackrate noremoteplayback" disablePictureInPicture disableRemotePlayback
         onContextMenu={(e) => e.preventDefault()} style={{ maxWidth: '100%', maxHeight: '100%' }} />
     </div>
@@ -184,15 +189,16 @@ function Video({ src }: { src: Source }) {
 }
 
 /** Images are painted onto a canvas: no <img> element or URL to "Save image as". */
-function ImageView({ blob }: { blob: Blob }) {
+function ImageView({ blob, mark }: { blob: Blob; mark: Mark | null }) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     createImageBitmap(blob).then((bmp) => {
       const c = ref.current; if (!c) return;
       c.width = bmp.width; c.height = bmp.height;
       c.getContext('2d')!.drawImage(bmp, 0, 0);
+      stampCanvas(c, mark);
     });
-  }, [blob]);
+  }, [blob, mark]);
   return <div className="center" style={{ padding: 16 }}><canvas ref={ref} style={{ maxWidth: '100%', borderRadius: 8 }} /></div>;
 }
 
@@ -219,7 +225,7 @@ function Sheet({ blob }: { blob: Blob }) {
   return (
     <div className="page">
       <div className="chips">{sheets.map((s, i) => <button key={s.name} className={`chip${i === active ? ' on' : ''}`} onClick={() => setActive(i)}>{s.name}</button>)}</div>
-      {sheets[active] && <div className="sheet" style={{ overflow: 'auto' }} dangerouslySetInnerHTML={{ __html: sheets[active].html }} />}
+      {sheets[active] && <div className="wm-box"><div className="sheet" style={{ overflow: 'auto' }} dangerouslySetInnerHTML={{ __html: sheets[active].html }} /></div>}
     </div>
   );
 }
@@ -245,7 +251,7 @@ function Slides({ blob }: { blob: Blob }) {
   return (
     <div className="page" style={{ maxWidth: 900 }}>
       {slides.map((paras, i) => (
-        <div key={i} className="slide col" style={{ gap: 10 }}>
+        <div key={i} className="slide col wm-box" style={{ gap: 10 }}>
           <b style={{ fontSize: 'clamp(18px, 3vw, 30px)' }}>{paras[0]}</b>
           <ul style={{ paddingLeft: 22, color: 'var(--slate-700)', fontSize: 'clamp(13px, 1.8vw, 18px)' }}>{paras.slice(1).map((t, j) => <li key={j}>{t}</li>)}</ul>
           <span className="small muted" style={{ position: 'absolute', right: 14, bottom: 10 }}>{i + 1} / {slides.length}</span>

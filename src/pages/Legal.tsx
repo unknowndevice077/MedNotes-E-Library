@@ -51,7 +51,6 @@ export function Privacy() {
       <ul>
         <li>To sign you in, keep you signed in, and limit each account to its allowed devices.</li>
         <li>To check your payment, unlock the files you bought and issue your receipt.</li>
-        <li>To show your email as a watermark while you read, which discourages sharing of paid files.</li>
         <li>To answer your questions. We don't sell your data or use it for advertising.</li>
       </ul>
       <h2>Who processes it</h2>
