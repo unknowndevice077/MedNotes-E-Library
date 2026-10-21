@@ -718,3 +718,9 @@ html.site-edit [data-edit]:not(.editing):hover::after { content: "✎"; font-siz
 @media (max-width: 420px) { .btn-row > .btn { flex: 1 1 auto; } }
 .row > input[type=range] { flex: 1; min-width: 0; }
 .spread > .small.muted { min-width: 0; text-align: right; }
+
+/* chart x-axis labels (HTML, so they don't scale with the svg or get cut off) */
+.chart-x { position: relative; height: 18px; margin-top: 6px; }
+.chart-x span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+.chart-x span:first-child { transform: none; left: 0 !important; }
+.chart-x span:last-child { transform: none; left: auto !important; right: 0; }

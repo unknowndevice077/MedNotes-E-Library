@@ -19,11 +19,11 @@ export default function Dashboard() {
   const confirm = useConfirm();
   const { data, loading, reload } = useLoad(async () => {
     const st = must(await supabase.rpc('admin_stats')) as Stats;
-    // the chart starts at the reset point too (Statistics keeps the full monthly history)
-    const since = new Date(Math.max(Date.now() - 30 * 86400000, st.since ? new Date(st.since).getTime() : 0)).toISOString();
+    // the chart is this whole month, like the month's row in Statistics (a reset only restarts the cards)
+    const since = new Date(Date.now() - 32 * 86400000).toISOString();
     const [p, rev, slots, users] = await Promise.all([
       supabase.from('purchases').select('*, files(name,cover_path,kind), profiles!purchases_user_id_fkey(id,email,full_name,avatar_url)').eq('status', 'pending').order('created_at').limit(5),
-      supabase.from('purchases').select('amount, confirmed_at').eq('status', 'confirmed').gte('confirmed_at', since),
+      supabase.from('purchases').select('amount, confirmed_at').eq('status', 'confirmed').neq('method', 'Granted by admin').gte('confirmed_at', since),
       supabase.from('device_orders').select('amount, confirmed_at').eq('status', 'confirmed').gte('confirmed_at', since),
       supabase.from('profiles').select('id, full_name, email, provider, created_at').order('created_at', { ascending: false }).limit(5),
     ]);
@@ -43,7 +43,7 @@ export default function Dashboard() {
     <AdminLayout title="Dashboard" subtitle={stats.since ? `Counting since ${dateTime(stats.since)}` : undefined}
       actions={<><Link to="/admin/statistics" className="btn">Statistics</Link><button className="btn" onClick={resetStats}>Reset statistics</button></>}>
       <div className="row wrap" style={{ gap: 16, alignItems: 'stretch' }}>
-        <div className="stat"><span className="muted">Revenue this month</span><span className="v" style={{ color: 'var(--green)' }}>{pesoShort(stats.revenue_month)}</span><span className="small muted">{change === null ? 'First month' : `${change >= 0 ? '+' : ''}${change}% vs last month`}</span></div>
+        <div className="stat"><span className="muted">{stats.since && new Date(stats.since) > new Date(new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' }).slice(0, 8) + '01T00:00:00+08:00') ? 'Revenue since reset' : 'Revenue this month'}</span><span className="v" style={{ color: 'var(--green)' }}>{pesoShort(stats.revenue_month)}</span><span className="small muted">{change === null ? 'First month' : `${change >= 0 ? '+' : ''}${change}% vs last month`}</span></div>
         <Link to="/admin/payments" className="stat" style={{ background: stats.pending ? 'var(--amber-50)' : undefined, borderColor: stats.pending ? '#fde68a' : undefined, color: 'inherit' }}>
           <span className="muted">Payments to confirm</span><span className="v" style={{ color: 'var(--amber)' }}>{stats.pending}</span><span className="small muted">{stats.oldest_pending ? `Oldest: ${ago(stats.oldest_pending)}` : 'All caught up'}</span></Link>
         <Link to="/admin/users" className="stat" style={{ color: 'inherit' }}><span className="muted">Users</span><span className="v">{stats.users.toLocaleString()}</span><span className="small muted">{stats.users_week} new this week</span></Link>

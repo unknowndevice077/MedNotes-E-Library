@@ -395,8 +395,8 @@ describe('admin', () => {
     const p = await open(admin);
     await go(p, '/admin');
     const t = await text(p);
-    for (const s of ['Revenue this month', 'Payments to confirm', 'Revenue', 'New buyers', 'Top sellers']) assert.ok(t.includes(s), s);
-    assert.ok(await p.$('svg[aria-label^="Revenue over the last"]'));
+    for (const s of ['Payments to confirm', 'Revenue', 'New buyers', 'Top sellers']) assert.ok(t.includes(s), s);
+    assert.ok(await p.$('svg[aria-label^="Revenue this month"]'));
     await shot(p, 'admin-dashboard');
     await p.close();
   });

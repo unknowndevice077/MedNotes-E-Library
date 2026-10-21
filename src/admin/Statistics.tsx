@@ -47,13 +47,13 @@ export default function AdminStatistics() {
           <div className="card col">
             <div className="spread"><h3>Revenue by month</h3><span className="small muted">{h ? `${label(h.month, true)}: ${peso(income(h))} · ${h.sales} files · ${h.slot_sales} slots` : 'Hover a month'}</span></div>
             <svg viewBox={`0 0 ${W} ${H + 24}`} role="img" aria-label="Revenue by month" style={{ width: '100%', height: 'auto' }}>
-              {[0.25, 0.5, 0.75, 1].map((t) => <line key={t} x1="0" x2={W} y1={H - H * t} y2={H - H * t} stroke="#eef2f7" />)}
+              {[0.25, 0.5, 0.75, 1].map((t) => <line key={t} x1="0" x2={W} y1={H - H * t} y2={H - H * t} style={{ stroke: 'var(--line)' }} />)}
               {data.map((m, i) => {
                 const files = (Number(m.revenue) / max) * (H - 8), slots = (Number(m.slot_revenue) / max) * (H - 8);
                 return (
                   <g key={m.month} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)} opacity={hover === null || hover === i ? 1 : 0.5}>
                     <rect x={i * (bw + gap)} y={0} width={bw} height={H} fill="transparent" />
-                    <rect x={i * (bw + gap)} y={H - files} width={bw} height={Math.max(files, income(m) ? 0 : 2)} rx={4} style={{ fill: income(m) ? 'var(--blue)' : '#e2e8f0' }} />
+                    <rect x={i * (bw + gap)} y={H - files} width={bw} height={Math.max(files, income(m) ? 0 : 2)} rx={4} style={{ fill: income(m) ? 'var(--blue)' : 'var(--line-strong, #cbd5e1)' }} />
                     {slots > 0 && <rect x={i * (bw + gap)} y={H - files - slots} width={bw} height={slots} rx={4} style={{ fill: 'var(--green)' }} />}
                     <text x={i * (bw + gap) + bw / 2} y={H + 16} textAnchor="middle" fontSize="11" fill="#94a3b8">{label(m.month)}</text>
                   </g>
