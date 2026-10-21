@@ -1,0 +1,41 @@
+{
+  "name": "mednotes-desktop",
+  "productName": "MedNotes",
+  "version": "0.6.0",
+  "private": true,
+  "description": "MedNotes E-Library",
+  "author": "MedNotes",
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "dist:win": "electron-builder --win --publish never",
+    "dist:mac": "electron-builder --mac --publish never"
+  },
+  "devDependencies": {
+    "electron": "^32.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.mednotes.elibrary",
+    "productName": "MedNotes",
+    "directories": { "output": "release" },
+    "files": ["main.cjs", "offline.html", "icon.png"],
+    "win": {
+      "target": ["nsis", "portable"],
+      "icon": "icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "MedNotes-Setup-${version}.${ext}"
+    },
+    "portable": { "artifactName": "MedNotes-Portable-${version}.${ext}" },
+    "mac": {
+      "target": [{ "target": "dmg", "arch": ["universal"] }],
+      "icon": "icon.png",
+      "category": "public.app-category.education",
+      "identity": null
+    },
+    "dmg": { "artifactName": "MedNotes-${version}-mac.${ext}" }
+  }
+}

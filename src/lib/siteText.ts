@@ -6,7 +6,7 @@ export const TEXT = {
   'nav.library': 'Library',
   'nav.myFiles': 'My files',
   'nav.devices': 'Devices',
-  'nav.account': 'Account',
+  'nav.account': 'Profile',
   'nav.search': 'Search notes, books, lectures…',
   'footer.text': 'Medical notes, e-books, lectures and slides from trusted publishers. Files are view-only and protected for each buyer.',
   'footer.colLibrary': 'Library',
@@ -85,7 +85,7 @@ export const TEXT = {
   'devices.askText': 'Need another device? Ask the publisher. Admins can grant extra slots or reset your devices.',
   'devices.swaps': 'Device swaps used',
 
-  'account.title': 'Account',
+  'account.title': 'Profile',
   'account.prefs': 'Reading & app',
   'account.methods': 'Sign-in methods',
   'account.signOut': 'Sign out',

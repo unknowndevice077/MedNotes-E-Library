@@ -101,7 +101,7 @@ export function AdminUserDetail() {
       <button className="btn btn-danger" onClick={async () => { if (!(await confirm({ title: 'Delete this user?', body: `Permanently deletes ${prof.email}, their devices and purchases.`, confirmLabel: 'Delete user', danger: true }))) return; const { error } = await supabase.rpc('admin_delete_user', { p_user: prof.id }); if (error) toast(error.message); else { toast('User deleted.'); nav('/admin/users'); } }}>Delete user</button>
       <button className="btn" onClick={() => act(() => supabase.from('profiles').update({ role: prof.role === 'admin' ? 'client' : 'admin' }).eq('id', prof.id), 'Role changed.')}>{prof.role === 'admin' ? 'Remove admin' : 'Make admin'}</button></>}>
       <div className="row wrap" style={{ alignItems: 'flex-start', gap: 20 }}>
-        <div className="col grow" style={{ gap: 16, minWidth: 320 }}>
+        <div className="col grow" style={{ gap: 16, minWidth: 'min(320px, 100%)' }}>
           <div className="card col">
             <div className="spread"><h3>Devices</h3><button className="btn btn-sm" onClick={() => act(() => supabase.rpc('admin_reset_devices', { p_user: prof.id }), 'Devices reset. The user can sign in fresh.')}>Reset all devices</button></div>
             {devices.length === 0 && <span className="muted">No devices registered.</span>}
@@ -117,8 +117,8 @@ export function AdminUserDetail() {
             <div className="spread"><h3>Files</h3><button className="btn btn-sm" onClick={() => setGranting(true)}>+ Grant file access</button></div>
             {purchases.length === 0 && <span className="muted">No purchases.</span>}
             {purchases.map((p) => (
-              <div key={p.id} className="spread">
-                <span className="row"><span className="thumb"><img src={coverUrl(p.files?.cover_path)} alt="" /></span>{p.files?.name}</span>
+              <div key={p.id} className="spread" style={{ flexWrap: 'wrap', rowGap: 8 }}>
+                <span className="row" style={{ minWidth: 0 }}><span className="thumb"><img src={coverUrl(p.files?.cover_path)} alt="" /></span>{p.files?.name}</span>
                 <span className="row">
                   <span className={`badge ${p.status === 'confirmed' ? 'b-ok' : p.status === 'pending' ? 'b-pending' : 'b-red'}`}>{p.status === 'confirmed' ? 'Unlocked' : p.status}</span>
                   {p.status === 'confirmed' && <button className="btn btn-sm btn-danger" onClick={async () => { if (await confirm({ title: 'Revoke access?', body: `${prof.full_name || prof.email} will no longer be able to open this file.`, confirmLabel: 'Revoke', danger: true })) act(() => supabase.from('purchases').delete().eq('id', p.id), 'Access revoked.'); }}>Revoke</button>}

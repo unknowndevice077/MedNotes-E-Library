@@ -32,6 +32,7 @@ const MyFiles = lazy(pages.myFiles);
 const ReceiptPage = lazy(pages.receipt);
 const Devices = lazy(pages.devices);
 const Account = lazy(pages.account);
+const AccountSettings = lazy(() => pages.account().then((m) => ({ default: m.AccountSettings })));
 const SavedOffline = lazy(pages.saved);
 const MyPayments = lazy(pages.payments);
 const Help = lazy(pages.help);
@@ -113,6 +114,7 @@ export default function App() {
               <Route path="/read/:id" element={<RequireAuth><Reader /></RequireAuth>} />
               <Route path="/devices" element={<RequireAuth><Devices /></RequireAuth>} />
               <Route path="/account" element={<RequireAuth><Account /></RequireAuth>} />
+              <Route path="/account/settings" element={<RequireAuth><AccountSettings /></RequireAuth>} />
               <Route path="/help" element={<RequireAuth><Help /></RequireAuth>} />
               <Route path="/payments" element={<RequireAuth><MyPayments /></RequireAuth>} />
               <Route path="/saved" element={<RequireAuth><SavedOffline /></RequireAuth>} />

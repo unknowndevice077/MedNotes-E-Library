@@ -134,14 +134,57 @@ function PrefsCard() {
   );
 }
 
+function useAccount() {
+  const { profile, session } = useAuth();
+  // accounts made by email sign-up (or seeded) may not list 'email' in the session's providers
+  const providers: string[] = [...new Set([...(session?.user.app_metadata.providers ?? []), profile?.provider ?? 'email'])];
+  return { profile, providers, email: profile?.email ?? session?.user.email ?? '' };
+}
+
+/** Profile: who you are, your picture and name, and shortcuts to everything else. */
 export default function Account() {
-  const { profile, session, signOut } = useAuth();
+  const { signOut } = useAuth();
+  const { profile, email } = useAccount();
+  const mobile = useIsMobile();
+  const links: [string, string, string][] = [
+    ['/payments', 'Payments & receipts', 'Everything you paid for, with receipts'],
+    ['/my-files', 'My files', 'Files you own and their payment status'],
+    ['/devices', 'Devices', 'Your computer and phone'],
+    ['/help', 'Help & feedback', 'Report a bug, send feedback or ask the publisher'],
+    ['/account/settings', 'Account settings', 'Email, password, sign-in, reading and app, delete account'],
+  ];
+  return (
+    <ClientLayout title={<Tx k="nav.account" />}>
+      <div className="page account" style={{ maxWidth: 820, margin: mobile ? undefined : '0' }}>
+        {!mobile && <h1><Tx k="account.title" /></h1>}
+        <div className="card row profile-head">
+          <span className="avatar" style={{ width: 64, height: 64, borderRadius: 32, fontSize: 20 }}>
+            {profile?.avatar_url ? <img src={profile.avatar_url} alt="" referrerPolicy="no-referrer" /> : initials(profile?.full_name ?? '', profile?.email)}
+          </span>
+          <div className="col grow" style={{ gap: 2, minWidth: 0 }}><b style={{ fontSize: 18 }}>{profile?.full_name || 'No name yet'}</b><span className="small muted ellipsis">{email}</span></div>
+          {profile?.role === 'admin' && <Link to="/admin" className="btn btn-sm">Admin</Link>}
+        </div>
+        <ProfileEditor />
+        <div className="card col link-list" style={{ gap: 0, padding: 6 }}>
+          {links.map(([to, title, sub]) => (
+            <Link key={to} to={to} className="link-row"><span className="col" style={{ gap: 0 }}><b>{title}</b><span className="small muted">{sub}</span></span><span aria-hidden>›</span></Link>
+          ))}
+        </div>
+        <button className="btn btn-danger btn-block" onClick={signOut}><Logout /> <Tx k="account.signOut" />{isNative ? ' of this phone' : ''}</button>
+      </div>
+    </ClientLayout>
+  );
+}
+
+/** Account settings, grouped: sign-in and security, reading and app, this device, and deleting the account. */
+export function AccountSettings() {
+  const { profile, providers, email } = useAccount();
   const toast = useToast();
   const mobile = useIsMobile();
-  const [storage, setStorage] = useState<{ n: number; size: number } | null>(null);
-  useEffect(() => { if (isNative) listSaved().then((l) => setStorage({ n: l.length, size: l.reduce((a, f) => a + f.size, 0) })); }, []);
   const nav = useNavigate();
   const confirm = useConfirm();
+  const [storage, setStorage] = useState<{ n: number; size: number } | null>(null);
+  useEffect(() => { if (isNative) listSaved().then((l) => setStorage({ n: l.length, size: l.reduce((a, f) => a + f.size, 0) })); }, []);
   async function deleteAccount() {
     if (!(await confirm({ title: 'Delete your account?', body: 'This permanently deletes your account, your purchases and your access to every file you bought. It cannot be undone.', confirmLabel: 'Delete my account', danger: true, typeToConfirm: 'DELETE' }))) return;
     try {
@@ -155,27 +198,12 @@ export default function Account() {
       nav('/sign-in', { replace: true });
     } catch (e) { toast(errMsg(e)); }
   }
-  // accounts made by email sign-up (or seeded) may not list 'email' in the session's providers
-  const providers: string[] = [...new Set([...(session?.user.app_metadata.providers ?? []), profile?.provider ?? 'email'])];
-  const email = profile?.email ?? session?.user.email ?? '';
-
-
-
   return (
-    <ClientLayout title={<Tx k="nav.account" />}>
+    <ClientLayout back="/account" title="Account settings">
       <div className="page account" style={{ maxWidth: 820, margin: mobile ? undefined : '0' }}>
-        {!mobile && <h1><Tx k="account.title" /></h1>}
-        <div className="card row">
-          <span className="avatar" style={{ width: 56, height: 56, borderRadius: 28, fontSize: 18 }}>
-            {profile?.avatar_url ? <img src={profile.avatar_url} alt="" referrerPolicy="no-referrer" /> : initials(profile?.full_name ?? '', profile?.email)}
-          </span>
-          <div className="col grow" style={{ gap: 2 }}><b>{profile?.full_name || 'No name yet'}</b><span className="small muted">{email}</span></div>
-          {profile?.role === 'admin' && <Link to="/admin" className="btn btn-sm">Admin</Link>}
-        </div>
-        <Link to="/payments" className="card spread" style={{ color: 'inherit' }}><span className="col" style={{ gap: 0 }}><b>Payments & receipts</b><span className="small muted">Everything you paid for, with receipts</span></span><span className="link">Open →</span></Link>
-        <Link to="/help" className="card spread" style={{ color: 'inherit' }}><span className="col" style={{ gap: 0 }}><b>Help & feedback</b><span className="small muted">Report a bug, send feedback or ask the publisher</span></span><span className="link">Open →</span></Link>
-        <ProfileEditor />
-        <PrefsCard />
+        {!mobile && <div className="col" style={{ gap: 4 }}><Link to="/account" className="link small">‹ <Tx k="nav.account" /></Link><h1>Account settings</h1></div>}
+
+        <h2 className="settings-h">Sign-in and security</h2>
         <div className="card col">
           <h3><Tx k="account.methods" /></h3>
           <div className="spread"><span className="row"><Google width={20} /> Google</span><span className={`badge ${providers.includes('google') ? 'b-ok' : 'b-lock'}`}>{providers.includes('google') ? 'Connected' : 'Not connected'}</span></div>
@@ -184,12 +212,16 @@ export default function Account() {
         </div>
         <EmailCard email={email} />
         <PasswordCard hasPassword={providers.includes('email')} email={email} />
+
+        <h2 className="settings-h">Reading and app</h2>
+        <PrefsCard />
+        <Link to="/devices" className="card spread" style={{ color: 'inherit' }}><span className="col" style={{ gap: 0 }}><b>Devices</b><span className="small muted">Where you are signed in, and extra device slots</span></span><span className="link">Manage ›</span></Link>
         {isNative && storage && (
           <div className="card spread"><div className="col" style={{ gap: 0 }}><b>Saved offline</b><span className="small muted">{storage.n} files · {bytes(storage.size)} on this phone</span></div><Link to="/saved" className="btn btn-sm">Manage</Link></div>
         )}
-        <button className="btn btn-danger btn-block" onClick={signOut}><Logout /> <Tx k="account.signOut" />{isNative ? ' of this phone' : ''}</button>
+
+        <h2 className="settings-h danger">Delete account</h2>
         <div className="card col" style={{ gap: 8, borderColor: '#fecdd3' }}>
-          <b>Delete my account</b>
           <span className="small muted"><Tx k="account.deleteText" /> See <Link to="/data-deletion" className="link">what gets deleted</Link>.</span>
           <button className="btn btn-sm btn-danger-solid" style={{ alignSelf: 'flex-start' }} onClick={deleteAccount}>Delete my account</button>
         </div>

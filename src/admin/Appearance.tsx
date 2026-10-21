@@ -8,7 +8,7 @@ import { AdminLayout } from '../components/Layouts';
 import { useConfirm, useToast } from '../components/ui';
 import type { EditMsg } from '../components/SiteEditBridge';
 import { FormSkeleton } from '../components/Skeletons';
-import { Laptop, Phone } from '../components/Icons';
+import { Laptop, Phone, Undo } from '../components/Icons';
 
 type Bg = NonNullable<Theme['background']>;
 
@@ -104,7 +104,27 @@ export default function AdminAppearance() {
     ]);
     return { theme: withCopy((must(s) as { theme: Theme }).theme ?? {}), fileId: (f.data?.[0]?.id as string | undefined) ?? null };
   }, [], { cache: false });
-  const [t, setT] = useState<Theme | null>(null);
+  const [t, setTRaw] = useState<Theme | null>(null);
+  // undo / redo: every change is a step; typing in the same text within a second is one step
+  const past = useRef<Theme[]>([]);
+  const future = useRef<Theme[]>([]);
+  const lastStep = useRef<{ key: string; at: number }>({ key: '', at: 0 });
+  const [, bump] = useState(0);
+  const setT = useCallback((next: Theme, key = '') => {
+    setTRaw((cur) => {
+      if (cur && next !== cur) {
+        const now = Date.now();
+        const same = key && key === lastStep.current.key && now - lastStep.current.at < 1000;
+        if (!same) past.current = [...past.current.slice(-99), cur];
+        future.current = [];
+        lastStep.current = { key, at: now };
+      }
+      return next;
+    });
+    bump((n) => n + 1);
+  }, []);
+  const undo = () => { const prev = past.current.pop(); if (!prev || !t) return; future.current.push(t); lastStep.current = { key: '', at: 0 }; setTRaw(prev); bump((n) => n + 1); };
+  const redo = () => { const next = future.current.pop(); if (!next || !t) return; past.current.push(t); lastStep.current = { key: '', at: 0 }; setTRaw(next); bump((n) => n + 1); };
   const [saving, setSaving] = useState(false);
   const [tab, setTab] = useState<'pages' | 'style'>('pages');
   const [pageId, setPageId] = useState('sign-in');
@@ -112,7 +132,8 @@ export default function AdminAppearance() {
   const [focus, setFocus] = useState<TextKey | null>(null);
   const [ready, setReady] = useState(false);
   const frame = useRef<HTMLIFrameElement>(null);
-  useEffect(() => { if (data) setT(data.theme); }, [data]);
+  const editText = useRef<(k: TextKey, v: string) => void>(() => undefined);
+  useEffect(() => { if (data) { setTRaw(data.theme); past.current = []; future.current = []; } }, [data]);
   // the whole admin screen previews the draft; leaving without saving restores the live look
   useEffect(() => { if (t) preview(t); }, [t, preview]);
   useEffect(() => () => preview(null), [preview]);
@@ -129,6 +150,12 @@ export default function AdminAppearance() {
       const m = e.data as { type: string; key?: TextKey; path?: string };
       if (m.type === 'mn-ready') setReady(true);
       else if (m.type === 'mn-page' && m.path) { const p = SITE_PAGES.find((x) => x.match.test(m.path!)); if (p) setPageId(p.id); }
+      else if (m.type === 'mn-edit' && m.key && m.key in TEXT) {
+        const key = m.key as TextKey, text = (m as { text?: string }).text ?? '';
+        setFocus(key);
+        setTRaw((cur) => cur);
+        editText.current(key, text);
+      }
       else if (m.type === 'mn-pick' && m.key && m.key in TEXT) {
         const key = m.key;
         setTab('pages'); setFocus(key);
@@ -142,9 +169,21 @@ export default function AdminAppearance() {
   useEffect(() => { if (ready && data) send({ type: 'mn-nav', path: pathOf(page) }); }, [ready, page, pathOf, send, data]);
   useEffect(() => { if (ready) send({ type: 'mn-focus', key: focus }); }, [ready, focus, pageId, send]);
 
+  // keyboard: Ctrl+Z / Ctrl+Shift+Z (or Ctrl+Y) when not typing in a box
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || (e.target as HTMLElement)?.closest?.('input, textarea, select')) return;
+      if (e.key.toLowerCase() === 'z') { e.preventDefault(); if (e.shiftKey) redo(); else undo(); }
+      else if (e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); }
+    };
+    window.addEventListener('keydown', k);
+    return () => window.removeEventListener('keydown', k);
+  });
+
   if (loading || !t || !data) return <AdminLayout title="Appearance"><FormSkeleton cards={3} /></AdminLayout>;
-  const set = (patch: Partial<Theme>) => setT({ ...t, ...patch });
-  const setText = (k: TextKey, v: string) => { const copy = { ...(t.copy ?? {}) }; if (v.trim()) copy[k] = v; else delete copy[k]; set({ copy }); };
+  const set = (patch: Partial<Theme>, key = '') => setT({ ...t, ...patch }, key);
+  const setText = (k: TextKey, v: string) => { const copy = { ...(t.copy ?? {}) }; if (v.trim() && v.trim() !== TEXT[k]) copy[k] = v; else delete copy[k]; set({ copy }, k); };
+  editText.current = setText;
   const bg: Bg = t.background ?? { type: 'plain', color: '#f8fafc' };
   const setBg = (patch: Partial<Bg>) => set({ background: { ...bg, ...patch } });
   const dirty = JSON.stringify(t) !== JSON.stringify(data.theme);
@@ -158,8 +197,9 @@ export default function AdminAppearance() {
     await reload(); toast('Saved. Open copies of the website and app update right away.');
   }
   async function reset() {
-    if (await confirm({ title: 'Reset the whole website?', body: 'All page text, colours, backgrounds, logo and font go back to the MedNotes defaults. Save to apply.', confirmLabel: 'Reset everything' })) setT({ copy: {} });
+    if (await confirm({ title: 'Reset the whole website?', body: 'All page text, colours, backgrounds, logo and font go back to the MedNotes defaults. You can still undo this, and nothing changes for buyers until you save.', confirmLabel: 'Reset everything' })) setT({ copy: {} });
   }
+  const revert = () => setT(data.theme);
   function resetPage() {
     const copy = { ...(t!.copy ?? {}) };
     for (const g of page.groups) for (const k of g.keys) delete copy[k];
@@ -168,7 +208,7 @@ export default function AdminAppearance() {
 
   const pageFields = (
     <div className="col" style={{ gap: 16 }}>
-      <span className="small muted">Click any text in the preview to edit it, or type below. Empty boxes use the default wording.</span>
+      <div className="note note-blue"><span><b>Edit mode:</b> click any text on the page on the right and type over it, like a design canvas. Press Enter when done. Undo with Ctrl+Z; nothing goes live until you press Save website.</span></div>
       {page.needsFile && !data.fileId && <div className="note note-amber"><span>Add a paid file in Files to preview this page.</span></div>}
       {page.id === 'sign-in' && <div className="card col"><h3>Sign-in background</h3><ImagePick label="Sign-in background" hint="Shown behind the welcome side of the sign-in page" value={t.authImage} onChange={(authImage) => set({ authImage })} /></div>}
       {page.groups.map((g) => (
@@ -229,7 +269,7 @@ export default function AdminAppearance() {
       <div className="card col">
         <h3>Shape & type</h3>
         <div className="setting"><div className="col" style={{ gap: 0 }}><b>Corner roundness</b><span className="small muted">Cards and panels</span></div>
-          <div className="row" style={{ gap: 10 }}><input type="range" min={4} max={24} step={1} value={t.radius ?? THEME_DEFAULTS.radius} aria-label="Corner roundness" onChange={(e) => set({ radius: Number(e.target.value) })} /><b className="small" style={{ width: 36 }}>{t.radius ?? THEME_DEFAULTS.radius}px</b></div></div>
+          <div className="row" style={{ gap: 10, minWidth: 0, flex: '1 1 140px', maxWidth: 220 }}><input type="range" min={4} max={24} step={1} value={t.radius ?? THEME_DEFAULTS.radius} aria-label="Corner roundness" onChange={(e) => set({ radius: Number(e.target.value) })} /><b className="small" style={{ width: 36 }}>{t.radius ?? THEME_DEFAULTS.radius}px</b></div></div>
         <div className="setting"><div className="col" style={{ gap: 0 }}><b>Font</b></div>
           <select className="input" style={{ width: 180 }} value={t.font ?? 'Inter'} aria-label="Font" onChange={(e) => set({ font: e.target.value as Theme['font'] })}>
             {Object.keys(FONTS).map((f) => <option key={f} value={f}>{f}</option>)}
@@ -240,11 +280,17 @@ export default function AdminAppearance() {
 
   return (
     <AdminLayout title="Appearance" subtitle="Edit the whole website and app, from the sign-in page to the library. Changes go live everywhere when you save."
-      actions={<><button className="btn" onClick={reset}>Reset all</button><button className="btn btn-primary" disabled={!dirty || saving} onClick={save}>{saving ? 'Saving…' : dirty ? 'Save appearance' : 'Saved'}</button></>}>
+      actions={<>
+        <span className="row edit-history" style={{ gap: 4 }}>
+          <button className="btn btn-sm" onClick={undo} disabled={!past.current.length} title="Undo (Ctrl+Z)" aria-label="Undo"><Undo width={16} /></button>
+          <button className="btn btn-sm" onClick={redo} disabled={!future.current.length} title="Redo (Ctrl+Shift+Z)" aria-label="Redo"><Undo width={16} style={{ transform: 'scaleX(-1)' }} /></button>
+        </span>
+        {dirty && <button className="btn" onClick={revert}>Back to last saved</button>}
+        <button className="btn" onClick={reset}>Reset all</button><button className="btn btn-primary" disabled={!dirty || saving} onClick={save}>{saving ? 'Saving…' : dirty ? 'Save website' : 'Saved'}</button></>}>
       <div className="site-editor">
         <div className="site-panel col" style={{ gap: 14 }}>
           <div className="seg" role="tablist" aria-label="Edit">
-            <button role="tab" aria-selected={tab === 'pages'} className={tab === 'pages' ? 'on' : ''} onClick={() => setTab('pages')}>Pages & text</button>
+            <button role="tab" aria-selected={tab === 'pages'} className={tab === 'pages' ? 'on' : ''} onClick={() => setTab('pages')}>Edit website</button>
             <button role="tab" aria-selected={tab === 'style'} className={tab === 'style' ? 'on' : ''} onClick={() => setTab('style')}>Colours & style</button>
           </div>
           {tab === 'pages' ? pageFields : styleFields}

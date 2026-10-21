@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self'" />
+  <title>MedNotes</title>
+  <style>
+    body { margin: 0; height: 100vh; display: flex; align-items: center; justify-content: center; font-family: system-ui, sans-serif; background: #f8fafc; color: #0f172a; }
+    .box { text-align: center; padding: 24px; max-width: 360px; }
+    img { width: 72px; height: 72px; }
+    h1 { font-size: 20px; margin: 16px 0 6px; }
+    p { color: #64748b; margin: 0 0 20px; line-height: 1.5; }
+    button { font: inherit; font-weight: 600; padding: 10px 22px; border: 0; border-radius: 10px; background: #1d4ed8; color: #fff; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <img src="icon.png" alt="" />
+    <h1>You're offline</h1>
+    <p>MedNotes needs the internet to open. Check your connection, then try again.</p>
+    <button id="retry">Try again</button>
+  </div>
+  <script>
+    const u = new URLSearchParams(location.search).get('u');
+    document.getElementById('retry').onclick = () => { if (u && /^https:/.test(u)) location.href = u; };
+    window.addEventListener('online', () => document.getElementById('retry').click());
+  </script>
+</body>
+</html>

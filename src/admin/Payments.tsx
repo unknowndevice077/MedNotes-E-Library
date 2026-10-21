@@ -6,11 +6,12 @@ import { must, useLoad } from '../lib/useLoad';
 import { ago, dateTime, errMsg, initials, peso } from '../lib/format';
 import type { DeviceOrder, PayAttempt, Purchase, PurchaseStatus } from '../lib/types';
 import { AdminLayout, invalidateCounts } from '../components/Layouts';
-import { Empty, Modal, StatusBadge, useIsMobile, useToast } from '../components/ui';
+import { Empty, Modal, RejectNote, StatusBadge, useIsMobile, useToast } from '../components/ui';
 import { Check, Receipt, Search } from '../components/Icons';
 import { Bar, RowsSkeleton } from '../components/Skeletons';
 
-const REASONS = ['The screenshot shows a different amount', 'Payment not received', 'Screenshot is unreadable or not a payment'];
+const REASONS = ['The screenshot shows a different amount', 'Payment not received', 'Screenshot is unreadable or not a payment', 'Sent to the wrong account'];
+const OTHER = 'Other reason';
 type Filter = 'all' | PurchaseStatus;
 const FILTERS: Filter[] = ['all', 'pending', 'confirmed', 'rejected'];
 
@@ -107,7 +108,7 @@ export default function Payments() {
 
   const detail = sel && (
     <div className="card col grow" style={{ gap: 16, minWidth: 0 }}>
-      <div className="spread"><h3>Payment from {sel.profiles?.full_name || sel.profiles?.email}</h3><StatusBadge status={sel.status} reason={sel.reject_reason} /></div>
+      <div className="spread"><h3>Payment from {sel.profiles?.full_name || sel.profiles?.email}</h3><StatusBadge status={sel.status} /></div>
       <div className="row wrap" style={{ alignItems: 'flex-start', gap: 20 }}>
         <a href={proofUrl ?? undefined} target="_blank" rel="noreferrer" style={{ width: 240, flexShrink: 0 }}>
           {sel.proof_path ? (proofUrl ? (sel.proof_path.endsWith('.pdf') ? <div className="drop">Open proof (PDF)</div> : <img src={proofUrl} alt="Proof of payment" style={{ width: '100%', borderRadius: 12, border: '1px solid var(--line)' }} />) : <Bar h={320} r={12} />)
@@ -122,7 +123,7 @@ export default function Payments() {
           <div className="spread"><span className="muted">Email</span><b>{sel.profiles?.email}</b></div>
           <div className="spread"><span className="muted">Submitted</span><b>{dateTime(sel.created_at)}</b></div>
           {sel.receipt_no && <div className="spread"><span className="muted">Receipt</span><b>{sel.receipt_no}</b></div>}
-          {sel.status === 'rejected' && <div className="note note-red"><span>Rejected: <b>{sel.reject_reason}</b>{sel.note_to_buyer ? `. ${sel.note_to_buyer}` : ''}. The buyer can resubmit; it comes back here as the same payment.</span></div>}
+          {sel.status === 'rejected' && <><RejectNote reason={sel.reject_reason} note={sel.note_to_buyer} /><span className="small muted">The buyer sees this and can resubmit; it comes back here as the same payment.</span></>}
           {(sel.history?.length ?? 0) > 0 && <Attempts list={sel.history!} />}
           {sel.status === 'pending' && (
             <>
@@ -133,7 +134,7 @@ export default function Payments() {
         </div>
       </div>
       {sel.status === 'pending' && (
-        <div className="row" style={{ justifyContent: 'flex-end' }}>
+        <div className="row wrap pay-actions" style={{ justifyContent: 'flex-end' }}>
           <button className="btn btn-danger" onClick={() => setRejecting(true)} disabled={busy}>Reject…</button>
           <button className="btn btn-green" onClick={confirm} disabled={busy}><Check /> Confirm received & send receipt</button>
         </div>
@@ -156,12 +157,16 @@ export default function Payments() {
 function RejectModal({ p, onClose, onDone }: { p: Pay; onClose: () => void; onDone: () => void }) {
   const toast = useToast();
   const [reason, setReason] = useState(REASONS[0]!);
+  const [custom, setCustom] = useState('');
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
+  const other = reason === OTHER;
+  const finalReason = (other ? custom : reason).trim();
   async function go() {
-    const { error } = await supabase.rpc(p.slot ? 'reject_device_order' : 'reject_purchase', { p_id: p.id, p_reason: reason, p_note: msg });
+    if (!finalReason) return setErr('Type the reason.');
+    const { error } = await supabase.rpc(p.slot ? 'reject_device_order' : 'reject_purchase', { p_id: p.id, p_reason: finalReason, p_note: msg.trim() });
     if (error) return setErr(errMsg(error));
-    toast('Payment rejected. The buyer sees the reason and can resubmit.');
+    toast('Payment rejected. The buyer sees your reason and message, and can resubmit.');
     onDone();
   }
   return (
@@ -169,14 +174,16 @@ function RejectModal({ p, onClose, onDone }: { p: Pay; onClose: () => void; onDo
       <h2>Reject this payment?</h2>
       <span className="muted">{p.profiles?.full_name || p.profiles?.email} · {p.files?.name} · {peso(p.amount)}</span>
       <div className="col" style={{ gap: 8 }}>
-        <span className="label">Reason (sent to the buyer)</span>
-        {REASONS.map((r) => (
-          <label key={r} className="card row" style={{ padding: 12, cursor: 'pointer', border: reason === r ? '2px solid var(--blue)' : undefined }}>
-            <input type="radio" name="reason" checked={reason === r} onChange={() => setReason(r)} />{r}
-          </label>
-        ))}
+        <span className="label">Reason</span>
+        <div className="chips">{[...REASONS, OTHER].map((r) => <button key={r} type="button" className={`chip${reason === r ? ' on' : ''}`} onClick={() => setReason(r)}>{r}</button>)}</div>
+        {other && <input className="input" autoFocus maxLength={120} value={custom} onChange={(e) => setCustom(e.target.value)} placeholder="Type the reason" aria-label="Your reason" />}
       </div>
-      <div className="field"><label htmlFor="msg">Message</label><textarea id="msg" className="input" value={msg} onChange={(e) => setMsg(e.target.value)} placeholder="e.g. We received ₱400 instead of ₱450. Please send the balance and upload the new proof." /></div>
+      <div className="field"><label htmlFor="msg">Message to the buyer (optional)</label>
+        <textarea id="msg" className="input" maxLength={500} value={msg} onChange={(e) => setMsg(e.target.value)} placeholder="e.g. We received ₱400 instead of ₱450. Please send the balance and upload the new screenshot." /></div>
+      <div className="col" style={{ gap: 6 }}>
+        <span className="label">The buyer will see</span>
+        <div className="reject-preview"><span className="badge b-red">Rejected</span><RejectNote reason={finalReason || '…'} note={msg.trim() || null} /></div>
+      </div>
       {err && <span className="error">{err}</span>}
       <div className="row"><button className="btn grow" onClick={onClose}>Cancel</button><button className="btn btn-danger-solid grow" onClick={go}>Reject & notify buyer</button></div>
     </Modal>

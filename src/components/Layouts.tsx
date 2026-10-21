@@ -7,6 +7,7 @@ import { Logo, Modal, useIsMobile } from './ui';
 import { editAttr, Tx, useText, useTheme } from '../lib/theme';
 import { usePrefs } from '../lib/prefs';
 import { SITE_EDIT } from '../lib/siteText';
+import NotificationBell from './Notifications';
 import { Back, Bell, Book, Chevron, Clock, Cog, Files, Grid, Home, Logout, Palette, Pay, Phone, Receipt, Search, Shield, Trend, User, Users } from './Icons';
 
 function Avatar({ size }: { size?: number }) {
@@ -57,6 +58,7 @@ function UserMenu() {
         <div className="menu" role="menu" onClick={() => setOpen(false)}>
           <div className="menu-head"><Avatar size={40} /><div className="col" style={{ gap: 0, minWidth: 0 }}><b>{profile?.full_name || 'Your account'}</b><span className="small muted ellipsis">{profile?.email}</span></div></div>
           <Link to="/account" role="menuitem"><User /><Tx k="nav.account" /></Link>
+          <Link to="/account/settings" role="menuitem"><Cog />Account settings</Link>
           <Link to="/my-files" role="menuitem"><Book /><Tx k="nav.myFiles" /></Link>
           <Link to="/devices" role="menuitem"><Phone /><Tx k="nav.devices" /></Link>
           <Link to="/payments" role="menuitem"><Receipt />Payments & receipts</Link>
@@ -125,7 +127,7 @@ export function ClientLayout({ children, title, back, hideTabs, actions }: { chi
           {back && <b className="ellipsis" style={{ maxWidth: '62vw' }}>{title}</b>}
           <span className="row" style={{ gap: 6 }}>
             {actions}
-            {!back && <Link to="/my-files" className="icon-btn bell" aria-label="Payments"><Bell width={21} />{pending > 0 && <i className="dot">{pending}</i>}</Link>}
+            {!back && <NotificationBell />}
             {!back && !title && <Link to="/account"><Avatar size={32} /></Link>}
             {back && !actions && <span style={{ width: 36 }} />}
           </span>
@@ -156,7 +158,7 @@ export function ClientLayout({ children, title, back, hideTabs, actions }: { chi
           <input placeholder={t('nav.search')} {...editAttr('nav.search')} value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search the library" />
         </form>
         <span className="grow" />
-        <Link to="/my-files" className="icon-btn bell" aria-label={pending ? `${pending} payments waiting` : 'Payments'}><Bell width={21} />{pending > 0 && <i className="dot">{pending}</i>}</Link>
+        <NotificationBell />
         <UserMenu />
       </header>
       <main className="d-main">{children}</main>

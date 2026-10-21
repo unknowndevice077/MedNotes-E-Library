@@ -562,7 +562,7 @@ describe('account settings', () => {
     await admin.client.rpc('admin_grant_file', { p_user: u.id, p_file: FILES.docx });
     try {
       const p = await open(u);
-      await go(p, '/account');
+      await go(p, '/account/settings');
       await clickText(p, '.seg button', 'Dark');
       await p.$eval('input[aria-label="Text size"]', (e) => { const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; set.call(e, '20'); e.dispatchEvent(new Event('input', { bubbles: true })); });
       await p.select('select[aria-label="Start page"]', 'my-files');
@@ -585,7 +585,7 @@ describe('account settings', () => {
     const u = await makeUser('e2e-pw');
     try {
       const p = await open(u);
-      await go(p, '/account');
+      await go(p, '/account/settings');
       assert.ok((await text(p)).includes('stored scrambled'), 'explains where the password comes from');
       await p.type('#cur-pw', 'wrong-password');
       await p.type('#pw', 'N3w-Passw0rd!x'); await p.type('#pw2', 'N3w-Passw0rd!x');
@@ -929,9 +929,18 @@ describe('powerful admin', () => {
     await frame.waitForSelector('[data-edit="signin.title"]', { timeout: 10000 });
     assert.ok(frame.url().includes('/sign-in'), 'signed-in admin still sees the sign-in page in the preview');
     await frame.evaluate(() => document.querySelector('[data-edit="signin.title"]').click());
-    await sleep(300);
-    assert.equal(await p.evaluate(() => document.activeElement?.id), 'tx-signin-title', 'field focused');
+    await frame.waitForSelector('[data-edit="signin.title"][contenteditable]', { timeout: 5000 });
+    // typed right on the page, Canva-style
+    await frame.evaluate(() => { const el = document.querySelector('[data-edit="signin.title"]'); const r = document.createRange(); r.selectNodeContents(el); const s = getSelection(); s.removeAllRanges(); s.addRange(r); });
     await p.keyboard.type('Hello reviewers');
+    await p.keyboard.press('Enter');
+    await p.waitForFunction(() => document.querySelector('#tx-signin-title')?.value === 'Hello reviewers', { timeout: 5000 });
+    await frame.waitForFunction(() => document.querySelector('[data-edit="signin.title"]')?.textContent === 'Hello reviewers', { timeout: 5000 });
+    assert.equal(await frame.$('[contenteditable]'), null, 'Enter finishes editing');
+    // undo puts the default back; redo brings the edit back
+    await p.click('button[aria-label="Undo"]');
+    await frame.waitForFunction(() => document.querySelector('[data-edit="signin.title"]')?.textContent === 'Welcome back', { timeout: 5000 });
+    await p.click('button[aria-label="Redo"]');
     await frame.waitForFunction(() => document.querySelector('[data-edit="signin.title"]')?.textContent === 'Hello reviewers', { timeout: 5000 });
     // links and buttons in the preview are inert
     await frame.evaluate(() => document.querySelector('a[href$="/sign-up"]').click());
@@ -967,10 +976,44 @@ describe('powerful admin', () => {
 const p_type = async (page, sel, value) => { await page.waitForSelector(sel); await page.click(sel); await page.type(sel, value); };
 
 describe('account deletion (UI)', () => {
+  test('profile and account settings are separate pages', async () => {
+    const p = await open(buyer);
+    await go(p, '/account');
+    let t = await text(p);
+    assert.ok(t.includes('Profile') && t.includes('Account settings') && !t.includes('Change password') && !t.includes('Delete my account'), 'profile is just the profile');
+    await clickText(p, 'a.link-row', 'Account settings');
+    await p.waitForFunction(() => location.pathname.endsWith('/account/settings'));
+    await sleep(600);
+    t = await text(p);
+    for (const part of ['Sign-in and security', 'Reading and app', 'Delete account', 'Email & password']) assert.ok(t.includes(part), part);
+    await p.close();
+  });
+
+  test('notification bell opens a list; a notification goes to its page', async () => {
+    const u = await makeUser('e2e-bell');
+    try {
+      const { data: pay } = await u.client.from('purchases').insert({ user_id: u.id, file_id: FILES.pdf, amount: 1, method: 'GCash', proof_path: `${u.id}/x.png` }).select().single();
+      await admin.client.rpc('reject_purchase', { p_id: pay.id, p_reason: 'Payment not received', p_note: 'We could not find it' });
+      const p = await open(u);
+      await go(p, '/library');
+      assert.ok(await p.$eval('.bell .dot', (e) => Number(e.textContent) >= 1), 'unread count');
+      await p.click('.bell');
+      await p.waitForSelector('.bell-menu .bell-item');
+      assert.ok((await p.$eval('.bell-menu', (e) => e.innerText)).includes('Payment rejected'));
+      await shot(p, 'notifications');
+      await p.click('.bell-menu .bell-item');
+      await p.waitForFunction((id) => location.pathname.endsWith(`/checkout/${id}`), {}, FILES.pdf);
+      await sleep(800);
+      const t = await text(p);
+      assert.ok(t.includes('Payment not received') && t.includes('We could not find it'), 'reason and the quoted message');
+      await p.close();
+    } finally { await dropUser(u); }
+  });
+
   test('Delete my account signs out and removes the user', async () => {
     const u = await makeUser('e2e-delete');
     const p = await open(u);
-    await go(p, '/account');
+    await go(p, '/account/settings');
     await clickText(p, 'button', 'Delete my account');
     await p.waitForSelector('.modal #confirm-type');
     assert.ok(await p.$eval('.modal button[type=submit]', (b) => b.disabled), 'disabled until DELETE is typed');

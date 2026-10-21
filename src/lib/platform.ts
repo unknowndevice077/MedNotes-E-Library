@@ -1,7 +1,9 @@
 import { Capacitor } from '@capacitor/core';
 
-/** True inside the Android app (Capacitor), false in any browser. */
+/** True inside the Android / iPhone app (Capacitor), false in any browser. */
 export const isNative = Capacitor.isNativePlatform();
+/** The Windows / Mac desktop app (Electron) tags its user agent. */
+export const isDesktopApp = /MedNotesDesktop\//.test(navigator.userAgent);
 
 /** Phones (the app, or a mobile browser) use the phone slot; everything else is a computer. */
 export function deviceKind(): 'computer' | 'phone' {
@@ -16,6 +18,7 @@ export function deviceLabel(): string {
     : /Android/.test(ua) ? (ua.match(/Android [^;]*;\s*([^;)]+)/)?.[1]?.trim() || 'Android phone')
     : /iPhone|iPad/.test(ua) ? 'iPhone' : /Linux/.test(ua) ? 'Linux PC' : 'Device';
   if (isNative) return `${os} · MedNotes app`;
+  if (isDesktopApp) return `${os} · MedNotes desktop`;
   const browser = /Edg\//.test(ua) ? 'Edge' : /OPR\//.test(ua) ? 'Opera' : /Chrome\//.test(ua) ? 'Chrome' : /Firefox\//.test(ua) ? 'Firefox' : /Safari\//.test(ua) ? 'Safari' : 'Browser';
   return `${os} · ${browser}`;
 }
@@ -25,4 +28,4 @@ export const asset = (name: string) => import.meta.env.BASE_URL + name;
 /** Absolute URL of an app route, for auth redirects (email links, OAuth). */
 export const appUrl = (path = '') => location.origin + import.meta.env.BASE_URL + path.replace(/^\//, '');
 
-export const platformName = isNative ? 'android-app' : 'web';
+export const platformName = isNative ? `${Capacitor.getPlatform()}-app` : isDesktopApp ? 'desktop-app' : 'web';

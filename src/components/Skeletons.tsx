@@ -83,7 +83,7 @@ export function CheckoutSkeleton() {
   return (
     <Busy>
       <div className="row wrap" style={{ gap: 24, alignItems: 'flex-start' }}>
-        <div className="col grow" style={{ gap: 16, minWidth: 300 }}>
+        <div className="col grow" style={{ gap: 16, minWidth: 'min(300px, 100%)' }}>
           <Card><Bar w={160} h={16} /><Bar h={56} r={12} /><Bar w={220} h={220} r={12} /><Bar w="70%" h={12} /><Bar w="60%" h={12} /></Card>
           <Card><Bar w={180} h={16} /><Bar h={110} r={12} /></Card>
         </div>

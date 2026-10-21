@@ -48,7 +48,7 @@ export function AdminRestrictions() {
   return (
     <AdminLayout title="Restrictions" subtitle="Defaults for every account. Override them per user on the user's page." actions={<button className="btn btn-primary" onClick={() => save()}>Save restrictions</button>}>
       <div className="row wrap" style={{ alignItems: 'flex-start', gap: 20 }}>
-        <div className="col grow" style={{ gap: 16, minWidth: 320 }}>
+        <div className="col grow" style={{ gap: 16, minWidth: 'min(320px, 100%)' }}>
           <div className="card col" style={{ gap: 14 }}>
             <div className="row"><Laptop width={22} color="var(--blue)" /><h3>Device limit (like Netflix plans)</h3></div>
             <div className="setting"><div className="col" style={{ gap: 0 }}><b>Computers per account</b><span className="small muted">Desktop or laptop, in the web browser</span></div><Num value={s.computer_slots} onChange={(n) => set({ computer_slots: n })} /></div>
@@ -238,13 +238,13 @@ export function AdminSettings() {
       <section className="col" style={{ gap: 12 }}>
         <span className="eyebrow">Your admin account</span>
         <div className="row wrap" style={{ alignItems: 'flex-start', gap: 20 }}>
-          <div className="col grow" style={{ gap: 16, minWidth: 300, flexBasis: 360 }}><ProfileEditor hint="Shown in the admin and on the activity log." /><AdminLook /></div>
-          <div className="col grow" style={{ gap: 16, minWidth: 300, flexBasis: 360 }}><PasswordCard hasPassword={adminHasPassword} email={profile?.email ?? ''} /></div>
+          <div className="col grow" style={{ gap: 16, minWidth: 'min(300px, 100%)', flexBasis: 360 }}><ProfileEditor hint="Shown in the admin and on the activity log." /><AdminLook /></div>
+          <div className="col grow" style={{ gap: 16, minWidth: 'min(300px, 100%)', flexBasis: 360 }}><PasswordCard hasPassword={adminHasPassword} email={profile?.email ?? ''} /></div>
         </div>
       </section>
       <span className="eyebrow">Payments & receipts</span>
       <div className="row wrap" style={{ alignItems: 'flex-start', gap: 20 }}>
-        <div className="col grow" style={{ gap: 16, minWidth: 320 }}>
+        <div className="col grow" style={{ gap: 16, minWidth: 'min(320px, 100%)' }}>
           <div className="card col">
             <h3>Payment methods shown to buyers</h3>
             {s.payment_methods.map((m, i) => (

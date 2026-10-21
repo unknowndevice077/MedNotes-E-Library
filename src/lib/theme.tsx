@@ -126,7 +126,8 @@ export function useText() {
 /** Editable text. In the Appearance preview it is marked so a click picks it for editing. */
 export function Tx({ k }: { k: TextKey }) {
   const text = useText()(k);
-  return SITE_EDIT ? <span data-edit={k}>{text}</span> : <>{text}</>;
+  // keyed by the text: after typing in place the span is replaced whole, so React never fights the edited DOM
+  return SITE_EDIT ? <span key={text} data-edit={k}>{text}</span> : <>{text}</>;
 }
 
 /** data-edit for inputs whose placeholder is editable text. */

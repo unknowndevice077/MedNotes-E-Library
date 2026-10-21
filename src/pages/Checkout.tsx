@@ -12,7 +12,7 @@ import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import { AppLauncher } from '@capacitor/app-launcher';
 import { ClientLayout, invalidateCounts } from '../components/Layouts';
-import { Empty, Thumb, useIsMobile, useToast } from '../components/ui';
+import { Empty, RejectNote, Thumb, useIsMobile, useToast } from '../components/ui';
 import { Clock, Download, Files, Laptop, Lock, Phone, Upload } from '../components/Icons';
 import { CheckoutSkeleton } from '../components/Skeletons';
 import { Tx } from '../lib/theme';
@@ -138,7 +138,9 @@ export default function Checkout() {
         <div className="col grow" style={{ gap: 18, width: '100%' }}>
           {!mobile && <h1>{slot ? `Add a ${slot} to your account` : <Tx k="checkout.title" />}</h1>}
           {rejected && (
-            <div className="note note-red"><span><b>Your last payment was rejected: {rejected.reject_reason || 'see the note'}.</b>{rejected.note_to_buyer ? ` ${rejected.note_to_buyer}` : ''} Upload a new screenshot and resubmit. This updates the same payment, so nothing is charged or counted twice.</span></div>
+            <div className="note note-red col" style={{ alignItems: 'stretch', gap: 6 }}><b>Your last payment was rejected.</b>
+              <RejectNote reason={rejected.reject_reason} note={rejected.note_to_buyer} />
+              <span>Upload a new screenshot and resubmit. This updates the same payment, so nothing is charged or counted twice.</span></div>
           )}
           <div className="row steps" style={{ gap: 8 }}><span className="badge b-ok">1 Pay</span><span className="muted hide-sm">—</span><span className="badge b-lock">2 Publisher confirms</span><span className="muted hide-sm">—</span><span className="badge b-lock">{slot ? '3 Receipt & extra slot' : '3 Receipt & read'}</span></div>
           {slot && !locked ? (

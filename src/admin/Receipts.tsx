@@ -88,7 +88,7 @@ function Design() {
   return (
     <div className="row wrap rc-design" style={{ alignItems: 'flex-start', gap: 24 }}>
       <style>{PRINT_CSS}</style>
-      <div className="col grow" style={{ gap: 16, minWidth: 300, flexBasis: 420 }}>
+      <div className="col grow" style={{ gap: 16, minWidth: 'min(300px, 100%)', flexBasis: 420 }}>
         <div className="card col">
           <h3>Business details</h3>
           <div className="row wrap" style={{ gap: 12 }}>

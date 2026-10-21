@@ -9,7 +9,7 @@ import { downloadReceiptImage } from '../lib/receiptImage';
 import { KIND_LABEL, type DeviceOrder, type Purchase, type PurchaseStatus } from '../lib/types';
 import { ClientLayout } from '../components/Layouts';
 import ReceiptCard from '../components/ReceiptCard';
-import { Empty, Modal, StatusBadge, Thumb, useIsMobile } from '../components/ui';
+import { Empty, Modal, RejectNote, StatusBadge, Thumb, useIsMobile } from '../components/ui';
 import { Download, Laptop, Phone, Receipt } from '../components/Icons';
 import { RowsSkeleton } from '../components/Skeletons';
 
@@ -61,7 +61,8 @@ export default function MyPayments() {
                 <div className="col grow" style={{ gap: 2, minWidth: 0 }}>
                   <b className="ellipsis">{name(r)}</b>
                   <span className="small muted">{r.kind === 'file' && r.p.files ? KIND_LABEL[r.p.files.kind] : 'Device access'} · {peso(r.p.amount)} · {dateOnly(r.p.created_at)}</span>
-                  <span className="row wrap" style={{ gap: 6 }}><StatusBadge status={r.p.status} reason={r.p.status === 'rejected' ? r.p.reject_reason : undefined} /></span>
+                  <span className="row wrap" style={{ gap: 6 }}><StatusBadge status={r.p.status} /></span>
+                  {r.p.status === 'rejected' && <RejectNote compact reason={r.p.reject_reason} note={r.p.note_to_buyer} />}
                 </div>
                 {r.p.status === 'confirmed' && r.p.receipt_no && <button className="btn btn-sm" onClick={() => setOpen(r)}><Receipt width={16} /> {mobile ? 'Receipt' : r.p.receipt_no}</button>}
                 {r.p.status === 'rejected' && <Link className="btn btn-sm btn-primary" to={r.kind === 'file' ? `/checkout/${r.p.file_id}` : `/checkout/slot/${r.p.kind}`}>Resubmit</Link>}

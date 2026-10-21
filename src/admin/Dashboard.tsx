@@ -50,7 +50,7 @@ export default function Dashboard() {
         <Link to="/admin/files" className="stat" style={{ color: 'inherit' }}><span className="muted">Files</span><span className="v">{stats.files}</span><span className="small muted">{kinds || '—'}</span></Link>
       </div>
       <div className="row wrap" style={{ gap: 16, alignItems: 'stretch' }}>
-        <div className="card col grow" style={{ minWidth: 340 }}><h3>Revenue</h3><RevenueChart rows={revenue} /></div>
+        <div className="card col grow" style={{ minWidth: 'min(340px, 100%)' }}><h3>Revenue</h3><RevenueChart rows={revenue} /></div>
         <div className="card col" style={{ width: 420, maxWidth: '100%' }}>
           <div className="spread"><h3>New buyers</h3><Link to="/admin/users" className="link">All users</Link></div>
           {users.map((u) => (
@@ -61,12 +61,12 @@ export default function Dashboard() {
         </div>
       </div>
       <div className="row wrap" style={{ gap: 16, alignItems: 'flex-start' }}>
-        <div className="card col grow" style={{ minWidth: 320 }}>
+        <div className="card col grow" style={{ minWidth: 'min(320px, 100%)' }}>
           <div className="spread"><h3>Waiting for confirmation</h3><Link to="/admin/payments" className="link">View all</Link></div>
           {pending.length === 0 && <span className="muted">No payments waiting.</span>}
           {pending.map((p) => (
-            <div key={p.id} className="spread">
-              <div className="row"><span className="avatar">{initials(p.profiles?.full_name ?? '', p.profiles?.email)}</span>
+            <div key={p.id} className="spread" style={{ flexWrap: 'wrap', rowGap: 8 }}>
+              <div className="row" style={{ minWidth: 0, flex: '1 1 160px' }}><span className="avatar">{initials(p.profiles?.full_name ?? '', p.profiles?.email)}</span>
                 <div className="col" style={{ gap: 0 }}><b>{p.profiles?.full_name || p.profiles?.email}</b><span className="small muted">{p.files?.name} · {p.method}</span></div></div>
               <b>{peso(p.amount)}</b>
               <Link to={`/admin/payments?id=${p.id}`} className="btn btn-sm btn-green">Review</Link>

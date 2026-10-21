@@ -10,7 +10,7 @@ import { fetchSecureFile } from '../lib/secureFile';
 import { KIND_LABEL, KIND_TAG, type LibFile, type Purchase } from '../lib/types';
 import { ClientLayout } from '../components/Layouts';
 import { publisherOf } from '../lib/watermark';
-import { Cover, Empty, useIsMobile, useToast } from '../components/ui';
+import { Cover, Empty, RejectNote, useIsMobile, useToast } from '../components/ui';
 import { Check, Clock, Download, Eye, Laptop, Lock, Phone, Receipt, Shield } from '../components/Icons';
 import { DetailSkeleton } from '../components/Skeletons';
 import { Tx } from '../lib/theme';
@@ -98,7 +98,7 @@ export default function FileDetail() {
       {(owned || free) && isNative && settings?.offline_saving && (
         <button className="btn btn-outline-blue btn-block" disabled={saving || saved} onClick={saveForOffline}><Download />{saved ? 'Saved for offline' : saving ? 'Saving…' : 'Save for offline'}</button>
       )}
-      {rejected && <div className="note note-red"><span>Last payment rejected: <b>{rejected.reject_reason}</b>{rejected.note_to_buyer ? `. ${rejected.note_to_buyer}` : ''}</span></div>}
+      {rejected && <div className="col" style={{ gap: 6 }}><span className="badge b-red" style={{ alignSelf: 'flex-start' }}>Last payment rejected</span><RejectNote reason={rejected.reject_reason} note={rejected.note_to_buyer} /></div>}
       {!free && <Timeline p={current} />}
       {owned?.receipt_no && <Link to={`/receipt/${owned.id}`} className="row link"><Receipt width={18} /> View receipt {owned.receipt_no}</Link>}
       <ul className="perks">

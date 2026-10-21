@@ -15,6 +15,7 @@ const BASE = process.env.E2E_BASE ?? 'http://localhost:5173';
 const CHROME = process.env.CHROME_PATH ?? 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const OUT = join(root, 'tests', 'screenshots', 'ui');
 const SIZES = {
+  'small-phone': { width: 320, height: 640, isMobile: true, hasTouch: true },
   phone: { width: 390, height: 844, isMobile: true, hasTouch: true },
   tablet: { width: 820, height: 1180, isMobile: true, hasTouch: true },
   laptop: { width: 1366, height: 768 },
@@ -36,7 +37,7 @@ before(async () => {
   const pending = buys.find((b) => b.status === 'pending');
   const locked = files.find((f) => !buys.some((b) => b.file_id === f.id));
   assert.ok(owned.length && locked, 'demo seed is loaded (npm run db:reset)');
-  ids = { owned: owned[0].file_id, receipt: owned[0].id, pending: pending?.file_id, locked: locked.id };
+  ids = { owned: owned[0].file_id, receipt: owned[0].id, pending: pending?.file_id, pendingPay: pending?.id, locked: locked.id };
 });
 after(async () => {
   await browser?.close();
@@ -47,7 +48,7 @@ after(async () => {
 /** Runs in the page: returns the layout problems on screen. */
 function audit(isPhone) {
   const vw = document.documentElement.clientWidth;
-  const out = { overflow: [], offscreen: [], brokenImages: [], clipped: [], covered: [], smallTargets: [] };
+  const out = { overflow: [], offscreen: [], brokenImages: [], clipped: [], covered: [], smallTargets: [], crowded: [] };
   const name = (el) => {
     const t = (el.innerText || el.getAttribute('aria-label') || el.getAttribute('alt') || '').trim().replace(/\s+/g, ' ').slice(0, 40);
     return `${el.tagName.toLowerCase()}${el.className && typeof el.className === 'string' ? '.' + el.className.trim().split(/\s+/).slice(0, 2).join('.') : ''}${t ? ` "${t}"` : ''}`;
@@ -85,6 +86,30 @@ function audit(isPhone) {
     if (isPhone && !el.matches('input[type=checkbox], input[type=radio], input[type=file]') && (r.height < 32 || r.width < 32) && !el.closest('p, .small, .legal, footer, .breadcrumbs, .crumbs'))
       out.smallTargets.push(`${name(el)} ${Math.round(r.width)}x${Math.round(r.height)}`);
   }
+  // buttons and badges that overlap, touch (closer than 6px on the same line) or stick out of their card / dialog
+  const SKIP = '.seg, .rt-group, .drawbar, .stars, .tabbar, .edit-history, .chips, .pv-pop, .site-frame-wrap, .bottom-bar .price, .tl-dot';
+  // with a dialog open, only the dialog counts (the page behind it is covered)
+  const modal = [...document.querySelectorAll('.modal')].filter(visible).pop();
+  const boxes = [...(modal ?? document).querySelectorAll('.btn, .badge, button.link, .price-pill, .icon-btn')]
+    .filter((el) => visible(el) && !el.closest(SKIP) && !el.closest('.cover') && !el.closest('[aria-hidden="true"]'))
+    .map((el) => ({ el, r: el.getBoundingClientRect() }));
+  for (let i = 0; i < boxes.length; i++) {
+    const a = boxes[i];
+    const box = a.el.parentElement?.closest('.card, .modal, .note');
+    if (box) {
+      const c = box.getBoundingClientRect();
+      if (a.r.left < c.left - 1 || a.r.right > c.right + 1) out.crowded.push(`${name(a.el)} sticks out of ${name(box)}`);
+    }
+    for (let j = i + 1; j < boxes.length; j++) {
+      const b = boxes[j];
+      if (a.el.contains(b.el) || b.el.contains(a.el)) continue;
+      const vOverlap = Math.min(a.r.bottom, b.r.bottom) - Math.max(a.r.top, b.r.top);
+      if (vOverlap <= Math.min(a.r.height, b.r.height) * 0.5) continue; // not on the same line
+      const hGap = Math.max(a.r.left, b.r.left) - Math.min(a.r.right, b.r.right);
+      if (hGap < -1) out.crowded.push(`${name(a.el)} overlaps ${name(b.el)}`);
+      else if (hGap < 6) out.crowded.push(`${name(a.el)} and ${name(b.el)} are ${Math.max(0, Math.round(hGap))}px apart`);
+    }
+  }
   for (const k of Object.keys(out)) out[k] = [...new Set(out[k])];
   return out;
 }
@@ -116,7 +141,7 @@ async function check(page, size, name, path, { before: prep, wait = 900 } = {}) 
   if (prep) { await prep(page); await sleep(500); }
   mkdirSync(join(OUT, size), { recursive: true });
   await page.screenshot({ path: join(OUT, size, `${name}.png`), fullPage: true });
-  const found = await page.evaluate(audit, size === 'phone');
+  const found = await page.evaluate(audit, size.endsWith('phone'));
   found.consoleErrors = page.errors.splice(0);
   (report[size] ??= {})[name] = found;
   return found;
@@ -140,6 +165,11 @@ for (const size of Object.keys(SIZES)) {
     add('buyer', 'checkout', () => `/checkout/${ids.locked}`, { wait: 1500 });
     add('buyer', 'my-files', '/my-files');
     add('buyer', 'payments', '/payments');
+    add('buyer', 'payments-receipt-dialog', '/payments', { before: (p) => p.evaluate(() => [...document.querySelectorAll('.pay-row button')].find((b) => /OR-|Receipt/.test(b.innerText))?.click()) });
+    add('buyer', 'help', '/help');
+    add('buyer', 'help-new-ticket', '/help', { before: clickText('Report a bug', '.help-kind') });
+    add('buyer', 'notifications', '/library', { before: (p) => p.click('.bell') });
+    add('buyer', 'account-settings', '/account/settings');
     add('buyer', 'receipt', () => `/receipt/${ids.receipt}`);
     add('buyer', 'reader', () => `/read/${ids.owned}`, { wait: 3000 });
     // the five free samples cover every reader layout: PDF, slides, e-book, Word, Excel
@@ -149,7 +179,7 @@ for (const size of Object.keys(SIZES)) {
     add('buyer', 'devices', '/devices');
     add('buyer', 'checkout-slot', '/checkout/slot/computer', { wait: 1500 });
     add('buyer', 'account', '/account');
-    add('buyer', 'account-delete-dialog', '/account', { before: clickText('Delete my account') });
+    add('buyer', 'account-delete-dialog', '/account/settings', { before: clickText('Delete my account') });
     if (!SIZES[size].isMobile) add('buyer', 'user-menu', '/library', { before: (p) => p.click('.user-chip') });
     add('admin', 'admin-dashboard', '/admin');
     add('admin', 'admin-files', '/admin/files');
@@ -168,6 +198,9 @@ for (const size of Object.keys(SIZES)) {
     add('admin', 'admin-logs', '/admin/logs');
     add('admin', 'admin-statistics', '/admin/statistics');
     add('admin', 'admin-payments-slots', '/admin/payments?type=slots');
+    add('admin', 'admin-payment-detail', () => ids.pendingPay && `/admin/payments?id=${ids.pendingPay}`);
+    add('admin', 'admin-reject-dialog', () => ids.pendingPay && `/admin/payments?id=${ids.pendingPay}`, { before: clickText('Reject') });
+    add('admin', 'admin-support', '/admin/support');
 
     const pages = {};
     before(async () => {
@@ -188,6 +221,7 @@ for (const size of Object.keys(SIZES)) {
         assert.deepEqual(r.brokenImages, [], 'broken images');
         assert.deepEqual(r.covered, [], 'controls covered by something');
         assert.deepEqual(r.clipped, [], 'clipped labels');
+        assert.deepEqual(r.crowded, [], 'buttons overlapping, touching or sticking out');
         assert.deepEqual(r.consoleErrors, [], 'console errors');
         if (r.smallTargets.length) t.diagnostic(`small tap targets: ${r.smallTargets.join('; ')}`);
       });

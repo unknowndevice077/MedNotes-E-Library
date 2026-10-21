@@ -1,12 +1,18 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { supabase, coverUrl } from '../lib/supabase';
 import { must, useLoad } from '../lib/useLoad';
 import { bytes, errMsg, pesoShort } from '../lib/format';
 import { KIND_LABEL, KIND_TAG, kindFromName, type FileKind, type LibFile } from '../lib/types';
 import { detectLength } from '../lib/fileInfo';
+import { dropDraft, getDraft, saveDraft } from '../lib/drafts';
+
+// the upload form survives a refresh: fields, the chosen file and the cover (see lib/drafts)
+const DRAFT = 'admin-file-editor';
+type Fields = { name: string; label: string; description: string; price: string; meta: string; published: boolean; is_free: boolean };
+type Draft = { fileId: string | null; f: Fields; upload: File | null; cover: File | null };
 import CategoryPicker from '../components/CategoryPicker';
 import { AdminLayout } from '../components/Layouts';
-import { Modal, useConfirm, useIsMobile, useToast } from '../components/ui';
+import { Modal, Toggle, useConfirm, useIsMobile, useToast } from '../components/ui';
 import { Search, Upload } from '../components/Icons';
 import { RowsSkeleton } from '../components/Skeletons';
 
@@ -29,6 +35,17 @@ export default function AdminFiles() {
     for (const r of must(s) as { file_id: string }[]) sales.set(r.file_id, (sales.get(r.file_id) ?? 0) + 1);
     return { files: must(f) as LibFile[], sales };
   });
+  // after a refresh, reopen the upload that was in progress
+  const [restore, setRestore] = useState<Draft | null>(null);
+  useEffect(() => {
+    if (!data || restore !== null) return;
+    getDraft<Draft>(DRAFT).then((d) => {
+      if (!d) return setRestore(null);
+      const target = d.fileId ? data.files.find((x) => x.id === d.fileId) : 'new';
+      if (!target) { void dropDraft(DRAFT); return; }
+      setRestore(d); setEditing(target);
+    });
+  }, [data]); // eslint-disable-line react-hooks/exhaustive-deps
   const shown = useMemo(() => (data?.files ?? []).filter((f) => (kind === 'all' || f.kind === kind)
     && (!q || `${f.name} ${f.label}`.toLowerCase().includes(q.toLowerCase()))), [data, q, kind]);
 
@@ -72,21 +89,30 @@ export default function AdminFiles() {
           {shown.length === 0 && <div className="tr muted">No files yet. Upload your first one.</div>}
         </div>
       )}
-      {editing && <FileEditor file={editing === 'new' ? null : editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); reload(); }} />}
+      {editing && <FileEditor file={editing === 'new' ? null : editing} restored={restore} onClose={() => { setEditing(null); setRestore(null); }} onSaved={() => { setEditing(null); setRestore(null); reload(); }} />}
     </AdminLayout>
   );
 }
 
-function FileEditor({ file, onClose, onSaved }: { file: LibFile | null; onClose: () => void; onSaved: () => void }) {
+function FileEditor({ file, restored, onClose: close, onSaved: saved }: { file: LibFile | null; restored: Draft | null; onClose: () => void; onSaved: () => void }) {
 
   const toast = useToast();
-  const [f, setF] = useState({
+  const [f, setF] = useState<Fields>(restored?.f ?? {
     name: file?.name ?? '', label: file?.label ?? '', description: file?.description ?? '', price: String(file?.price ?? ''),
     meta: file?.meta ?? '', published: file?.published ?? true, is_free: file?.is_free ?? false,
   });
   const [detecting, setDetecting] = useState<'' | 'busy' | 'done' | 'failed'>('');
-  const [upload, setUpload] = useState<File | null>(null);
-  const [cover, setCover] = useState<File | null>(null);
+  const [upload, setUpload] = useState<File | null>(restored?.upload ?? null);
+  const [cover, setCover] = useState<File | null>(restored?.cover ?? null);
+  // keep a draft while the form is open; cancelling or saving clears it
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) { first.current = false; if (!restored) return; }
+    const t = setTimeout(() => void saveDraft(DRAFT, { fileId: file?.id ?? null, f, upload, cover } satisfies Draft), 300);
+    return () => clearTimeout(t);
+  }, [f, upload, cover]); // eslint-disable-line react-hooks/exhaustive-deps
+  const onClose = () => { void dropDraft(DRAFT); close(); };
+  const onSaved = () => { void dropDraft(DRAFT); saved(); };
   const [busy, setBusy] = useState('');
   const [err, setErr] = useState('');
   const fileIn = useRef<HTMLInputElement>(null);
@@ -106,7 +132,7 @@ function FileEditor({ file, onClose, onSaved }: { file: LibFile | null; onClose:
 
   async function save() {
     if (!f.name.trim()) return setErr('Give the file a name.');
-    if (!f.is_free && (f.price === '' || Number.isNaN(Number(f.price)))) return setErr('Enter a price, or make it a free sample.');
+    if (!f.is_free && (f.price === '' || Number.isNaN(Number(f.price)) || Number(f.price) <= 0)) return setErr('Enter a price, or turn on Free sample.');
     if (!file && !upload) return setErr('Choose the file to upload.');
     setErr('');
     try {
@@ -140,11 +166,28 @@ function FileEditor({ file, onClose, onSaved }: { file: LibFile | null; onClose:
   return (
     <Modal onClose={busy ? undefined : onClose} width={780}>
       <div className="spread"><h2>{file ? 'Edit file' : 'Upload file'}</h2><button className="muted" style={{ fontSize: 22 }} onClick={onClose} aria-label="Close">×</button></div>
-      <div className="drop" style={{ minHeight: 110 }} onClick={() => fileIn.current?.click()} onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); pickFile(e.dataTransfer.files[0]); }}>
-        <Upload />
-        <b>{upload ? `${upload.name} · ${bytes(upload.size)}` : file ? `Current: ${file.storage_path ?? 'none'} · drop a new file to replace it` : 'Drop any file here: PDF, EPUB, video, images, Word, PowerPoint, Excel'}</b>
-        <span className="small">Stored privately. Buyers can only open it after you confirm their payment.</span>
-      </div>
+      {restored && <div className="note note-blue"><span>Your unsaved {file ? 'changes were' : 'upload was'} restored after the page reloaded. Save to finish, or Cancel to discard.</span></div>}
+      {upload || file?.storage_path ? (
+        <div className="attached" onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); pickFile(e.dataTransfer.files[0]); }}>
+          <FilePreview upload={upload} file={file} coverSrc={coverPreview} />
+          <div className="col grow" style={{ gap: 3, minWidth: 0 }}>
+            <span className="badge b-ok" style={{ alignSelf: 'flex-start' }}>{upload ? (file ? 'New file attached' : 'File attached') : 'Current file'}</span>
+            <b className="ellipsis">{upload ? upload.name : file!.name}</b>
+            <span className="small muted">{KIND_LABEL[upload ? kindFromName(upload.name, upload.type) : file!.kind]} · {bytes(upload ? upload.size : file!.size_bytes)}{f.meta ? ` · ${f.meta}` : ''}</span>
+            <span className="small muted">Stored privately. Buyers can only open it after you confirm their payment.</span>
+            <div className="row wrap" style={{ gap: 8, marginTop: 4 }}>
+              <button type="button" className="btn btn-sm" onClick={() => fileIn.current?.click()}><Upload width={15} /> Replace file</button>
+              {upload && <button type="button" className="btn btn-sm" onClick={() => { setUpload(null); setDetecting(''); if (fileIn.current) fileIn.current.value = ''; }}>{file ? 'Keep the current file' : 'Remove'}</button>}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="drop" style={{ minHeight: 110 }} onClick={() => fileIn.current?.click()} onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); pickFile(e.dataTransfer.files[0]); }}>
+          <Upload />
+          <b>Drop any file here: PDF, EPUB, video, images, Word, PowerPoint, Excel</b>
+          <span className="small">Stored privately. Buyers can only open it after you confirm their payment.</span>
+        </div>
+      )}
       <input ref={fileIn} type="file" accept={ACCEPT} hidden onChange={(e) => pickFile(e.target.files?.[0])} />
       <div className="row" style={{ alignItems: 'flex-start', gap: 20, flexWrap: 'wrap' }}>
         <div className="col" style={{ width: 170, gap: 8 }}>
@@ -160,7 +203,10 @@ function FileEditor({ file, onClose, onSaved }: { file: LibFile | null; onClose:
           <div className="row wrap">
             <div className="field grow" style={{ minWidth: 220 }}><label htmlFor="flabel">Subject / category</label>
               <CategoryPicker id="flabel" value={f.label || null} onChange={(v) => setF((s) => ({ ...s, label: v ?? '' }))} allowCustom placeholder="Search or type a subject" /></div>
-            <div className="field" style={{ width: 150 }}><label htmlFor="fprice">Price (₱)</label><input id="fprice" className="input" inputMode="decimal" value={f.is_free ? '0' : f.price} disabled={f.is_free} onChange={(e) => setF({ ...f, price: e.target.value })} /></div>
+            <div className="field" style={{ width: 210 }}><label htmlFor="fprice">Price (₱)</label>
+              <input id="fprice" className="input" inputMode="decimal" value={f.is_free ? 'Free' : f.price} disabled={f.is_free} onChange={(e) => setF({ ...f, price: e.target.value })} />
+              <label className="row small" style={{ gap: 8, marginTop: 4 }}><Toggle on={f.is_free} onChange={(v) => setF({ ...f, is_free: v, price: v ? '0' : f.price === '0' ? '' : f.price })} label="Free sample" />
+                <span>Free sample{f.is_free ? ': anyone signed in can read it' : ''}</span></label></div>
           </div>
           <div className="field"><label htmlFor="fdesc">Description</label><textarea id="fdesc" className="input" value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} /></div>
           <div className="field"><label htmlFor="fmeta">Length (shown on the card)
@@ -175,13 +221,6 @@ function FileEditor({ file, onClose, onSaved }: { file: LibFile | null; onClose:
               <button type="button" role="radio" aria-checked={!f.published} className={!f.published ? 'on' : ''} onClick={() => setF({ ...f, published: false })}>Hidden (draft)</button>
             </div>
           </div>
-          <div className="card setting stack-sm" style={{ padding: '12px 14px' }}>
-            <div className="col" style={{ gap: 0 }}><b>Pricing</b><span className="small muted">{f.is_free ? 'Every signed-in buyer can read it without paying' : 'Buyers pay before they can read it'}</span></div>
-            <div className="seg" role="radiogroup" aria-label="Pricing">
-              <button type="button" role="radio" aria-checked={!f.is_free} className={!f.is_free ? 'on' : ''} onClick={() => setF({ ...f, is_free: false })}>Paid</button>
-              <button type="button" role="radio" aria-checked={f.is_free} className={f.is_free ? 'on' : ''} onClick={() => setF({ ...f, is_free: true })}>Free sample</button>
-            </div>
-          </div>
         </div>
       </div>
       {err && <span className="error">{err}</span>}
@@ -192,3 +231,44 @@ function FileEditor({ file, onClose, onSaved }: { file: LibFile | null; onClose:
     </Modal>
   );
 }
+
+const TILE: Partial<Record<FileKind, string>> = { epub: '#7c3aed', pdf: '#dc2626', video: '#0f172a', image: '#0891b2', docx: '#2563eb', pptx: '#ea580c', xlsx: '#16a34a' };
+
+/** What's attached: the picture, the first frame of a video, the first page of a PDF, or a file-type tile. */
+function FilePreview({ upload, file, coverSrc }: { upload: File | null; file: LibFile | null; coverSrc: string | null }) {
+  const kind = upload ? kindFromName(upload.name, upload.type) : file?.kind ?? 'other';
+  const url = useMemo(() => (upload && (kind === 'image' || kind === 'video') ? URL.createObjectURL(upload) : null), [upload, kind]);
+  useEffect(() => () => { if (url) URL.revokeObjectURL(url); }, [url]);
+  const canvas = useRef<HTMLCanvasElement>(null);
+  const [pdfDone, setPdfDone] = useState(false);
+  useEffect(() => {
+    setPdfDone(false);
+    if (!upload || kind !== 'pdf') return;
+    let alive = true;
+    (async () => {
+      try {
+        const pdfjs = await import('pdfjs-dist');
+        pdfjs.GlobalWorkerOptions.workerSrc = (await import('pdfjs-dist/build/pdf.worker.min.mjs?url')).default;
+        const doc = await pdfjs.getDocument({ data: new Uint8Array(await upload.arrayBuffer()) }).promise;
+        const page = await doc.getPage(1);
+        const vp = page.getViewport({ scale: 180 / page.getViewport({ scale: 1 }).width });
+        const c = canvas.current; if (!alive || !c) return;
+        c.width = vp.width; c.height = vp.height;
+        await page.render({ canvasContext: c.getContext('2d')!, viewport: vp }).promise;
+        if (alive) setPdfDone(true);
+        void doc.destroy();
+      } catch { /* falls back to the tile */ }
+    })();
+    return () => { alive = false; };
+  }, [upload, kind]);
+
+  if (url && kind === 'image') return <div className="attached-thumb"><img src={url} alt="" /></div>;
+  if (url && kind === 'video') return <div className="attached-thumb"><video src={`${url}#t=0.5`} muted playsInline preload="metadata" /><span className="attached-play">▶</span></div>;
+  if (upload && kind === 'pdf') return <div className="attached-thumb paper"><canvas ref={canvas} style={{ display: pdfDone ? 'block' : 'none' }} />{!pdfDone && <Tile kind={kind} />}</div>;
+  if (!upload && coverSrc) return <div className="attached-thumb"><img src={coverSrc} alt="" /></div>;
+  return <div className="attached-thumb"><Tile kind={kind} /></div>;
+}
+
+const Tile = ({ kind }: { kind: FileKind }) => (
+  <span className="attached-tile" style={{ background: TILE[kind] ?? '#475569' }}>{KIND_TAG[kind]}</span>
+);

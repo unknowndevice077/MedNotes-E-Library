@@ -63,6 +63,7 @@ export default function Library() {
   const [kind, setKind] = useState<FileKind | 'all'>('all');
   const [label, setLabel] = useState<string | null>(null);
   const [sort, setSort] = useState<'new' | 'price' | 'name'>('new');
+  const [freeOnly, setFreeOnly] = useState(false);
   const { data, loading, error } = useLoad(async () => {
     const [files, mine] = await Promise.all([
       supabase.from('files').select('*').eq('published', true).order('created_at', { ascending: false }),
@@ -80,15 +81,15 @@ export default function Library() {
   const labelCounts = useMemo(() => { const m = new Map<string, number>(); for (const f of data?.files ?? []) if (f.label) m.set(f.label, (m.get(f.label) ?? 0) + 1); return m; }, [data]);
   const owned = (data?.files ?? []).filter((f) => status.get(f.id) === 'confirmed');
   const pendingCount = (data?.files ?? []).filter((f) => status.get(f.id) === 'pending').length;
-  const filtering = !!q || kind !== 'all' || !!label;
+  const filtering = !!q || kind !== 'all' || !!label || freeOnly;
   const shown = useMemo(() => {
     const s = q.trim().toLowerCase();
-    const list = (data?.files ?? []).filter((f) => (kind === 'all' || f.kind === kind) && (!label || f.label === label)
+    const list = (data?.files ?? []).filter((f) => (kind === 'all' || f.kind === kind) && (!label || f.label === label) && (!freeOnly || f.is_free)
       && (!s || `${f.name} ${f.label} ${f.description}`.toLowerCase().includes(s)));
     if (sort === 'price') list.sort((a, b) => a.price - b.price);
     if (sort === 'name') list.sort((a, b) => a.name.localeCompare(b.name));
     return list;
-  }, [data, q, kind, label, sort]);
+  }, [data, q, kind, label, sort, freeOnly]);
   const setQ = (v: string) => { const n = new URLSearchParams(sp); if (v) n.set('q', v); else n.delete('q'); setSp(n, { replace: true }); };
   const first = profile?.full_name?.split(' ')[0];
   const topLabels = labels.slice(0, 3);
@@ -141,8 +142,8 @@ export default function Library() {
           <div className="filterbar">
             <div className="spread wrap" style={{ gap: 12 }}>
               <div className="col" style={{ gap: 2 }}>
-                <h2>{q ? `Results for “${q}”` : label ? label : <Tx k="library.all" />}</h2>
-                <span className="small muted">{shown.length} file{shown.length === 1 ? '' : 's'}{filtering && <> · <button className="link" onClick={() => { setKind('all'); setLabel(null); setQ(''); }}>Clear filters</button></>}</span>
+                <h2>{q ? `Results for “${q}”` : label ? label : freeOnly ? 'Free samples' : <Tx k="library.all" />}</h2>
+                <span className="small muted">{shown.length} file{shown.length === 1 ? '' : 's'}{filtering && <> · <button className="link" onClick={() => { setKind('all'); setLabel(null); setQ(''); setFreeOnly(false); }}>Clear filters</button></>}</span>
               </div>
               <select className="input" style={{ width: 170 }} value={sort} onChange={(e) => setSort(e.target.value as typeof sort)} aria-label="Sort">
                 <option value="new">Newest first</option><option value="price">Lowest price</option><option value="name">A–Z</option>
@@ -151,6 +152,7 @@ export default function Library() {
             <div className="chips">
               <button className={`chip${kind === 'all' ? ' on' : ''}`} onClick={() => setKind('all')}>All types</button>
               {KINDS.map((k) => <button key={k} className={`chip${kind === k ? ' on' : ''}`} onClick={() => setKind(k)}>{KIND_LABEL[k]}</button>)}
+              <button className={`chip soft${freeOnly ? ' on' : ''}`} aria-pressed={freeOnly} onClick={() => setFreeOnly(!freeOnly)}>Free</button>
             </div>
             <div className="row wrap" style={{ gap: 10 }}>
               <div style={{ flex: '0 1 340px', minWidth: 220 }}><CategoryPicker id="subject" value={label} onChange={setLabel} counts={labelCounts} allLabel="All subjects" placeholder="Search a subject" /></div>

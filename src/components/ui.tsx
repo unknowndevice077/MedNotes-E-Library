@@ -33,10 +33,21 @@ export function Thumb({ file }: { file?: Pick<LibFile, 'cover_path' | 'name'> | 
   return <span className="thumb"><img src={coverUrl(file?.cover_path)} alt="" /></span>;
 }
 
-export function StatusBadge({ status, reason }: { status: PurchaseStatus; reason?: string }) {
+export function StatusBadge({ status }: { status: PurchaseStatus }) {
   if (status === 'confirmed') return <span className="badge b-ok"><Check /> Confirmed · Yours to read</span>;
   if (status === 'pending') return <span className="badge b-pending"><Clock /> Pending confirmation</span>;
-  return <span className="badge b-red">Rejected{reason ? `: ${reason}` : ''}</span>;
+  return <span className="badge b-red">Rejected</span>;
+}
+
+/** Why a payment was rejected, with the publisher's own words quoted. */
+export function RejectNote({ reason, note, compact }: { reason?: string | null; note?: string | null; compact?: boolean }) {
+  if (!reason && !note) return null;
+  return (
+    <div className={`reject-note${compact ? ' compact' : ''}`}>
+      {reason && <span><b>Reason:</b> {reason}</span>}
+      {note && <q className="reject-quote">{note}</q>}
+    </div>
+  );
 }
 
 export function Toggle({ on, onChange, disabled, label }: { on: boolean; onChange?: (v: boolean) => void; disabled?: boolean; label?: string }) {
@@ -99,7 +110,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
               <div className="field"><label htmlFor="confirm-type">Type <b>{req.typeToConfirm}</b> to confirm</label>
                 <input id="confirm-type" className="input" autoFocus autoComplete="off" value={typed} onChange={(e) => setTyped(e.target.value)} /></div>
             )}
-            <div className="row" style={{ justifyContent: 'flex-end', gap: 10 }}>
+            <div className="btn-row">
               <button type="button" className="btn" onClick={() => done(false)}>Cancel</button>
               <button type="submit" className={`btn ${req.danger ? 'btn-danger-solid' : 'btn-primary'}`} disabled={!ok} autoFocus={!req.typeToConfirm}>{req.confirmLabel ?? 'Confirm'}</button>
             </div>

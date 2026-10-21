@@ -8,7 +8,7 @@ import { isNative } from '../lib/platform';
 import { listSaved } from '../lib/offline';
 import { KIND_LABEL, type Purchase } from '../lib/types';
 import { ClientLayout, invalidateCounts } from '../components/Layouts';
-import { Empty, StatusBadge, Thumb, useIsMobile, useToast } from '../components/ui';
+import { Empty, RejectNote, StatusBadge, Thumb, useIsMobile, useToast } from '../components/ui';
 import { Clock, Download, Receipt } from '../components/Icons';
 import { RowsSkeleton } from '../components/Skeletons';
 import { Tx } from '../lib/theme';
@@ -71,7 +71,7 @@ export default function MyFiles() {
                   <b>{r.files?.name}</b>
                   {r.status === 'confirmed' && r.receipt_no ? <Link to={`/receipt/${r.id}`} className="row small link" style={{ gap: 6 }}><Receipt width={14} /> Receipt {r.receipt_no}</Link>
                     : <span><StatusBadge status={r.status} /></span>}
-                  {r.status === 'rejected' && r.reject_reason && <span className="small" style={{ color: '#be123c' }}>{r.reject_reason}</span>}
+                  {r.status === 'rejected' && <RejectNote compact reason={r.reject_reason} note={r.note_to_buyer} />}
                 </div>
                 {r.status === 'confirmed' && <button className="btn btn-sm btn-primary" onClick={() => nav(`/file/${r.file_id}`)}>Open</button>}
                 {r.status === 'rejected' && <button className="btn btn-sm" onClick={() => nav(`/checkout/${r.file_id}`)}>Resubmit</button>}
@@ -85,7 +85,7 @@ export default function MyFiles() {
               <div key={r.id} className="tr">
                 <div className="row" style={{ width: 380 }}><Thumb file={r.files} /><div className="col" style={{ gap: 0 }}><b>{r.files?.name}</b><span className="small muted">{r.files ? KIND_LABEL[r.files.kind] : ''}</span></div></div>
                 <span style={{ width: 120 }}>{peso(r.amount)}</span>
-                <span style={{ width: 280 }}><StatusBadge status={r.status} reason={r.status === 'rejected' ? r.reject_reason : undefined} /></span>
+                <span className="col" style={{ width: 280, gap: 4 }}><StatusBadge status={r.status} />{r.status === 'rejected' && <RejectNote compact reason={r.reject_reason} note={r.note_to_buyer} />}</span>
                 <span style={{ width: 150 }}>{r.receipt_no ? <Link to={`/receipt/${r.id}`} className="row link" style={{ gap: 6 }}><Receipt width={16} />{r.receipt_no}</Link> : <span className="muted">—</span>}</span>
                 <span className="grow" />
                 {r.status === 'confirmed' && <button className="btn btn-sm btn-primary" onClick={() => nav(`/file/${r.file_id}`)}>Open</button>}

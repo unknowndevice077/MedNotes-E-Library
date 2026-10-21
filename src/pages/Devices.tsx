@@ -9,7 +9,7 @@ import type { Device, DeviceOrder } from '../lib/types';
 import { ClientLayout } from '../components/Layouts';
 import { useConfirm, useIsMobile, useToast } from '../components/ui';
 import { Laptop, Phone, Receipt, Shield } from '../components/Icons';
-import { StatusBadge } from '../components/ui';
+import { RejectNote, StatusBadge } from '../components/ui';
 import { DevicesSkeleton } from '../components/Skeletons';
 import { Tx } from '../lib/theme';
 
@@ -110,8 +110,8 @@ export default function Devices() {
             <h3>Device slot orders</h3>
             {data!.orders.map((o) => (
               <div key={o.id} className="spread wrap" style={{ gap: 8 }}>
-                <span className="col" style={{ gap: 0 }}><b>{o.qty} extra {o.kind} slot{o.qty > 1 ? 's' : ''} · {peso(o.amount)}</b><span className="small muted">{dateOnly(o.created_at)}</span></span>
-                <span className="row" style={{ gap: 8 }}><StatusBadge status={o.status} reason={o.reject_reason} />
+                <span className="col" style={{ gap: 0 }}><b>{o.qty} extra {o.kind} slot{o.qty > 1 ? 's' : ''} · {peso(o.amount)}</b><span className="small muted">{dateOnly(o.created_at)}</span>{o.status === 'rejected' && <RejectNote compact reason={o.reject_reason} note={o.note_to_buyer} />}</span>
+                <span className="row" style={{ gap: 8 }}><StatusBadge status={o.status} />
                   {o.receipt_no && <Link to={`/receipt/slot/${o.id}`} className="link row" style={{ gap: 4 }}><Receipt width={16} /> {o.receipt_no}</Link>}
                   {o.status === 'rejected' && settings?.slot_sales && !pendingOrder && <Link to={`/checkout/slot/${o.kind}`} className="btn btn-sm">Resubmit</Link>}</span>
               </div>
