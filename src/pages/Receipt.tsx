@@ -36,7 +36,7 @@ export default function ReceiptPage() {
       <div className="page center" style={{ minHeight: 'calc(100vh - 72px)' }}>
         <div className="col" style={{ gap: 14, width: '100%', alignItems: 'center' }}>
           <div ref={shot} className="receipt-shot"><ReceiptCard settings={settings} r={r} /></div>
-          <div className="row wrap no-print" style={{ width: '100%', maxWidth: 540 }}>
+          <div className="btn-row no-print" style={{ width: '100%', maxWidth: 540 }}>
             <button className="btn grow" onClick={() => shot.current && downloadReceiptImage(shot.current, `receipt-${r.receipt_no}`)}><Download width={18} /> Save as image</button>
             <button className="btn grow" onClick={() => window.print()}>Save as PDF / Print</button>
             {data?.file ? <button className="btn btn-primary grow" onClick={() => nav(`/file/${data.file!.file_id}`)}>Open file</button>

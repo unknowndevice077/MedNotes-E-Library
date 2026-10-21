@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { ago, dateTime, errMsg } from '../lib/format';
 import { useToast } from './ui';
+import ZoomImage from './ZoomImage';
 
 // Shared by Help (buyers) and Admin → Support.
 
@@ -48,7 +49,7 @@ export function Stars({ value, onChange, size = 26, label = 'Rating' }: { value:
 export function Attachment({ path }: { path: string }) {
   const [url, setUrl] = useState<string | null>(null);
   useEffect(() => { supabase.storage.from('tickets').createSignedUrl(path, 600).then(({ data }) => setUrl(data?.signedUrl ?? null)); }, [path]);
-  return url ? <a href={url} target="_blank" rel="noreferrer" className="ticket-shot"><img src={url} alt="Attached screenshot" /></a> : <div className="ticket-shot skeleton" />;
+  return url ? <div className="ticket-shot"><ZoomImage src={url} alt="Attached screenshot" /></div> : <div className="ticket-shot skeleton" />;
 }
 
 /** The conversation under a ticket, live, with a reply box. */

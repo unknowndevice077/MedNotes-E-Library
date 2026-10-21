@@ -93,6 +93,7 @@ function audit(isPhone) {
   const boxes = [...(modal ?? document).querySelectorAll('.btn, .badge, button.link, .price-pill, .icon-btn')]
     .filter((el) => visible(el) && !el.closest(SKIP) && !el.closest('.cover') && !el.closest('[aria-hidden="true"]'))
     .map((el) => ({ el, r: el.getBoundingClientRect() }));
+  for (const { el } of boxes) if (el.matches('.btn, .icon-btn') && el.scrollWidth > el.clientWidth + 2) out.crowded.push(`${name(el)} text spills out of the button`);
   for (let i = 0; i < boxes.length; i++) {
     const a = boxes[i];
     const box = a.el.parentElement?.closest('.card, .modal, .note');

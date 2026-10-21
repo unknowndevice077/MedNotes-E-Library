@@ -378,6 +378,49 @@ describe('statistics', () => {
   });
 });
 
+describe('statistics report (any period)', () => {
+  const win = () => ({ p_from: new Date(Date.now() - 10 * 60000).toISOString(), p_to: new Date(Date.now() + 10 * 60000).toISOString() });
+  const stats = async () => (await admin.client.rpc('admin_range_stats', win())).data;
+  test('admins only', async () => {
+    assert.ok((await other.client.rpc('admin_range_stats', win())).error);
+    assert.ok((await other.client.rpc('admin_sales_export', win())).error);
+  });
+  test('a sale counts once; a revoke shows as revoked; a deleted account is not a refund', async () => {
+    const u = await makeUser('range');
+    let dropped = false;
+    try {
+      const s0 = await stats();
+      const { data: p } = await u.client.from('purchases').insert({ user_id: u.id, file_id: XLSX, amount: 1, method: 'GCash', proof_path: `${u.id}/x.png` }).select().single();
+      assert.ifError((await admin.client.rpc('confirm_purchase', { p_id: p.id, p_note: '' })).error);
+      const s1 = await stats();
+      const price = Number((await service.from('purchases').select('amount').eq('id', p.id).single()).data.amount);
+      assert.equal(Number(s1.revenue) - Number(s0.revenue), price, 'revenue goes up by the price');
+      assert.equal(s1.orders - s0.orders, 1);
+      assert.equal(s1.confirmed - s0.confirmed, 1);
+      assert.ok(s1.by_file.some((f) => f.id === XLSX), 'file listed');
+      assert.equal(s1.daily.reduce((a, d) => a + Number(d.revenue), 0), Number(s1.revenue), 'days add up to the total');
+      const rows1 = (await admin.client.rpc('admin_sales_export', win())).data;
+      assert.ok(rows1.some((r) => r.email === u.email && Number(r.amount) === price), 'sale in the export');
+
+      // revoking (deleting the confirmed purchase) shows up as revoked, with a negative export line
+      assert.ifError((await admin.client.from('purchases').delete().eq('id', p.id)).error);
+      const s2 = await stats();
+      assert.equal(s2.revoked_count - s1.revoked_count, 1);
+      assert.equal(Number(s2.revoked_amount) - Number(s1.revoked_amount), price);
+      const rows2 = (await admin.client.rpc('admin_sales_export', win())).data;
+      assert.ok(rows2.some((r) => r.email === u.email && Number(r.amount) === -price && r.note === 'Revoked'), 'negative line');
+
+      // a buyer who deletes their account isn't counted as a refund
+      const { data: p2 } = await u.client.from('purchases').insert({ user_id: u.id, file_id: PDF, amount: 1, method: 'GCash', proof_path: `${u.id}/y.png` }).select().single();
+      await admin.client.rpc('confirm_purchase', { p_id: p2.id, p_note: '' });
+      const s3 = await stats();
+      await dropUser(u); dropped = true;
+      const s4 = await stats();
+      assert.equal(s4.revoked_count, s3.revoked_count, 'account deletion is not a revoke');
+    } finally { if (!dropped) await dropUser(u); }
+  });
+});
+
 describe('accounts', () => {
   test('allow-listed email becomes admin on sign-up; others stay clients', async () => {
     const email = `test-allow-${Date.now()}@mednotes.test`;

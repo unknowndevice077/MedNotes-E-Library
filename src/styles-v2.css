@@ -724,3 +724,29 @@ html.site-edit [data-edit]:not(.editing):hover::after { content: "✎"; font-siz
 .chart-x span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
 .chart-x span:first-child { transform: none; left: 0 !important; }
 .chart-x span:last-child { transform: none; left: auto !important; right: 0; }
+
+/* tap-to-zoom images (payment proofs, ticket screenshots, QR codes) */
+.zoom-thumb { position: relative; display: block; padding: 0; border: 0; background: none; cursor: zoom-in; max-width: 100%; }
+.zoom-thumb img { display: block; max-width: 100%; }
+.zoom-hint { position: absolute; right: 6px; bottom: 6px; padding: 2px 8px; border-radius: 999px; background: rgba(15, 23, 42, .72); color: #fff; font-size: 11px; font-weight: 600; pointer-events: none; }
+.zoom-view { position: fixed; inset: 0; z-index: 1000; background: rgba(2, 6, 23, .94); display: flex; flex-direction: column; animation: pop .15s ease backwards; }
+.zoom-stage { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; touch-action: none; cursor: grab; }
+.zoom-stage img { max-width: 100%; max-height: 100%; object-fit: contain; user-select: none; -webkit-user-drag: none; transition: transform .05s linear; }
+.zoom-bar { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; align-items: center; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); color: #e2e8f0; }
+
+/* statistics report */
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 16px; }
+.kpi-grid .stat { min-width: 0; }
+.delta { font-weight: 600; color: var(--muted); }
+.delta.up { color: var(--green-deep, #047857); }
+.delta.down { color: #be123c; }
+.range-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.meter { height: 8px; border-radius: 999px; background: var(--surface-2, #f1f5f9); overflow: hidden; }
+.meter i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--blue), var(--green)); }
+.pay-stats { display: grid; grid-template-columns: 1fr auto; gap: 10px 16px; align-items: baseline; }
+.pay-stats > span { color: var(--muted); }
+.pay-stats > b { text-align: right; }
+:root[data-dark] .meter { background: #1f2937; }
+@media (max-width: 600px) { .kpi-grid { grid-template-columns: 1fr 1fr; gap: 10px; } .kpi-grid .stat { padding: 14px; } .kpi-grid .stat .v { font-size: 22px; } }
+/* growing buttons in a wrapping row keep their text width, so they wrap to a new line instead of squashing together */
+.row.wrap > .btn.grow, .btn-row > .btn.grow { flex: 1 1 auto; }

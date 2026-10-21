@@ -18,6 +18,7 @@ import { markTile, publisherOf, watermarkLine } from '../lib/watermark';
 import { Laptop, Search, Shield, Trash } from '../components/Icons';
 import { readMark } from '../lib/leakMark';
 import { Bar, FormSkeleton } from '../components/Skeletons';
+import ZoomImage from '../components/ZoomImage';
 
 export function useSettingsForm() {
   const { refresh } = useAuth();
@@ -157,7 +158,7 @@ function TestQrModal({ m, onClose }: { m: PaymentMethod; onClose: () => void }) 
       {!info ? <div className="note note-red">This QR could not be read as a QR Ph payment code. Upload a clear screenshot of your {m.name} QR.</div> : (
         <div className="row wrap" style={{ alignItems: 'flex-start', gap: 20 }}>
           <div className="col" style={{ width: 220, gap: 8 }}>
-            {src ? <img src={src} alt={`${m.name} test QR for ₱${value.toFixed(2)}`} style={{ width: 220, height: 220, borderRadius: 12, border: '1px solid var(--line)' }} /> : <Bar w={220} h={220} r={12} />}
+            {src ? <ZoomImage src={src} alt={`${m.name} test QR for ₱${value.toFixed(2)}`} style={{ width: 220, height: 220, borderRadius: 12, border: '1px solid var(--line)' }} /> : <Bar w={220} h={220} r={12} />}
             <div className="field"><label htmlFor="test-amt">Test amount (₱)</label><input id="test-amt" className="input" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} /></div>
           </div>
           <div className="col grow" style={{ minWidth: 240, gap: 10 }}>

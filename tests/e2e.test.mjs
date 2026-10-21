@@ -660,12 +660,12 @@ describe('admin receipts and appearance', () => {
       await clickText(p, '[role=tab]', 'Colours & style');
       await clickText(p, '.ap-preset', 'Berry');
       await p.type('#ap-name', 'Fritz Review Center');
-      await clickText(p, '[role=tab]', 'Pages & text');
+      await clickText(p, '[role=tab]', 'Edit website');
       await p.select('.site-page-pick', 'library');
       await p_type(p, '#tx-library-heroTitle', 'Ready for boards?');
       assert.equal(await p.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--blue').trim()), '#be185d', 'admin screen previews live');
       await shot(p, 'admin-appearance');
-      await clickText(p, 'button', 'Save appearance');
+      await clickText(p, 'button', 'Save website');
       await sleep(1200);
       await p.close();
       const { data } = await service.from('settings').select('theme').eq('id', 1).single();
@@ -793,6 +793,77 @@ describe('free samples, extra device slots, profile', () => {
       await shot(p, 'admin-statistics-resets');
       await p.close();
     } finally { await service.from('settings').update({ stats_reset_at: s0.stats_reset_at }).eq('id', 1); }
+  });
+
+  test('statistics report: periods, custom dates, compare, CSV export', async () => {
+    const p = await open(admin);
+    await go(p, '/admin/statistics');
+    await p.waitForSelector('.range-report .kpi-grid .stat .v');
+    let t = await text(p);
+    for (const s of ['Report', 'Revenue', 'Net after revoked', 'Orders', 'Average order', 'Returning buyers', 'New sign-ups', 'By category', 'Payments', 'Average time to confirm', 'Files sold', 'Monthly history', 'Resets']) assert.ok(t.includes(s), s);
+    assert.match(t, /compared with/);
+    // this month's revenue is the same number the dashboard shows
+    const reportRevenue = await p.$eval('.range-report .kpi-grid .stat .v', (e) => e.textContent);
+    // every preset loads without errors
+    for (const label of ['Today', 'Last 7 days', 'Last 30 days', 'Last month', 'This year', 'This month']) {
+      await clickText(p, '.range-chips button', label);
+      await p.waitForFunction((l) => document.querySelector('.range-chips button[aria-pressed="true"]')?.textContent === l, {}, label);
+      await p.waitForSelector('.range-report .kpi-grid .stat .v');
+    }
+    await shot(p, 'admin-statistics-report');
+    // custom dates
+    await clickText(p, '.range-chips button', 'Custom');
+    await p.waitForSelector('#rr-from');
+    await p.$eval('#rr-from', (e) => { const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; set.call(e, '2026-09-01'); e.dispatchEvent(new Event('input', { bubbles: true })); });
+    await p.waitForFunction(() => /Sep 1, 2026/.test(document.querySelector('.range-report')?.innerText ?? ''), { timeout: 8000 });
+    // CSV: catch the download in the page and read it
+    await p.evaluate(() => { window.__csv = null; HTMLAnchorElement.prototype.click = function () { if (this.download) fetch(this.href).then((r) => r.text()).then((x) => { window.__csv = { name: this.download, text: x }; }); }; });
+    await clickText(p, 'button', 'Export CSV');
+    await p.waitForFunction(() => window.__csv, { timeout: 8000 });
+    const csv = await p.evaluate(() => window.__csv);
+    assert.match(csv.name, /^mednotes-sales-2026-09-01-to-\d{4}-\d{2}-\d{2}\.csv$/);
+    const lines = csv.text.replace(/^﻿/, '').split(/\r\n/);
+    assert.equal(lines[0], 'Date,Receipt no.,Buyer,Email,Item,Category,Payment method,Amount (PHP),Note');
+    assert.ok(lines.length > 2, 'has sales');
+    const sum = lines.slice(1, -1).reduce((a, l) => a + Number(l.match(/,(-?\d+\.\d{2}),[^,]*$/)[1]), 0);
+    assert.equal(Number(lines.at(-1).split(',')[7]), Math.round(sum * 100) / 100, 'total line adds up');
+    // the dashboard chart shows the same this-month revenue
+    await go(p, '/admin');
+    const dash = await p.$eval('svg[aria-label^="Revenue this month"]', (e) => e.closest('.col').querySelector('b').textContent);
+    assert.equal(dash, reportRevenue, 'dashboard and report agree');
+    await p.close();
+  });
+
+  test('uploaded images open full screen on a phone and can be zoomed', async () => {
+    const u = await makeUser('e2e-zoom');
+    try {
+      const { data: pay } = await u.client.from('purchases').insert({ user_id: u.id, file_id: FILES.pdf, amount: 1, method: 'GCash', proof_path: '33333333-0000-0000-0000-000000000001/proof-1.png' }).select().single();
+      const p = await open(admin, { mobile: true });
+      await go(p, `/admin/payments?id=${pay.id}`);
+      await p.waitForSelector('.zoom-thumb img', { timeout: 8000 });
+      await p.tap('.zoom-thumb');
+      await p.waitForSelector('.zoom-view img');
+      const box = await (await p.$('.zoom-stage')).boundingBox();
+      const cx = box.x + box.width / 2, cy = box.y + box.height / 2;
+      // double tap zooms in
+      await p.touchscreen.tap(cx, cy); await sleep(80); await p.touchscreen.tap(cx, cy);
+      await p.waitForFunction(() => document.querySelector('.zoom-bar .small')?.textContent === '250%', { timeout: 4000 });
+      await shot(p, 'proof-zoomed-phone');
+      await clickText(p, '.zoom-bar button', 'Close');
+      await p.waitForFunction(() => !document.querySelector('.zoom-view'));
+      // the buyer's own screenshot on checkout zooms too
+      const b = await open(u, { mobile: true });
+      await service.from('purchases').update({ status: 'rejected', reject_reason: 'Payment not received' }).eq('id', pay.id);
+      await go(b, `/checkout/${FILES.pdf}`);
+      await b.waitForSelector('input[type=file]');
+      await (await b.$('input[type=file]')).uploadFile(join(root, 'supabase', 'sample', 'proofs', '33333333-0000-0000-0000-000000000001', 'proof-1.png'));
+      await b.waitForSelector('.zoom-thumb img.proof-img');
+      await b.tap('.zoom-thumb');
+      await b.waitForSelector('.zoom-view img');
+      await b.keyboard.press('Escape');
+      await b.waitForFunction(() => !document.querySelector('.zoom-view'));
+      await p.close(); await b.close();
+    } finally { await dropUser(u); }
   });
 
   test('buyer pays for an extra computer slot; the admin confirms; the slot appears', async () => {
@@ -964,7 +1035,7 @@ describe('powerful admin', () => {
       await a.waitForSelector('.site-page-pick');
       await a.select('.site-page-pick', 'library');
       await p_type(a, '#tx-library-announcement', 'Live: board review week!');
-      await clickText(a, 'button', 'Save appearance');
+      await clickText(a, 'button', 'Save website');
       await b.waitForFunction(() => document.querySelector('.announce')?.textContent.includes('board review week'), { timeout: 10000 });
       await a.close(); await b.close();
     } finally {
@@ -985,7 +1056,7 @@ describe('account deletion (UI)', () => {
     await p.waitForFunction(() => location.pathname.endsWith('/account/settings'));
     await sleep(600);
     t = await text(p);
-    for (const part of ['Sign-in and security', 'Reading and app', 'Delete account', 'Email & password']) assert.ok(t.includes(part), part);
+    for (const part of ['Sign-in and security', 'Reading and app', 'Delete account', 'Email & password']) assert.ok(t.toLowerCase().includes(part.toLowerCase()), part);
     await p.close();
   });
 

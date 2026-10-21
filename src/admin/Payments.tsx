@@ -9,6 +9,7 @@ import { AdminLayout, invalidateCounts } from '../components/Layouts';
 import { Empty, Modal, RejectNote, StatusBadge, useIsMobile, useToast } from '../components/ui';
 import { Check, Receipt, Search } from '../components/Icons';
 import { Bar, RowsSkeleton } from '../components/Skeletons';
+import ZoomImage from '../components/ZoomImage';
 
 const REASONS = ['The screenshot shows a different amount', 'Payment not received', 'Screenshot is unreadable or not a payment', 'Sent to the wrong account'];
 const OTHER = 'Other reason';
@@ -110,10 +111,10 @@ export default function Payments() {
     <div className="card col grow" style={{ gap: 16, minWidth: 0 }}>
       <div className="spread"><h3>Payment from {sel.profiles?.full_name || sel.profiles?.email}</h3><StatusBadge status={sel.status} /></div>
       <div className="row wrap" style={{ alignItems: 'flex-start', gap: 20 }}>
-        <a href={proofUrl ?? undefined} target="_blank" rel="noreferrer" style={{ width: 240, flexShrink: 0 }}>
-          {sel.proof_path ? (proofUrl ? (sel.proof_path.endsWith('.pdf') ? <div className="drop">Open proof (PDF)</div> : <img src={proofUrl} alt="Proof of payment" style={{ width: '100%', borderRadius: 12, border: '1px solid var(--line)' }} />) : <Bar h={320} r={12} />)
+        <div className="proof-big" style={{ width: 240, maxWidth: '100%', flexShrink: 0 }}>
+          {sel.proof_path ? (proofUrl ? (sel.proof_path.endsWith('.pdf') ? <a className="drop" href={proofUrl} target="_blank" rel="noreferrer">Open proof (PDF)</a> : <ZoomImage src={proofUrl} alt="Proof of payment" style={{ width: '100%', borderRadius: 12, border: '1px solid var(--line)' }} />) : <Bar h={320} r={12} />)
             : <div className="note note-slate">No proof uploaded{sel.method === 'Granted by admin' ? ' (granted by admin)' : ''}.</div>}
-        </a>
+        </div>
         <div className="col grow" style={{ gap: 10, minWidth: 240 }}>
           <div className="spread"><span className="muted">{sel.slot ? 'Order' : 'File'}</span><b>{sel.files?.name}</b></div>
           <div className="spread"><span className="muted">Price</span><b>{peso(sel.files?.price ?? 0)}</b></div>
@@ -185,7 +186,7 @@ function RejectModal({ p, onClose, onDone }: { p: Pay; onClose: () => void; onDo
         <div className="reject-preview"><span className="badge b-red">Rejected</span><RejectNote reason={finalReason || '…'} note={msg.trim() || null} /></div>
       </div>
       {err && <span className="error">{err}</span>}
-      <div className="row"><button className="btn grow" onClick={onClose}>Cancel</button><button className="btn btn-danger-solid grow" onClick={go}>Reject & notify buyer</button></div>
+      <div className="btn-row"><button className="btn grow" onClick={onClose}>Cancel</button><button className="btn btn-danger-solid grow" onClick={go}>Reject & notify buyer</button></div>
     </Modal>
   );
 }

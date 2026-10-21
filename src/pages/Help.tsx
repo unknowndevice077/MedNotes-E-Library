@@ -9,6 +9,7 @@ import { Modal, useIsMobile, useToast } from '../components/ui';
 import { RowsSkeleton } from '../components/Skeletons';
 import { Back, Upload } from '../components/Icons';
 import { KINDS, kindLabel, Stars, StatusPill, Thread, type Ticket, type TicketKind } from '../components/Tickets';
+import ZoomImage from '../components/ZoomImage';
 
 const FAQ: { q: string; a: string }[] = [
   { q: 'I paid. When does my file open?', a: 'The publisher checks every payment by hand, usually within 24 hours. Your receipt pops up and the file opens as soon as it\'s confirmed.' },
@@ -129,7 +130,7 @@ function NewTicket({ kind: initial, onClose, onCreated }: { kind: TicketKind; on
         <div className="field"><label>Screenshot (optional)</label>
           {preview ? (
             <div className="row" style={{ gap: 12 }}>
-              <img src={preview} alt="Screenshot to attach" className="ticket-preview" />
+              <ZoomImage src={preview} alt="Screenshot to attach" className="ticket-preview" />
               <div className="col" style={{ gap: 6 }}><span className="small ellipsis">{shot?.name}</span>
                 <span className="row" style={{ gap: 6 }}><button type="button" className="btn btn-sm" onClick={() => input.current?.click()}>Change</button>
                   <button type="button" className="btn btn-sm" onClick={() => { setShot(null); setPreview(null); }}>Remove</button></span></div>

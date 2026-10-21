@@ -16,6 +16,7 @@ import { Empty, RejectNote, Thumb, useIsMobile, useToast } from '../components/u
 import { Clock, Download, Files, Laptop, Lock, Phone, Upload } from '../components/Icons';
 import { CheckoutSkeleton } from '../components/Skeletons';
 import { Tx } from '../lib/theme';
+import ZoomImage from '../components/ZoomImage';
 
 const MAX = 10 * 1024 * 1024;
 
@@ -197,7 +198,7 @@ export default function Checkout() {
               <h3><Tx k="checkout.proof" /></h3>
               {proof ? (
                 <div className="proof-card">
-                  {preview ? <img src={preview} alt="Your payment screenshot" className="proof-img" />
+                  {preview ? <ZoomImage src={preview} alt="Your payment screenshot" className="proof-img" />
                     : proof.type.startsWith('image/') ? <div className="proof-img skeleton" />
                     : <div className="proof-file"><Files /><span>PDF</span></div>}
                   <div className="col grow" style={{ gap: 4, minWidth: 0 }}>
@@ -267,7 +268,7 @@ function PayQr({ m, price, fileName }: { m: PaymentMethod; price: number; fileNa
   return (
     <div className="row wrap" style={{ alignItems: 'center', gap: 20, borderTop: '1px solid var(--line)', paddingTop: 16 }}>
       <div className="col" style={{ gap: 8, alignItems: 'center', flexShrink: 0 }}>
-        {src ? <img src={src} alt={`${m.name} QR code for ${peso(price)}`} style={{ width: 220, borderRadius: 12, border: '1px solid var(--line)', background: '#fff' }} /> : <div className="spinner" />}
+        {src ? <ZoomImage src={src} alt={`${m.name} QR code for ${peso(price)}`} style={{ width: 220, borderRadius: 12, border: '1px solid var(--line)', background: '#fff' }} /> : <div className="spinner" />}
         {dynamic && <span className="badge b-ok">{peso(price)} already filled in</span>}
       </div>
       <div className="col" style={{ gap: 10, flex: 1, minWidth: 230 }}>

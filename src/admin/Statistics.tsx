@@ -5,6 +5,7 @@ import { dateTime, peso, pesoShort } from '../lib/format';
 import { AdminLayout } from '../components/Layouts';
 import { Empty, useConfirm, useToast } from '../components/ui';
 import { DashboardSkeleton } from '../components/Skeletons';
+import RangeReport from './RangeReport';
 
 interface Reset { id: number; at: string; since: string | null; revenue: number; files_sold: number; slot_revenue: number; slots_sold: number; new_users: number; profiles: { full_name: string; email: string } | null }
 interface Month { month: string; revenue: number; sales: number; slot_revenue: number; slot_sales: number; new_users: number }
@@ -33,9 +34,13 @@ export default function AdminStatistics() {
   const h = hover !== null ? data?.[hover] : null;
 
   return (
-    <AdminLayout title="Statistics" subtitle="Month by month, from the first sale. Resetting the dashboard doesn't touch this."
-      actions={<><div className="seg">{[6, 12, 24].map((n) => <button key={n} className={range === n ? 'on' : ''} onClick={() => setRange(n)}>{n} months</button>)}</div>
-        <button className="btn" onClick={resetStats}>Reset statistics</button></>}>
+    <AdminLayout title="Statistics" subtitle="Any period, compared with the one before, plus the full month-by-month history. Resetting the dashboard doesn't touch this."
+      actions={<button className="btn" onClick={resetStats}>Reset statistics</button>}>
+      <RangeReport />
+      <div className="spread wrap" style={{ gap: 10, marginTop: 8 }}>
+        <h2 style={{ margin: 0 }}>Monthly history</h2>
+        <div className="seg">{[6, 12, 24].map((n) => <button key={n} className={range === n ? 'on' : ''} onClick={() => setRange(n)}>{n} months</button>)}</div>
+      </div>
       {loading || !data ? <DashboardSkeleton /> : data.length === 0 ? <Empty title="No sales yet" /> : (
         <>
           <div className="row wrap" style={{ gap: 16 }}>
