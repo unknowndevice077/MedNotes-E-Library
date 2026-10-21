@@ -8,14 +8,14 @@ import { must, useLoad } from '../lib/useLoad';
 import { initials } from '../lib/format';
 import type { PaymentMethod, Profile, Settings } from '../lib/types';
 import { AdminLayout } from '../components/Layouts';
-import { Modal, Toggle, useToast } from '../components/ui';
+import { Modal, Toggle, useConfirm, useToast } from '../components/ui';
 import ProfileEditor from '../components/ProfileEditor';
 import ReceiptCard, { sampleReceipt } from '../components/ReceiptCard';
 import { PasswordCard } from '../pages/Account';
 import { useAdminDark } from '../components/Layouts';
 import { downloadReceiptImage } from '../lib/receiptImage';
 import { markTile, publisherOf, watermarkLine } from '../lib/watermark';
-import { Laptop, Shield } from '../components/Icons';
+import { Laptop, Shield, Trash } from '../components/Icons';
 import { Bar, FormSkeleton } from '../components/Skeletons';
 
 export function useSettingsForm() {
@@ -64,17 +64,30 @@ export function AdminRestrictions() {
           </div>
           <div className="card col" style={{ gap: 14 }}>
             <div className="row"><Shield width={22} color="var(--blue)" /><h3>Content protection</h3></div>
-            <div className="setting"><div className="col" style={{ gap: 0 }}><b>Publisher watermark</b><span className="small muted">Stamped on every page, image, slide and video buyers open</span></div><Toggle on={s.watermark} onChange={(v) => set({ watermark: v })} label="Publisher watermark" /></div>
+            <div className="setting stack-sm"><div className="col" style={{ gap: 0 }}><b>Publisher watermark</b><span className="small muted">Your name tiled faintly across every page, image, slide and video</span></div>
+              <div className="seg" role="radiogroup" aria-label="Publisher watermark">
+                {([['off', 'Off'], ['app', 'App only'], ['all', 'App & website']] as const).map(([k, l]) => {
+                  const cur = !s.watermark ? 'off' : s.watermark_web ? 'all' : 'app';
+                  return <button key={k} type="button" role="radio" aria-checked={cur === k} className={cur === k ? 'on' : ''} onClick={() => set({ watermark: k !== 'off', watermark_web: k === 'all' })}>{l}</button>;
+                })}
+              </div></div>
             {s.watermark && (
               <div className="wm-editor">
+                <span className="small muted">{s.watermark_web ? 'Shown in the Android app and on the website.' : 'Shown in the Android app (and on saved offline copies). Reading on the website stays clean.'}</span>
                 <div className="row wrap" style={{ gap: 12 }}>
                   <div className="field grow" style={{ minWidth: 200 }}><label htmlFor="wm-name">Publisher name</label>
                     <input id="wm-name" className="input" value={s.publisher_name} placeholder={s.receipt_business} maxLength={60} onChange={(e) => set({ publisher_name: e.target.value })} /></div>
                   <div className="field grow" style={{ minWidth: 240 }}><label htmlFor="wm-note">Second line</label>
                     <input id="wm-note" className="input" value={s.watermark_note} placeholder={watermarkLine({ ...s, watermark_note: '' })} maxLength={90} onChange={(e) => set({ watermark_note: e.target.value })} /></div>
                 </div>
-                <div className="wm-preview" style={{ backgroundImage: markTile(s) }} aria-label="Watermark preview">
-                  <span className="small muted">Preview · also shown as “Published by {publisherOf(s).name}”</span>
+                <div className="wm-sample" aria-label="Sample page with the watermark">
+                  <div className="wm-sample-page" style={{ backgroundImage: markTile(s) }}>
+                    <b>Chapter 4 · Beta blockers</b>
+                    <p>Beta blockers lower heart rate and contractility by blocking β1 receptors in the heart. They are used for hypertension, angina, heart failure and arrhythmias.</p>
+                    <p>Common examples: metoprolol, atenolol, propranolol, carvedilol.</p>
+                    <span className="wm-sample-lines">{[92, 84, 88, 60].map((w) => <i key={w} style={{ width: `${w}%` }} />)}</span>
+                  </div>
+                  <span className="small muted">Sample page as buyers see it · also shown as “Published by {publisherOf(s).name}”</span>
                 </div>
               </div>
             )}
@@ -197,6 +210,7 @@ export function AdminSettings() {
   const { profile, session } = useAuth();
   const adminHasPassword = [...(session?.user.app_metadata.providers ?? []), profile?.provider].includes('email');
   const toast = useToast();
+  const confirm = useConfirm();
   const [testing, setTesting] = useState<PaymentMethod | null>(null);
   if (loading || !s) return <AdminLayout title="Settings"><FormSkeleton cards={3} /></AdminLayout>;
   // Upload a payment QR right away and save it, so buyers see it immediately.
@@ -237,7 +251,6 @@ export function AdminSettings() {
                 <input className="input grow" style={{ minWidth: 140 }} value={m.account} onChange={(e) => setMethod(i, { account: e.target.value })} aria-label="Account number" />
                 <input className="input grow" style={{ minWidth: 140 }} value={m.holder} onChange={(e) => setMethod(i, { holder: e.target.value })} aria-label="Account name" />
                 <Toggle on={m.enabled} onChange={(v) => setMethod(i, { enabled: v })} label="Shown to buyers" />
-                <button className="btn btn-sm btn-danger" onClick={() => set({ payment_methods: s.payment_methods.filter((_, j) => j !== i) })}>Remove</button>
                 <div className="row wrap" style={{ width: '100%', gap: 12 }}>
                   {m.qr_path ? <a href={paymentQrUrl(m.qr_path)!} target="_blank" rel="noreferrer"><img src={paymentQrUrl(m.qr_path)!} alt={`${m.name} QR`} style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--line)' }} /></a>
                     : <span className="small muted">No QR yet</span>}
@@ -247,6 +260,9 @@ export function AdminSettings() {
                   {m.qr_path?.includes('demo') ? <span className="badge b-pending" title={`Replace it with your real ${m.name} QR`}>Demo QR · replace it</span>
                     : m.qr_payload ? <span className="badge b-ok">QR Ph · amount filled in automatically</span>
                     : m.qr_path ? <span className="badge b-lock">Image only · buyers type the amount</span> : null}
+                  <span className="grow" />
+                  <button className="icon-btn trash-btn" aria-label={`Remove ${m.name}`} title="Remove this payment method"
+                    onClick={async () => { if (await confirm({ title: `Remove ${m.name}?`, body: 'Buyers stop seeing it after you save.', confirmLabel: 'Remove', danger: true })) set({ payment_methods: s.payment_methods.filter((_, j) => j !== i) }); }}><Trash /></button>
                 </div>
               </div>
             ))}

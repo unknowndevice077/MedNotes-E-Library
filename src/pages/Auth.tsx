@@ -6,12 +6,11 @@ import { errMsg } from '../lib/format';
 import { appUrl, asset, isNative } from '../lib/platform';
 import { Logo, Toggle } from '../components/ui';
 import { Facebook, Google, Laptop } from '../components/Icons';
-import { THEME_DEFAULTS, useTheme } from '../lib/theme';
+import { Tx } from '../lib/theme';
 
 const PLAY_URL = import.meta.env.VITE_PLAY_STORE_URL || 'https://play.google.com/store/apps/details?id=com.mednotes.elibrary';
 
 function AuthShell({ children, withHero = true }: { children: ReactNode; withHero?: boolean }) {
-  const { theme } = useTheme();
   return (
     <div className="auth">
       {withHero ? (
@@ -22,17 +21,17 @@ function AuthShell({ children, withHero = true }: { children: ReactNode; withHer
               <div className="qr">
                 <img className="code" src={asset('qr-playstore.png')} alt="QR code to download the MedNotes Android app" />
                 <div className="col shadowed" style={{ gap: 4 }}>
-                  <b style={{ fontSize: 18 }}>Get the MedNotes app</b>
-                  <span style={{ opacity: 0.85 }}>Scan to download for Android</span>
-                  <b style={{ maxWidth: 320 }}>The app is better: read offline, anywhere, and stay signed in.</b>
+                  <b style={{ fontSize: 18 }}><Tx k="auth.appTitle" /></b>
+                  <span style={{ opacity: 0.85 }}><Tx k="auth.appSub" /></span>
+                  <b style={{ maxWidth: 320 }}><Tx k="auth.appPitch" /></b>
                   <a className="store-btn" href={PLAY_URL} target="_blank" rel="noreferrer">▶&nbsp; Get it on Google Play</a>
                 </div>
               </div>
             )}
           </div>
           <div className="hero col shadowed" style={{ gap: 14 }}>
-            <h1>{theme.authTitle?.trim() || THEME_DEFAULTS.authTitle}</h1>
-            <p>{theme.authText?.trim() || THEME_DEFAULTS.authText}</p>
+            <h1><Tx k="auth.title" /></h1>
+            <p><Tx k="auth.text" /></p>
           </div>
         </aside>
       ) : null}
@@ -42,7 +41,7 @@ function AuthShell({ children, withHero = true }: { children: ReactNode; withHer
 }
 
 /** Google / Facebook buttons. Always visible; if a provider isn't switched on in Supabase yet, a friendly note replaces the raw error. */
-function Providers({ divider }: { divider: string }) {
+function Providers({ divider }: { divider: ReactNode }) {
   const { signInWithProvider } = useAuth();
   const [on, setOn] = useState<{ google: boolean; facebook: boolean } | null>(null);
   const [busy, setBusy] = useState<'google' | 'facebook' | null>(null);
@@ -93,8 +92,8 @@ export function SignIn() {
   return (
     <AuthShell>
       <form className="auth-card" onSubmit={submit}>
-        <div className="col" style={{ gap: 4 }}><h1>Welcome back</h1><span className="muted">Sign in to continue to your library.</span></div>
-        <Providers divider="or sign in with email" />
+        <div className="col" style={{ gap: 4 }}><h1><Tx k="signin.title" /></h1><span className="muted"><Tx k="signin.sub" /></span></div>
+        <Providers divider={<Tx k="signin.divider" />} />
         <div className="field"><label htmlFor="email">Email</label><input id="email" className="input" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></div>
         <div className="field"><label htmlFor="pw">Password</label><input id="pw" className="input" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} /></div>
         <div className="spread small">
@@ -103,10 +102,10 @@ export function SignIn() {
           <Link to="/forgot-password" className="link">Forgot password?</Link>
         </div>
         {err && <span className="error">{err}</span>}
-        <button className="btn btn-primary btn-block" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
-        <div className="muted" style={{ textAlign: 'center' }}>New to MedNotes? <Link to="/sign-up" className="link">Create an account</Link></div>
+        <button className="btn btn-primary btn-block" disabled={busy}>{busy ? 'Signing in…' : <Tx k="signin.button" />}</button>
+        <div className="muted" style={{ textAlign: 'center' }}><Tx k="signin.newPrompt" /> <Link to="/sign-up" className="link"><Tx k="signin.newLink" /></Link></div>
         <LegalLinks />
-        <div className="note note-blue"><Laptop /><span>Sign in once and we'll remember you{isNative ? ' on this phone' : ' on this browser'}. Each account works on 1 computer and 1 phone.</span></div>
+        <div className="note note-blue"><Laptop /><span><Tx k="signin.note" /></span></div>
       </form>
     </AuthShell>
   );
@@ -136,24 +135,24 @@ export function SignUp() {
     <AuthShell withHero={false}>
       <form className="auth-card center" onSubmit={submit}>
         <Logo />
-        <div className="col" style={{ gap: 4 }}><h2>Create your account</h2><span className="muted">Free to join. Pay only for the files you unlock.</span></div>
+        <div className="col" style={{ gap: 4 }}><h2><Tx k="signup.title" /></h2><span className="muted"><Tx k="signup.sub" /></span></div>
         {sent ? (
           <div className="note note-blue">Check {f.email} for a confirmation link, then sign in.</div>
         ) : (
           <>
-            <Providers divider="or with email" />
+            <Providers divider={<Tx k="signup.divider" />} />
             <div className="row">
               <div className="field grow"><label htmlFor="fn">First name</label><input id="fn" className="input" required value={f.first} onChange={(e) => setF({ ...f, first: e.target.value })} /></div>
               <div className="field grow"><label htmlFor="ln">Last name</label><input id="ln" className="input" required value={f.last} onChange={(e) => setF({ ...f, last: e.target.value })} /></div>
             </div>
             <div className="field"><label htmlFor="em">Email</label><input id="em" className="input" type="email" autoComplete="email" required value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} /></div>
             <div className="field"><label htmlFor="pw">Password</label><input id="pw" className="input" type="password" autoComplete="new-password" placeholder="At least 8 characters" required value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} /></div>
-            <span className="small muted">By creating an account you agree to the Terms and the Device Policy (1 computer + 1 phone).</span>
+            <span className="small muted"><Tx k="signup.terms" /></span>
             {err && <span className="error">{err}</span>}
-            <button className="btn btn-primary btn-block" disabled={busy}>{busy ? 'Creating…' : 'Create account'}</button>
+            <button className="btn btn-primary btn-block" disabled={busy}>{busy ? 'Creating…' : <Tx k="signup.button" />}</button>
           </>
         )}
-        <div className="muted" style={{ textAlign: 'center' }}>Already have an account? <Link to="/sign-in" className="link">Sign in</Link></div>
+        <div className="muted" style={{ textAlign: 'center' }}><Tx k="signup.havePrompt" /> <Link to="/sign-in" className="link"><Tx k="signup.haveLink" /></Link></div>
         <LegalLinks />
       </form>
     </AuthShell>
@@ -173,15 +172,15 @@ export function ForgotPassword() {
     <AuthShell withHero={false}>
       <form className="auth-card center" onSubmit={submit}>
         <Logo />
-        <div className="col" style={{ gap: 4 }}><h2>Reset your password</h2><span className="muted">Enter your email and we'll send you a reset link.</span></div>
+        <div className="col" style={{ gap: 4 }}><h2><Tx k="forgot.title" /></h2><span className="muted"><Tx k="forgot.sub" /></span></div>
         {sent ? <div className="note note-blue">If {email} has an account, a reset link is on its way.</div> : (
           <>
             <div className="field"><label htmlFor="em">Email</label><input id="em" className="input" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></div>
             {err && <span className="error">{err}</span>}
-            <button className="btn btn-primary btn-block">Send reset link</button>
+            <button className="btn btn-primary btn-block"><Tx k="forgot.button" /></button>
           </>
         )}
-        <div className="muted" style={{ textAlign: 'center' }}>Remembered it? <Link to="/sign-in" className="link">Back to sign in</Link></div>
+        <div className="muted" style={{ textAlign: 'center' }}>Remembered it? <Link to="/sign-in" className="link"><Tx k="forgot.back" /></Link></div>
       </form>
     </AuthShell>
   );

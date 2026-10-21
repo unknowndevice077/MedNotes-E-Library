@@ -11,6 +11,7 @@ import { ClientLayout, invalidateCounts } from '../components/Layouts';
 import { Empty, StatusBadge, Thumb, useIsMobile, useToast } from '../components/ui';
 import { Clock, Download, Receipt } from '../components/Icons';
 import { RowsSkeleton } from '../components/Skeletons';
+import { Tx } from '../lib/theme';
 
 export default function MyFiles() {
   const { session } = useAuth();
@@ -46,18 +47,21 @@ export default function MyFiles() {
   const visible = tab === 'all' ? rows : rows.filter((r) => r.status === tab);
 
   return (
-    <ClientLayout title="My files">
+    <ClientLayout title={<Tx k="myfiles.title" />}>
       <div className="page">
-        {!mobile && <div className="col" style={{ gap: 4 }}><h1>My files</h1><span className="muted">Everything you bought, with payment status and receipts.</span></div>}
+        <div className="spread wrap" style={{ gap: 10 }}>
+          {!mobile && <div className="col" style={{ gap: 4 }}><h1><Tx k="myfiles.title" /></h1><span className="muted"><Tx k="myfiles.sub" /></span></div>}
+          <Link to="/payments" className="btn btn-sm"><Receipt width={16} /> Payments & receipts</Link>
+        </div>
         <div className="seg" role="tablist">
-          {([['all', 'All'], ['confirmed', 'Unlocked'], ['pending', 'Waiting'], ['rejected', 'Rejected']] as const).map(([k, l]) => (
+          {([['all', 'All'], ['confirmed', 'Owned'], ['pending', 'Waiting'], ['rejected', 'Rejected']] as const).map(([k, l]) => (
             <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}<i>{counts[k]}</i></button>
           ))}
         </div>
         {pending > 0 && <div className="note note-amber"><Clock /><span><b>{pending} payment{pending > 1 ? 's are' : ' is'} waiting for the publisher's confirmation.</b> We'll update this page and your receipt appears here as soon as it's confirmed.</span></div>}
         {isNative && <Link to="/saved" className="note note-blue" style={{ alignItems: 'center' }}><Download /><b className="grow">Saved for offline · {savedCount} file{savedCount === 1 ? '' : 's'}</b>→</Link>}
         {loading ? <RowsSkeleton rows={4} /> : error ? <Empty title="Couldn't load your files">{error}</Empty> : visible.length === 0 ? (
-          <Empty title={rows.length ? 'Nothing here' : 'No files yet'}>Browse the <Link to="/library" className="link">library</Link> and unlock your first file.</Empty>
+          <Empty title={rows.length ? 'Nothing here' : <Tx k="myfiles.empty" />}>Browse the <Link to="/library" className="link">library</Link> and get your first file.</Empty>
         ) : mobile ? (
           <div className="col">
             {visible.map((r) => (
@@ -79,7 +83,7 @@ export default function MyFiles() {
             <div className="tr th"><span style={{ width: 380 }}>File</span><span style={{ width: 120 }}>Paid</span><span style={{ width: 280 }}>Status</span><span style={{ width: 150 }}>Receipt</span><span className="grow" /></div>
             {visible.map((r) => (
               <div key={r.id} className="tr">
-                <div className="row" style={{ width: 380 }}><Thumb file={r.files} /><div className="col" style={{ gap: 0 }}><b>{r.files?.name}</b><span className="small muted">{r.files ? KIND_LABEL[r.files.kind] : ''} · Ref {r.reference_no || '—'}</span></div></div>
+                <div className="row" style={{ width: 380 }}><Thumb file={r.files} /><div className="col" style={{ gap: 0 }}><b>{r.files?.name}</b><span className="small muted">{r.files ? KIND_LABEL[r.files.kind] : ''}</span></div></div>
                 <span style={{ width: 120 }}>{peso(r.amount)}</span>
                 <span style={{ width: 280 }}><StatusBadge status={r.status} reason={r.status === 'rejected' ? r.reject_reason : undefined} /></span>
                 <span style={{ width: 150 }}>{r.receipt_no ? <Link to={`/receipt/${r.id}`} className="row link" style={{ gap: 6 }}><Receipt width={16} />{r.receipt_no}</Link> : <span className="muted">—</span>}</span>

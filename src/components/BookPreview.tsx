@@ -29,7 +29,7 @@ function PreviewBody({ f, status, onGo }: { f: LibFile; status: Status; onGo?: (
         <div className="row" style={{ gap: 8 }}>
           {owned ? <Link to={`/read/${f.id}`} className="btn btn-primary btn-sm" onClick={onGo}>Read now</Link>
             : status === 'pending' ? <span className="badge b-pending">Waiting for confirmation</span>
-            : <Link to={`/file/${f.id}`} className="btn btn-primary btn-sm" onClick={onGo}><Lock width={14} color="#fff" /> Unlock · {pesoShort(f.price)}</Link>}
+            : <Link to={`/file/${f.id}`} className="btn btn-primary btn-sm" onClick={onGo}><Lock width={14} color="#fff" /> Buy · {pesoShort(f.price)}</Link>}
           <Link to={`/file/${f.id}`} className="btn btn-sm" onClick={onGo}><Eye width={15} /> Details</Link>
         </div>
       </div>

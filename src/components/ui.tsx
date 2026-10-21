@@ -18,13 +18,13 @@ export function Logo({ light, short, size = 36 }: { light?: boolean; short?: boo
   );
 }
 
-export function Cover({ file, owned, locked, showTag = true }: { file: Pick<LibFile, 'cover_path' | 'kind' | 'name'>; owned?: boolean; locked?: boolean; showTag?: boolean }) {
+export function Cover({ file, owned, locked, showTag = true }: { file: Pick<LibFile, 'cover_path' | 'kind' | 'name'> & { is_free?: boolean }; owned?: boolean; locked?: boolean; showTag?: boolean }) {
   return (
     <div className="cover">
       <img src={coverUrl(file.cover_path)} alt={file.name} loading="lazy" decoding="async" width={300} height={400} />
       {showTag && <span className="tag">{KIND_TAG[file.kind]}</span>}
       {locked && <span className="lockpill"><Lock color="#fff" /></span>}
-      {owned && !locked && <span className="corner badge b-ok">Owned</span>}
+      {owned && !locked && <span className="corner badge b-ok">{file.is_free ? 'Free' : 'Owned'}</span>}
     </div>
   );
 }
@@ -34,7 +34,7 @@ export function Thumb({ file }: { file?: Pick<LibFile, 'cover_path' | 'name'> | 
 }
 
 export function StatusBadge({ status, reason }: { status: PurchaseStatus; reason?: string }) {
-  if (status === 'confirmed') return <span className="badge b-ok"><Check /> Confirmed · Unlocked</span>;
+  if (status === 'confirmed') return <span className="badge b-ok"><Check /> Confirmed · Yours to read</span>;
   if (status === 'pending') return <span className="badge b-pending"><Clock /> Pending confirmation</span>;
   return <span className="badge b-red">Rejected{reason ? `: ${reason}` : ''}</span>;
 }
@@ -66,7 +66,7 @@ export function Loading({ label }: { label?: string }) {
   return <div className="center col" style={{ padding: 48 }}><div className="spinner" />{label && <span className="muted">{label}</span>}</div>;
 }
 
-export function Empty({ title, children }: { title: string; children?: ReactNode }) {
+export function Empty({ title, children }: { title: ReactNode; children?: ReactNode }) {
   return <div className="card col center" style={{ padding: 40, textAlign: 'center' }}><h3>{title}</h3>{children && <div className="muted">{children}</div>}</div>;
 }
 

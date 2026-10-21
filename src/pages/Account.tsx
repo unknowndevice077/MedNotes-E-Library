@@ -11,6 +11,7 @@ import { ClientLayout } from '../components/Layouts';
 import ProfileEditor from '../components/ProfileEditor';
 import { Toggle, useConfirm, useIsMobile, useToast } from '../components/ui';
 import { Facebook, Google, Logout, Mail } from '../components/Icons';
+import { Tx } from '../lib/theme';
 
 /** 0–4 rough strength score for the password meter. */
 function strength(pw: string) {
@@ -99,12 +100,20 @@ function PrefsCard() {
   const set = async (patch: Partial<UserPrefs>) => { const err = await save(patch); if (err) toast(err); };
   return (
     <div className="card col" style={{ gap: 16 }}>
-      <h3>Reading & app</h3>
+      <h3><Tx k="account.prefs" /></h3>
       <div className="setting stack-sm"><div className="col" style={{ gap: 0 }}><b>Reader page colour</b><span className="small muted">For books, notes, slides and sheets</span></div>
         <div className="seg" role="radiogroup" aria-label="Reader page colour">
           {(['light', 'sepia', 'dark'] as const).map((t) => (
             <button key={t} type="button" role="radio" aria-checked={prefs.readerTheme === t} className={prefs.readerTheme === t ? 'on' : ''} onClick={() => set({ readerTheme: t })}>
               <i className={`swatch sw-${t}`} />{t[0]!.toUpperCase() + t.slice(1)}</button>
+          ))}
+        </div>
+      </div>
+      <div className="setting stack-sm"><div className="col" style={{ gap: 0 }}><b>App look</b><span className="small muted">Light, dark, or match your device</span></div>
+        <div className="seg" role="radiogroup" aria-label="App look">
+          {([['light', 'Light'], ['dark', 'Dark'], ['system', 'Device']] as const).map(([k, l]) => (
+            <button key={k} type="button" role="radio" aria-checked={prefs.appTheme === k} className={prefs.appTheme === k ? 'on' : ''}
+              onClick={() => { try { localStorage.setItem('mn.app-theme', k); } catch { /* private mode */ } set({ appTheme: k }); }}>{l}</button>
           ))}
         </div>
       </div>
@@ -153,9 +162,9 @@ export default function Account() {
 
 
   return (
-    <ClientLayout title="Account">
+    <ClientLayout title={<Tx k="nav.account" />}>
       <div className="page account" style={{ maxWidth: 820, margin: mobile ? undefined : '0' }}>
-        {!mobile && <h1>Account</h1>}
+        {!mobile && <h1><Tx k="account.title" /></h1>}
         <div className="card row">
           <span className="avatar" style={{ width: 56, height: 56, borderRadius: 28, fontSize: 18 }}>
             {profile?.avatar_url ? <img src={profile.avatar_url} alt="" referrerPolicy="no-referrer" /> : initials(profile?.full_name ?? '', profile?.email)}
@@ -163,10 +172,11 @@ export default function Account() {
           <div className="col grow" style={{ gap: 2 }}><b>{profile?.full_name || 'No name yet'}</b><span className="small muted">{email}</span></div>
           {profile?.role === 'admin' && <Link to="/admin" className="btn btn-sm">Admin</Link>}
         </div>
+        <Link to="/payments" className="card spread" style={{ color: 'inherit' }}><span className="col" style={{ gap: 0 }}><b>Payments & receipts</b><span className="small muted">Everything you paid for, with receipts</span></span><span className="link">Open →</span></Link>
         <ProfileEditor />
         <PrefsCard />
         <div className="card col">
-          <h3>Sign-in methods</h3>
+          <h3><Tx k="account.methods" /></h3>
           <div className="spread"><span className="row"><Google width={20} /> Google</span><span className={`badge ${providers.includes('google') ? 'b-ok' : 'b-lock'}`}>{providers.includes('google') ? 'Connected' : 'Not connected'}</span></div>
           <div className="spread"><span className="row"><Facebook width={20} /> Facebook</span><span className={`badge ${providers.includes('facebook') ? 'b-ok' : 'b-lock'}`}>{providers.includes('facebook') ? 'Connected' : 'Not connected'}</span></div>
           <div className="spread"><span className="row"><Mail width={20} color="var(--slate-600)" /> Email & password</span><span className={`badge ${providers.includes('email') ? 'b-ok' : 'b-lock'}`}>{providers.includes('email') ? 'Connected' : 'Not set up'}</span></div>
@@ -176,10 +186,10 @@ export default function Account() {
         {isNative && storage && (
           <div className="card spread"><div className="col" style={{ gap: 0 }}><b>Saved offline</b><span className="small muted">{storage.n} files · {bytes(storage.size)} on this phone</span></div><Link to="/saved" className="btn btn-sm">Manage</Link></div>
         )}
-        <button className="btn btn-danger btn-block" onClick={signOut}><Logout /> Sign out{isNative ? ' of this phone' : ''}</button>
+        <button className="btn btn-danger btn-block" onClick={signOut}><Logout /> <Tx k="account.signOut" />{isNative ? ' of this phone' : ''}</button>
         <div className="card col" style={{ gap: 8, borderColor: '#fecdd3' }}>
           <b>Delete my account</b>
-          <span className="small muted">Removes your profile, devices, payment proofs, purchases and access to your files. See <Link to="/data-deletion" className="link">what gets deleted</Link>.</span>
+          <span className="small muted"><Tx k="account.deleteText" /> See <Link to="/data-deletion" className="link">what gets deleted</Link>.</span>
           <button className="btn btn-sm btn-danger-solid" style={{ alignSelf: 'flex-start' }} onClick={deleteAccount}>Delete my account</button>
         </div>
         <span className="small muted" style={{ textAlign: 'center' }}><Link to="/privacy" className="muted">Privacy policy</Link></span>

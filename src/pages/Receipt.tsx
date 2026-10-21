@@ -5,29 +5,14 @@ import { Download } from '../components/Icons';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { must, useLoad } from '../lib/useLoad';
-import { KIND_LABEL, type DeviceOrder, type Purchase } from '../lib/types';
+import type { DeviceOrder, Purchase } from '../lib/types';
 import { ClientLayout } from '../components/Layouts';
 import { Empty } from '../components/ui';
-import ReceiptCard, { type ReceiptData } from '../components/ReceiptCard';
+import ReceiptCard from '../components/ReceiptCard';
 import { ReceiptSkeleton } from '../components/Skeletons';
 
-/** Shapes a confirmed purchase for ReceiptCard (also used by Admin → Receipts). */
-export function toReceipt(p: Purchase, buyer?: { full_name?: string | null; email?: string | null } | null): ReceiptData {
-  return {
-    receipt_no: p.receipt_no ?? '', issued_at: p.confirmed_at, buyer_name: buyer?.full_name ?? '', buyer_email: buyer?.email ?? '',
-    item: p.files?.name ?? '', kind: p.files ? KIND_LABEL[p.files.kind] : '', method: p.method, reference: p.reference_no,
-    amount: Number(p.amount), note: p.note_to_buyer,
-  };
-}
-
-/** Shapes a confirmed extra-device-slot order for ReceiptCard. */
-export function slotReceipt(o: DeviceOrder, buyer?: { full_name?: string | null; email?: string | null } | null): ReceiptData {
-  return {
-    receipt_no: o.receipt_no ?? '', issued_at: o.confirmed_at, buyer_name: buyer?.full_name ?? '', buyer_email: buyer?.email ?? '',
-    item: `Extra ${o.kind} slot${o.qty > 1 ? ` ×${o.qty}` : ''}`, kind: 'Device access', method: o.method, reference: o.reference_no,
-    amount: Number(o.amount), note: o.note_to_buyer,
-  };
-}
+export { slotReceipt, toReceipt } from '../lib/receipts';
+import { slotReceipt, toReceipt } from '../lib/receipts';
 
 export default function ReceiptPage() {
   const { id } = useParams();

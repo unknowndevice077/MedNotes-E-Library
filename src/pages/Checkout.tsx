@@ -13,10 +13,22 @@ import { Share } from '@capacitor/share';
 import { AppLauncher } from '@capacitor/app-launcher';
 import { ClientLayout, invalidateCounts } from '../components/Layouts';
 import { Empty, Thumb, useIsMobile, useToast } from '../components/ui';
-import { Clock, Download, Laptop, Phone, Upload } from '../components/Icons';
+import { Clock, Download, Files, Laptop, Lock, Phone, Upload } from '../components/Icons';
 import { CheckoutSkeleton } from '../components/Skeletons';
+import { Tx } from '../lib/theme';
 
 const MAX = 10 * 1024 * 1024;
+
+// The proof is uploaded as soon as it's picked and remembered per account + item, so a refresh
+// (or coming back later) still shows it and the buyer only has to press submit.
+type Draft = { path: string; name: string; type: string; method?: number };
+const draftKey = (uid: string, item: string) => `mn.checkout.${uid}.${item}`;
+function readDraft(key: string): Draft | null {
+  try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch { return null; }
+}
+function writeDraft(key: string, d: Draft | null) {
+  try { if (d) localStorage.setItem(key, JSON.stringify(d)); else localStorage.removeItem(key); } catch { /* private mode */ }
+}
 
 /**
  * Pay by GCash/Maya/bank and upload proof. Used for files (/checkout/:id) and for extra device
@@ -25,27 +37,51 @@ const MAX = 10 * 1024 * 1024;
 export default function Checkout() {
   const { id, slotKind } = useParams();
   const slot = slotKind === 'computer' || slotKind === 'phone' ? slotKind : null;
-  const [qty, setQty] = useState(1);
   const nav = useNavigate();
   const toast = useToast();
   const mobile = useIsMobile();
   const { session, settings } = useAuth();
   const methods = (settings?.payment_methods ?? []).filter((m) => m.enabled);
-  const [method, setMethod] = useState(0);
-  const [proof, setProof] = useState<File | null>(null);
-  const [ref, setRef] = useState('');
-  const [amount, setAmount] = useState('');
+  const key = session ? draftKey(session.user.id, slot ? `slot-${slot}` : id ?? '') : '';
+  const [method, setMethodState] = useState(() => readDraft(key)?.method ?? 0);
+  const [proof, setProof] = useState<Draft | null>(() => readDraft(key));
+  const [preview, setPreview] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  // device slots: step 1 picks how many, then the count (and so the price) is locked while paying
+  const qtyKey = `${key}.qty`;
+  const [qty, setQty] = useState(() => { try { return Number(localStorage.getItem(qtyKey)) || 1; } catch { return 1; } });
+  const [locked, setLocked] = useState(() => { try { return !!localStorage.getItem(qtyKey); } catch { return false; } });
+  const lockQty = (on: boolean) => { setLocked(on); try { if (on) localStorage.setItem(qtyKey, String(qty)); else localStorage.removeItem(qtyKey); } catch { /* private mode */ } };
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const input = useRef<HTMLInputElement>(null);
   const { data: file, loading } = useLoad(async () => {
     if (slot) return null;
-    const f = must(await supabase.from('files').select('*').eq('id', id!).single()) as LibFile;
-    setAmount(String(f.price));
-    return f;
+    return must(await supabase.from('files').select('*').eq('id', id!).single()) as LibFile;
   }, [id, slot]);
+  // a rejected payment for this item is resubmitted in place (no second transaction)
+  const { data: rejected } = useLoad(async () => {
+    if (!session) return null;
+    const q = slot
+      ? supabase.from('device_orders').select('id, status, reject_reason, note_to_buyer, qty').eq('user_id', session.user.id).eq('kind', slot)
+      : supabase.from('purchases').select('id, status, reject_reason, note_to_buyer').eq('user_id', session.user.id).eq('file_id', id!);
+    const rows = (await q.order('created_at', { ascending: false })).data ?? [];
+    if (rows.some((r) => r.status === 'pending')) return null;
+    return (rows.find((r) => r.status === 'rejected') ?? null) as { id: string; reject_reason: string; note_to_buyer: string; qty?: number } | null;
+  }, [id, slot, session?.user.id]);
   const unitSlot = slot ? Number(slot === 'computer' ? settings?.slot_price_computer : settings?.slot_price_phone) || 0 : 0;
-  useEffect(() => { if (slot) setAmount(String(unitSlot * qty)); }, [slot, unitSlot, qty]);
+  const setMethod = (i: number) => { setMethodState(i); if (proof) writeDraft(key, { ...proof, method: i }); };
+
+  // after a refresh: show the screenshot that's already uploaded (signed link, only the buyer and admins can open it)
+  useEffect(() => {
+    if (!proof || preview) return;
+    if (!proof.type.startsWith('image/')) return;
+    supabase.storage.from('proofs').createSignedUrl(proof.path, 3600).then(({ data, error }) => {
+      if (error || !data) { setProof(null); writeDraft(key, null); } // gone (e.g. removed): start over
+      else setPreview(data.signedUrl);
+    });
+  }, [proof, preview, key]);
+  useEffect(() => () => { if (preview?.startsWith('blob:')) URL.revokeObjectURL(preview); }, [preview]);
 
   if (!slot && loading) return <ClientLayout back title="Pay"><div className="page"><CheckoutSkeleton /></div></ClientLayout>;
   if (!slot && !file) return <ClientLayout back title="Pay"><div className="page"><Empty title="File not found" /></div></ClientLayout>;
@@ -54,29 +90,42 @@ export default function Checkout() {
   const price = slot ? unitSlot * qty : Number(file!.price);
   const itemName = slot ? `Extra ${slot} slot${qty > 1 ? ` ×${qty}` : ''}` : file!.name;
 
-  function pick(f?: File | null) {
-    if (!f) return;
+  async function pick(f?: File | null) {
+    if (!f || !session) return;
     if (f.size > MAX) return setErr('That file is over 10 MB.');
     if (!/^image\/|application\/pdf/.test(f.type)) return setErr('Upload a JPG, PNG or PDF.');
-    setErr(''); setProof(f);
+    setErr(''); setUploading(true);
+    const ext = (f.name.split('.').pop() || 'jpg').toLowerCase();
+    const path = `${session.user.id}/${slot ? `slot-${slot}` : file!.id}-${Date.now()}.${ext}`;
+    const up = await supabase.storage.from('proofs').upload(path, f, { contentType: f.type });
+    setUploading(false);
+    if (up.error) return setErr(errMsg(up.error));
+    if (proof) void supabase.storage.from('proofs').remove([proof.path]); // replaced: drop the old one
+    const d = { path, name: f.name, type: f.type, method };
+    writeDraft(key, d); setProof(d);
+    setPreview(f.type.startsWith('image/') ? URL.createObjectURL(f) : null);
+  }
+  async function clearProof() {
+    if (!proof) return;
+    void supabase.storage.from('proofs').remove([proof.path]);
+    writeDraft(key, null); setProof(null); setPreview(null);
+    if (input.current) input.current.value = '';
   }
 
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if (!proof) return setErr('Upload your proof of payment.');
-    if (!ref.trim()) return setErr('Enter the reference number from your payment.');
+    if (!proof) return setErr('Upload the screenshot of your payment.');
     setBusy(true); setErr('');
     try {
-      const uid = session!.user.id;
-      const ext = proof.name.split('.').pop() || 'jpg';
-      const path = `${uid}/${slot ? `slot-${slot}` : file!.id}-${Date.now()}.${ext}`;
-      const up = await supabase.storage.from('proofs').upload(path, proof, { contentType: proof.type });
-      if (up.error) throw up.error;
-      const common = { user_id: uid, amount: Number(amount) || price, method: methods[method]?.name ?? 'Other', reference_no: ref.trim(), proof_path: path };
-      const ins = slot
+      // the amount is set by the server from the real price
+      const common = { user_id: session!.user.id, amount: price, method: methods[method]?.name ?? 'Other', proof_path: proof.path };
+      const ins = rejected
+        ? await supabase.rpc('resubmit_payment', { p_kind: slot ? 'slot' : 'file', p_id: rejected.id, p_proof: proof.path, p_method: common.method, p_qty: slot ? qty : null })
+        : slot
         ? await supabase.from('device_orders').insert({ ...common, kind: slot, qty })
         : await supabase.from('purchases').insert({ ...common, file_id: file!.id });
       if (ins.error) throw ins.error.code === '23505' ? new Error('You already have a payment for this file waiting or confirmed.') : ins.error;
+      writeDraft(key, null); lockQty(false);
       toast(slot ? 'Payment submitted. Your extra device slot is added once the publisher confirms it.' : 'Payment submitted. The publisher will confirm it and send your receipt.');
       invalidateCounts(); nav(slot ? '/devices' : '/my-files', { replace: true });
     } catch (e) { setErr(errMsg(e)); }
@@ -87,10 +136,26 @@ export default function Checkout() {
     <ClientLayout back title={`Pay ${peso(price)}`} hideTabs>
       <form className="page" onSubmit={submit} style={{ flexDirection: mobile ? 'column' : 'row', alignItems: 'flex-start', gap: 28, maxWidth: 1180 }}>
         <div className="col grow" style={{ gap: 18, width: '100%' }}>
-          {!mobile && <h1>{slot ? `Add a ${slot} to your account` : 'Pay for your file'}</h1>}
-          <div className="row steps" style={{ gap: 8 }}><span className="badge b-ok">1 Pay</span><span className="muted hide-sm">—</span><span className="badge b-lock">2 Publisher confirms</span><span className="muted hide-sm">—</span><span className="badge b-lock">{slot ? '3 Receipt & extra slot' : '3 Receipt & unlock'}</span></div>
+          {!mobile && <h1>{slot ? `Add a ${slot} to your account` : <Tx k="checkout.title" />}</h1>}
+          {rejected && (
+            <div className="note note-red"><span><b>Your last payment was rejected: {rejected.reject_reason || 'see the note'}.</b>{rejected.note_to_buyer ? ` ${rejected.note_to_buyer}` : ''} Upload a new screenshot and resubmit. This updates the same payment, so nothing is charged or counted twice.</span></div>
+          )}
+          <div className="row steps" style={{ gap: 8 }}><span className="badge b-ok">1 Pay</span><span className="muted hide-sm">—</span><span className="badge b-lock">2 Publisher confirms</span><span className="muted hide-sm">—</span><span className="badge b-lock">{slot ? '3 Receipt & extra slot' : '3 Receipt & read'}</span></div>
+          {slot && !locked ? (
+            <div className="card col slot-step">
+              <h3>How many extra {slot}s?</h3>
+              <span className="small muted">Each one lets you sign in on one more {slot}. {peso(unitSlot)} each, yours for good.</span>
+              <div className="qty-pick">
+                <button type="button" className="btn" aria-label="Fewer" disabled={qty <= 1} onClick={() => setQty(qty - 1)}>−</button>
+                <b aria-live="polite">{qty}</b>
+                <button type="button" className="btn" aria-label="More" disabled={qty >= 5} onClick={() => setQty(qty + 1)}>+</button>
+              </div>
+              <div className="spread"><span className="muted">{qty} × {peso(unitSlot)}</span><b style={{ color: 'var(--green)', fontSize: 22 }}>{peso(unitSlot * qty)}</b></div>
+              <button type="button" className="btn btn-primary btn-lg" onClick={() => lockQty(true)}>Continue to payment</button>
+            </div>
+          ) : <>
           <div className="card col">
-            <h3>Send payment to</h3>
+            <h3><Tx k="checkout.sendTo" /></h3>
             {methods.length === 0 ? <span className="muted">The publisher hasn't added payment methods yet.</span> : (
               <div className="row wrap" style={{ alignItems: 'stretch' }}>
                 {methods.map((m, i) => (
@@ -103,38 +168,60 @@ export default function Checkout() {
             )}
             {methods[method] && (methods[method]!.qr_payload || methods[method]!.qr_path) && <PayQr m={methods[method]!} price={price} fileName={itemName} />}
           </div>
+          </>}
+          {mobile && <div className="note note-slate"><Clock /><span>The publisher confirms your payment and sends a receipt. {slot ? 'Your extra slot is then added.' : 'The file then opens for you.'}</span></div>}
+        </div>
+        <div className="col" style={{ width: mobile ? '100%' : 400, flexShrink: 0, gap: 18 }}>
           <div className="card col">
-            <h3>Upload proof of payment</h3>
-            <div className="drop" onClick={() => input.current?.click()} onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); pick(e.dataTransfer.files[0]); }}>
-              <Upload />
-              <b>{proof ? proof.name : 'Drop your screenshot here, or tap to browse'}</b>
-              <span className="small">JPG, PNG or PDF · max 10 MB</span>
-            </div>
-            <input ref={input} type="file" accept="image/*,application/pdf" hidden onChange={(e) => pick(e.target.files?.[0])} />
-            <div className="row wrap">
-              <div className="field grow"><label htmlFor="ref">Reference number</label><input id="ref" className="input" value={ref} onChange={(e) => setRef(e.target.value)} placeholder="e.g. 8821 4407 3312" /></div>
-              <div className="field" style={{ width: 180 }}><label htmlFor="amt">Amount sent (₱)</label><input id="amt" className="input" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} /></div>
-            </div>
+            <h3><Tx k="checkout.summary" /></h3>
+            {slot ? (
+              <>
+                <div className="row"><span className="slot-ico">{slot === 'computer' ? <Laptop /> : <Phone />}</span><div className="col grow" style={{ gap: 0 }}><b>Extra {slot} slot</b><span className="small muted">{peso(unitSlot)} each · added to your account for good</span></div></div>
+                <div className="setting"><b>How many</b>
+                  {locked ? <span className="row" style={{ gap: 6 }}><Lock width={15} color="var(--muted)" /><b>{qty}</b></span> : <b>{qty}</b>}</div>
+                {locked && (
+                  <button type="button" className="link small" style={{ alignSelf: 'flex-start' }} onClick={async () => { await clearProof(); lockQty(false); }}>
+                    Change how many{proof ? ' (removes your screenshot)' : ''}</button>
+                )}
+              </>
+            ) : (
+              <div className="row"><Thumb file={file!} /><div className="col grow" style={{ gap: 0 }}><b>{file!.name}</b><span className="small muted">{KIND_LABEL[file!.kind]}{file!.meta ? ` · ${file!.meta}` : ''}</span></div></div>
+            )}
+            <div className="spread" style={{ borderTop: '1px solid var(--line)', paddingTop: 12 }}><b>Total</b><b style={{ color: 'var(--green)', fontSize: 20 }}>{peso(price)}</b></div>
+            <span className="small muted"><Tx k="checkout.summaryNote" /></span>
           </div>
-          {err && <span className="error">{err}</span>}
-          {!mobile && <button className="btn btn-primary btn-lg" disabled={busy}>{busy ? 'Submitting…' : 'Submit payment for confirmation'}</button>}
-          {mobile && <div className="note note-slate"><Clock /><span>The publisher confirms your payment and sends a receipt. {slot ? 'Your extra slot is then added.' : 'The file then unlocks.'}</span></div>}
+          {(!slot || locked) && <>
+            <div className="card col">
+              <h3><Tx k="checkout.proof" /></h3>
+              {proof ? (
+                <div className="proof-card">
+                  {preview ? <img src={preview} alt="Your payment screenshot" className="proof-img" />
+                    : proof.type.startsWith('image/') ? <div className="proof-img skeleton" />
+                    : <div className="proof-file"><Files /><span>PDF</span></div>}
+                  <div className="col grow" style={{ gap: 4, minWidth: 0 }}>
+                    <span className="badge b-ok" style={{ alignSelf: 'flex-start' }}>Uploaded</span>
+                    <b className="ellipsis">{proof.name}</b>
+                    <span className="small muted">Saved to your account. It stays here if you leave or refresh; just submit when you're ready.</span>
+                    <div className="row wrap" style={{ gap: 8, marginTop: 4 }}>
+                      <button type="button" className="btn btn-sm" disabled={uploading} onClick={() => input.current?.click()}>{uploading ? 'Uploading…' : 'Change'}</button>
+                      <button type="button" className="btn btn-sm" disabled={uploading} onClick={clearProof}>Remove</button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="drop" onClick={() => !uploading && input.current?.click()} onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); pick(e.dataTransfer.files[0]); }}>
+                  <Upload />
+                  <b>{uploading ? 'Uploading…' : <Tx k="checkout.drop" />}</b>
+                  <span className="small">Screenshot of the {methods[method]?.name ?? 'payment'} receipt · JPG, PNG or PDF · max 10 MB</span>
+                </div>
+              )}
+              <input ref={input} type="file" accept="image/*,application/pdf" hidden onChange={(e) => pick(e.target.files?.[0])} />
+            </div>
+            {err && <span className="error">{err}</span>}
+            {!mobile && (!slot || locked) && <button className="btn btn-primary btn-lg" disabled={busy || uploading || !proof}>{busy ? 'Submitting…' : rejected ? 'Resubmit payment' : <Tx k="checkout.submit" />}</button>}
+          </>}
         </div>
-        <div className="card col" style={{ width: mobile ? '100%' : 360, flexShrink: 0 }}>
-          <h3>Order summary</h3>
-          {slot ? (
-            <>
-              <div className="row"><span className="slot-ico">{slot === 'computer' ? <Laptop /> : <Phone />}</span><div className="col grow" style={{ gap: 0 }}><b>Extra {slot} slot</b><span className="small muted">{peso(unitSlot)} each · added to your account for good</span></div></div>
-              <div className="setting"><b>How many</b>
-                <span className="row" style={{ gap: 6 }}><button type="button" className="btn btn-sm" aria-label="Fewer" onClick={() => setQty(Math.max(1, qty - 1))}>−</button><b style={{ width: 22, textAlign: 'center' }}>{qty}</b><button type="button" className="btn btn-sm" aria-label="More" onClick={() => setQty(Math.min(5, qty + 1))}>+</button></span></div>
-            </>
-          ) : (
-            <div className="row"><Thumb file={file!} /><div className="col grow" style={{ gap: 0 }}><b>{file!.name}</b><span className="small muted">{KIND_LABEL[file!.kind]}{file!.meta ? ` · ${file!.meta}` : ''}</span></div></div>
-          )}
-          <div className="spread" style={{ borderTop: '1px solid var(--line)', paddingTop: 12 }}><b>Total</b><b style={{ color: 'var(--green)', fontSize: 20 }}>{peso(price)}</b></div>
-          <span className="small muted">The publisher checks every payment by hand. This usually takes less than 24 hours.</span>
-        </div>
-        {mobile && <div className="bottom-bar" style={{ width: '100%', margin: '0 -16px -24px' }}><button className="btn btn-primary btn-block" style={{ height: 50 }} disabled={busy}>{busy ? 'Submitting…' : 'Submit for confirmation'}</button></div>}
+        {mobile && (!slot || locked) && <div className="bottom-bar" style={{ width: '100%', margin: '0 -16px -24px' }}><button className="btn btn-primary btn-block" style={{ height: 50 }} disabled={busy || uploading || !proof}>{busy ? 'Submitting…' : rejected ? 'Resubmit payment' : 'Submit for confirmation'}</button></div>}
       </form>
     </ClientLayout>
   );

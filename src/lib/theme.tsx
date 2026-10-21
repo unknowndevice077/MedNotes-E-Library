@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { LEGACY, SITE_EDIT, TEXT, type TextKey } from './siteText';
 import { supabase } from './supabase';
 import type { Theme } from './types';
 
@@ -110,3 +111,23 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 }
 
 export const useTheme = () => useContext(Ctx);
+
+/** Site wording with the admin's edits applied. */
+export function textOf(theme: Theme, k: TextKey): string {
+  const legacy = LEGACY[k];
+  return theme.copy?.[k]?.trim() || (legacy && theme[legacy]?.trim()) || TEXT[k];
+}
+
+export function useText() {
+  const { theme } = useTheme();
+  return useCallback((k: TextKey) => textOf(theme, k), [theme]);
+}
+
+/** Editable text. In the Appearance preview it is marked so a click picks it for editing. */
+export function Tx({ k }: { k: TextKey }) {
+  const text = useText()(k);
+  return SITE_EDIT ? <span data-edit={k}>{text}</span> : <>{text}</>;
+}
+
+/** data-edit for inputs whose placeholder is editable text. */
+export const editAttr = (k: TextKey) => (SITE_EDIT ? { 'data-edit': k } : {});

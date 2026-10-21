@@ -9,7 +9,7 @@ import { ClientLayout } from '../components/Layouts';
 import { Cover, Empty, useIsMobile } from '../components/ui';
 import { ArrowRight, Book, Clock, Search } from '../components/Icons';
 import { PreviewCard, useReveal } from '../components/BookPreview';
-import { THEME_DEFAULTS, useTheme } from '../lib/theme';
+import { editAttr, Tx, useText } from '../lib/theme';
 import CategoryPicker from '../components/CategoryPicker';
 
 const KINDS: FileKind[] = ['epub', 'pdf', 'video', 'image', 'docx', 'pptx', 'xlsx'];
@@ -32,7 +32,7 @@ function BookCard({ f, status: bought }: { f: LibFile; status: Status }) {
         <div className="spread">
           <span className="small muted">{KIND_LABEL[f.kind]}{f.meta ? ` · ${f.meta}` : ''}</span>
           {f.is_free && bought !== 'confirmed' ? <span className="badge b-free">Free</span>
-            : status === 'confirmed' ? <span className="badge b-ok">Unlocked</span>
+            : status === 'confirmed' ? <span className="badge b-ok">Owned</span>
             : status === 'pending' ? <span className="badge b-pending">Pending</span>
             : <span className="price-pill">{pesoShort(f.price)}</span>}
         </div>
@@ -42,7 +42,7 @@ function BookCard({ f, status: bought }: { f: LibFile; status: Status }) {
   );
 }
 
-function Shelf({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
+function Shelf({ title, action, children }: { title: ReactNode; action?: ReactNode; children: ReactNode }) {
   return (
     <section className="shelf reveal">
       <div className="spread"><h2>{title}</h2>{action}</div>
@@ -93,43 +93,43 @@ export default function Library() {
   const first = profile?.full_name?.split(' ')[0];
   const topLabels = labels.slice(0, 3);
   const revealRef = useReveal<HTMLDivElement>();
-  const { theme } = useTheme();
+  const t = useText();
 
   return (
     <ClientLayout>
       <div className="page library" ref={revealRef}>
-        {theme.announcement?.trim() && <div className="announce" role="status">{theme.announcement}</div>}
+        {t('library.announcement') && <div className="announce" role="status"><Tx k="library.announcement" /></div>}
         {!filtering && (
           <section className="hero-card">
             <div className="col" style={{ gap: 10, maxWidth: 560 }}>
               <span className="eyebrow light">{greeting()}{first ? `, ${first}` : ''}</span>
-              <h1>{theme.heroTitle?.trim() || THEME_DEFAULTS.heroTitle}</h1>
-              <p>{theme.heroText?.trim() || THEME_DEFAULTS.heroText}</p>
+              <h1><Tx k="library.heroTitle" /></h1>
+              <p><Tx k="library.heroText" /></p>
               {mobile && (
                 <label className="search hero-search"><Search width={18} color="var(--slate-400)" />
-                  <input placeholder="Search notes, books, lectures…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search" /></label>
+                  <input placeholder={t('nav.search')} {...editAttr('nav.search')} value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search" /></label>
               )}
             </div>
             <div className="hero-stats">
-              <Link to="/my-files" className="hero-stat"><Book /><b>{owned.length}</b><span>Unlocked</span></Link>
-              <Link to="/my-files" className="hero-stat"><Clock /><b>{pendingCount}</b><span>Waiting</span></Link>
-              <div className="hero-stat"><b>{data?.files.length ?? '–'}</b><span>In library</span></div>
+              <Link to="/my-files" className="hero-stat"><Book /><b>{owned.length}</b><span><Tx k="library.statUnlocked" /></span></Link>
+              <Link to="/my-files" className="hero-stat"><Clock /><b>{pendingCount}</b><span><Tx k="library.statWaiting" /></span></Link>
+              <div className="hero-stat"><b>{data?.files.length ?? '–'}</b><span><Tx k="library.statTotal" /></span></div>
             </div>
           </section>
         )}
 
         {!filtering && owned.length > 0 && (
-          <Shelf title="Continue reading" action={<Link to="/my-files" className="link row" style={{ gap: 4 }}>My files <ArrowRight width={16} /></Link>}>
+          <Shelf title={<Tx k="library.continue" />} action={<Link to="/my-files" className="link row" style={{ gap: 4 }}><Tx k="nav.myFiles" /> <ArrowRight width={16} /></Link>}>
             {owned.slice(0, 8).map((f) => <BookCard key={f.id} f={f} status="confirmed" />)}
           </Shelf>
         )}
         {!filtering && data && data.files.some((f) => f.is_free) && (
-          <Shelf title="Free samples" action={<span className="small muted">Read these without paying</span>}>
+          <Shelf title={<Tx k="library.free" />} action={<span className="small muted"><Tx k="library.freeSub" /></span>}>
             {data.files.filter((f) => f.is_free).map((f) => <BookCard key={f.id} f={f} status={status.get(f.id)} />)}
           </Shelf>
         )}
         {!filtering && data && (
-          <Shelf title="New arrivals">{data.files.filter((f) => !f.is_free).slice(0, 8).map((f) => <BookCard key={f.id} f={f} status={status.get(f.id)} />)}</Shelf>
+          <Shelf title={<Tx k="library.new" />}>{data.files.filter((f) => !f.is_free).slice(0, 8).map((f) => <BookCard key={f.id} f={f} status={status.get(f.id)} />)}</Shelf>
         )}
         {!filtering && data && topLabels.map((l) => (
           <Shelf key={l} title={l} action={<button className="link row" style={{ gap: 4 }} onClick={() => setLabel(l)}>See all <ArrowRight width={16} /></button>}>
@@ -141,7 +141,7 @@ export default function Library() {
           <div className="filterbar">
             <div className="spread wrap" style={{ gap: 12 }}>
               <div className="col" style={{ gap: 2 }}>
-                <h2>{q ? `Results for “${q}”` : label ? label : 'All files'}</h2>
+                <h2>{q ? `Results for “${q}”` : label ? label : <Tx k="library.all" />}</h2>
                 <span className="small muted">{shown.length} file{shown.length === 1 ? '' : 's'}{filtering && <> · <button className="link" onClick={() => { setKind('all'); setLabel(null); setQ(''); }}>Clear filters</button></>}</span>
               </div>
               <select className="input" style={{ width: 170 }} value={sort} onChange={(e) => setSort(e.target.value as typeof sort)} aria-label="Sort">
@@ -158,7 +158,7 @@ export default function Library() {
             </div>
           </div>
           {loading ? <SkeletonGrid /> : error ? <Empty title="Couldn't load the library">{error}</Empty>
-            : shown.length === 0 ? <Empty title="No files match">Try another search or filter.</Empty>
+            : shown.length === 0 ? <Empty title={<Tx k="library.empty" />}><Tx k="library.emptySub" /></Empty>
             : <div className="grid">{shown.map((f) => <BookCard key={f.id} f={f} status={status.get(f.id)} />)}</div>}
         </section>
       </div>

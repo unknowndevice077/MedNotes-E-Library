@@ -188,6 +188,22 @@ describe('payments and receipts', () => {
       assert.ok((await admin.client.rpc('confirm_purchase', { p_id: p.id })).error, 'rejected payments cannot be confirmed');
     } finally { await dropUser(u); }
   });
+  test('resubmitting a rejected payment updates the same payment and keeps the earlier try', async () => {
+    const u = await makeUser('resub'), x = await makeUser('resub-x');
+    try {
+      const { data: p } = await u.client.from('purchases').insert({ user_id: u.id, file_id: XLSX, amount: 1, method: 'GCash', proof_path: `${u.id}/a.png` }).select().single();
+      await admin.client.rpc('reject_purchase', { p_id: p.id, p_reason: 'Payment not received' });
+      assert.ok((await x.client.rpc('resubmit_payment', { p_kind: 'file', p_id: p.id, p_proof: `${x.id}/b.png`, p_method: 'GCash' })).error, 'only the buyer');
+      assert.ok((await u.client.rpc('resubmit_payment', { p_kind: 'file', p_id: p.id, p_proof: `${x.id}/b.png`, p_method: 'GCash' })).error, 'only their own screenshot');
+      assert.ifError((await u.client.rpc('resubmit_payment', { p_kind: 'file', p_id: p.id, p_proof: `${u.id}/b.png`, p_method: 'Maya' })).error);
+      const { data: rows } = await service.from('purchases').select('*').eq('user_id', u.id);
+      assert.equal(rows.length, 1, 'no second transaction');
+      const r = rows[0];
+      assert.equal(r.status, 'pending'); assert.equal(r.attempts, 2); assert.equal(r.proof_path, `${u.id}/b.png`); assert.equal(r.method, 'Maya');
+      assert.equal(r.history.length, 1); assert.equal(r.history[0].reject_reason, 'Payment not received'); assert.equal(r.history[0].proof_path, `${u.id}/a.png`);
+      assert.ok((await u.client.rpc('resubmit_payment', { p_kind: 'file', p_id: p.id, p_proof: `${u.id}/c.png`, p_method: 'GCash' })).error, 'pending payments cannot be resubmitted');
+    } finally { await dropUser(u); await dropUser(x); }
+  });
 });
 
 describe('read-file (encrypted delivery)', () => {
@@ -350,6 +366,9 @@ describe('statistics', () => {
     assert.ifError((await admin.client.rpc('admin_reset_stats')).error);
     const { data: st } = await admin.client.rpc('admin_stats');
     assert.ok(st.since, 'dashboard knows when it was reset');
+    const { data: saved } = await admin.client.from('stats_resets').select('*').order('id', { ascending: false }).limit(1).single();
+    assert.ok(saved && Number(saved.revenue) >= 0 && saved.by === admin.id, 'the reset is saved for the Statistics page');
+    assert.equal((await other.client.from('stats_resets').select('id')).data.length, 0, 'buyers cannot see it');
     assert.equal(Number(st.revenue_month), 0, 'counters start from zero');
     const { data: months1 } = await admin.client.rpc('admin_monthly_stats', { p_months: 24 });
     assert.equal(months1.reduce((a, m) => a + Number(m.revenue), 0), totalBefore, 'monthly history untouched');
@@ -393,3 +412,33 @@ describe('accounts', () => {
     assert.ok((await admin.client.rpc('delete_my_account')).error, 'admin refused');
   });
 });
+
+describe('reader notes', () => {
+  test('each buyer only sees and writes their own notes', async () => {
+    const a = await makeUser('notes-a'), b = await makeUser('notes-b');
+    try {
+      const row = { file_id: XLSX, user_id: a.id, body: 'my secret mnemonic', ink: { p1: [{ t: 'pen', c: '#000', w: 0.004, p: [0.1, 0.1, 0.2, 0.2] }] } };
+      assert.ifError((await a.client.from('reader_notes').upsert(row)).error);
+      assert.equal((await a.client.from('reader_notes').select('body').eq('file_id', XLSX).single()).data.body, 'my secret mnemonic');
+      assert.equal((await b.client.from('reader_notes').select('body').eq('user_id', a.id)).data.length, 0, 'other buyer reads nothing');
+      assert.ok((await b.client.from('reader_notes').insert({ ...row, body: 'forged' })).error, 'cannot write as someone else');
+      await b.client.from('reader_notes').update({ body: 'hacked' }).eq('user_id', a.id);
+      assert.equal((await service.from('reader_notes').select('body').eq('user_id', a.id).single()).data.body, 'my secret mnemonic');
+      assert.equal((await anon().from('reader_notes').select('body')).data?.length ?? 0, 0, 'anonymous reads nothing');
+      assert.ok((await a.client.from('reader_notes').upsert({ ...row, ink: [] })).error, 'ink must be an object');
+    } finally { await dropUser(a); await dropUser(b); }
+  });
+});
+
+describe('payment amounts', () => {
+  test('a buyer cannot choose what they pay: the server sets the real price', async () => {
+    const u = await makeUser('amount');
+    try {
+      const { data: f } = await service.from('files').select('price').eq('id', XLSX).single();
+      assert.ifError((await u.client.from('purchases').insert({ user_id: u.id, file_id: XLSX, amount: 1, method: 'GCash' })).error);
+      const { data } = await service.from('purchases').select('amount').eq('user_id', u.id).single();
+      assert.equal(Number(data.amount), Number(f.price));
+    } finally { await dropUser(u); }
+  });
+});
+

@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useAuth } from './auth';
 import type { Settings } from './types';
+import { isNative } from './platform';
 
 // The publisher's mark on every file: the name and second line the admin sets in Restrictions
 // (falls back to the receipt business name + support email). Burned into PDF/image pixels, tiled over the rest.
@@ -36,7 +37,8 @@ function tileSvg(name: string, line: string, color: string, alpha: number) {
 export function useMark(): Mark | null {
   const { settings } = useAuth();
   return useMemo(() => {
-    if (settings?.watermark === false) return null;
+    // the admin picks: off, the Android app only (default), or the website too
+    if (settings?.watermark === false || (!isNative && !settings?.watermark_web)) return null;
     return { name: publisherOf(settings).name, line: watermarkLine(settings), tile: markTile(settings), tileDark: markTile(settings, true) };
   }, [settings]);
 }

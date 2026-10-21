@@ -4,8 +4,9 @@ import { useAuth } from '../lib/auth';
 import { supabase } from '../lib/supabase';
 import { initials } from '../lib/format';
 import { Logo, Modal, useIsMobile } from './ui';
-import { THEME_DEFAULTS, useTheme } from '../lib/theme';
+import { editAttr, Tx, useText, useTheme } from '../lib/theme';
 import { usePrefs } from '../lib/prefs';
+import { SITE_EDIT } from '../lib/siteText';
 import { Back, Bell, Book, Chevron, Clock, Cog, Files, Grid, Home, Logout, Palette, Pay, Phone, Receipt, Search, Shield, Trend, User, Users } from './Icons';
 
 function Avatar({ size }: { size?: number }) {
@@ -55,9 +56,10 @@ function UserMenu() {
       {open && (
         <div className="menu" role="menu" onClick={() => setOpen(false)}>
           <div className="menu-head"><Avatar size={40} /><div className="col" style={{ gap: 0, minWidth: 0 }}><b>{profile?.full_name || 'Your account'}</b><span className="small muted ellipsis">{profile?.email}</span></div></div>
-          <Link to="/account" role="menuitem"><User />Account</Link>
-          <Link to="/my-files" role="menuitem"><Book />My files</Link>
-          <Link to="/devices" role="menuitem"><Phone />Devices</Link>
+          <Link to="/account" role="menuitem"><User /><Tx k="nav.account" /></Link>
+          <Link to="/my-files" role="menuitem"><Book /><Tx k="nav.myFiles" /></Link>
+          <Link to="/devices" role="menuitem"><Phone /><Tx k="nav.devices" /></Link>
+          <Link to="/payments" role="menuitem"><Receipt />Payments & receipts</Link>
           {profile?.role === 'admin' && <Link to="/admin" role="menuitem"><Grid />Admin dashboard</Link>}
           <button role="menuitem" className="danger" onClick={signOut}><Logout />Sign out</button>
         </div>
@@ -67,27 +69,47 @@ function UserMenu() {
 }
 
 function SiteFooter() {
-  const { storeName, theme } = useTheme();
+  const { storeName } = useTheme();
   return (
     <footer className="site-footer">
       <div className="site-footer-inner">
         <div className="col" style={{ gap: 8, maxWidth: 360 }}>
           <Logo />
-          <span className="small muted">{theme.footerText?.trim() || THEME_DEFAULTS.footerText}</span>
+          <span className="small muted"><Tx k="footer.text" /></span>
         </div>
         <div className="footer-links">
-          <div className="col"><b className="small">Library</b><Link to="/library">Browse</Link><Link to="/my-files">My files</Link><Link to="/devices">Devices</Link></div>
-          <div className="col"><b className="small">Help</b><Link to="/privacy">Privacy policy</Link><Link to="/data-deletion">Delete your data</Link><Link to="/account">Account</Link></div>
+          <div className="col"><b className="small"><Tx k="footer.colLibrary" /></b><Link to="/library">Browse</Link><Link to="/my-files"><Tx k="nav.myFiles" /></Link><Link to="/payments">Payments & receipts</Link><Link to="/devices"><Tx k="nav.devices" /></Link></div>
+          <div className="col"><b className="small"><Tx k="footer.colHelp" /></b><Link to="/privacy">Privacy policy</Link><Link to="/data-deletion">Delete your data</Link><Link to="/account"><Tx k="nav.account" /></Link></div>
         </div>
       </div>
-      <div className="site-footer-bottom small muted">© {new Date().getFullYear()} {storeName || 'MedNotes E-Library'} · Files are licensed to your account and can only be viewed in MedNotes.</div>
+      <div className="site-footer-bottom small muted">© {new Date().getFullYear()} {storeName || 'MedNotes E-Library'} · <Tx k="footer.bottom" /></div>
     </footer>
   );
 }
 
+/** The buyer's light / dark / match-the-device choice (Account → Reading & app), with a local copy for the first paint. */
+function useUserDark() {
+  const { prefs } = usePrefs();
+  const mode = prefs.appTheme ?? (() => { try { return (localStorage.getItem('mn.app-theme') as 'light' | 'dark' | 'system') || 'light'; } catch { return 'light'; } })();
+  const [sysDark, setSysDark] = useState(() => matchMedia('(prefers-color-scheme: dark)').matches);
+  useEffect(() => {
+    const q = matchMedia('(prefers-color-scheme: dark)');
+    const on = () => setSysDark(q.matches);
+    q.addEventListener('change', on);
+    return () => q.removeEventListener('change', on);
+  }, []);
+  const dark = !SITE_EDIT && (mode === 'dark' || (mode === 'system' && sysDark));
+  useLayoutEffect(() => {
+    document.documentElement.toggleAttribute('data-dark', dark);
+    return () => document.documentElement.removeAttribute('data-dark');
+  }, [dark]);
+}
+
 /** Client pages: top bar + footer on desktop, compact header + bottom tabs on phones and in the app. */
-export function ClientLayout({ children, title, back, hideTabs, actions }: { children: ReactNode; title?: string; back?: string | true; hideTabs?: boolean; actions?: ReactNode }) {
+export function ClientLayout({ children, title, back, hideTabs, actions }: { children: ReactNode; title?: ReactNode; back?: string | true; hideTabs?: boolean; actions?: ReactNode }) {
   const mobile = useIsMobile();
+  const t = useText();
+  useUserDark();
   const nav = useNavigate();
   const loc = useLocation();
   const pending = usePendingCount();
@@ -110,10 +132,10 @@ export function ClientLayout({ children, title, back, hideTabs, actions }: { chi
         <div className="m-body">{children}</div>
         {!hideTabs && (
           <nav className="tabbar" aria-label="Main">
-            <NavLink to="/library" className="tab"><span className="tab-ico"><Home /></span>Library</NavLink>
-            <NavLink to="/my-files" className="tab"><span className="tab-ico"><Book />{pending > 0 && <i className="dot sm" />}</span>My files</NavLink>
-            <NavLink to="/devices" className="tab"><span className="tab-ico"><Phone /></span>Devices</NavLink>
-            <NavLink to="/account" className="tab"><span className="tab-ico"><User /></span>Account</NavLink>
+            <NavLink to="/library" className="tab"><span className="tab-ico"><Home /></span><Tx k="nav.library" /></NavLink>
+            <NavLink to="/my-files" className="tab"><span className="tab-ico"><Book />{pending > 0 && <i className="dot sm" />}</span><Tx k="nav.myFiles" /></NavLink>
+            <NavLink to="/devices" className="tab"><span className="tab-ico"><Phone /></span><Tx k="nav.devices" /></NavLink>
+            <NavLink to="/account" className="tab"><span className="tab-ico"><User /></span><Tx k="nav.account" /></NavLink>
           </nav>
         )}
       </div>
@@ -124,13 +146,13 @@ export function ClientLayout({ children, title, back, hideTabs, actions }: { chi
       <header className="topbar">
         <Link to="/library" aria-label="MedNotes home"><Logo /></Link>
         <nav className="nav" aria-label="Main">
-          <NavLink to="/library">Library</NavLink>
-          <NavLink to="/my-files">My files</NavLink>
-          <NavLink to="/devices">Devices</NavLink>
+          <NavLink to="/library"><Tx k="nav.library" /></NavLink>
+          <NavLink to="/my-files"><Tx k="nav.myFiles" /></NavLink>
+          <NavLink to="/devices"><Tx k="nav.devices" /></NavLink>
         </nav>
         <form className="search top-search" onSubmit={search} role="search">
           <Search width={18} color="var(--slate-400)" />
-          <input placeholder="Search notes, books, lectures…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search the library" />
+          <input placeholder={t('nav.search')} {...editAttr('nav.search')} value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search the library" />
         </form>
         <span className="grow" />
         <Link to="/my-files" className="icon-btn bell" aria-label={pending ? `${pending} payments waiting` : 'Payments'}><Bell width={21} />{pending > 0 && <i className="dot">{pending}</i>}</Link>
@@ -155,8 +177,8 @@ export function AdminLayout({ title, subtitle, actions, children }: { title: str
   const { signOut } = useAuth();
   const [dark] = useAdminDark();
   useLayoutEffect(() => {
-    document.documentElement.toggleAttribute('data-admin-dark', !!dark);
-    return () => document.documentElement.removeAttribute('data-admin-dark');
+    document.documentElement.toggleAttribute('data-dark', !!dark);
+    return () => document.documentElement.removeAttribute('data-dark');
   }, [dark]);
   const pending = useCount('admin-pending', async () => {
     const [a, b] = await Promise.all([

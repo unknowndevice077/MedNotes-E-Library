@@ -166,21 +166,32 @@ describe('buyer: browse, buy, read', () => {
     const p = await open(buyer);
     await go(p, `/file/${FILES.pdf}`);
     let t = await text(p);
-    assert.ok(t.includes('Buy & unlock') && t.includes('Send payment') && t.includes('never downloadable'));
+    assert.ok(t.includes('Buy this file') && t.includes('Send payment') && t.includes('never downloadable') && t.includes('Buy to read the full'));
     await shot(p, 'detail-locked');
-    await clickText(p, 'button', 'Buy & unlock');
+    await clickText(p, 'button', 'Buy this file');
     await p.waitForSelector('input[type=file]');
     await sleep(800);
     t = await text(p);
-    assert.ok(t.includes('GCash') && t.includes('Upload proof of payment'));
+    assert.ok(t.includes('GCash') && t.includes('Upload your payment screenshot'));
+    assert.equal(await p.$('#ref'), null, 'no reference number box');
+    assert.equal(await p.$('#amt'), null, 'no amount box');
     const proof = join(root, 'supabase', 'sample', 'proofs', '33333333-0000-0000-0000-000000000001', 'proof-1.png');
     await (await p.$('input[type=file]')).uploadFile(proof);
-    await p.type('#ref', 'E2E-1234');
+    await p.waitForSelector('img.proof-img', { timeout: 10000 });
+    // a refresh keeps the uploaded screenshot
+    await p.reload({ waitUntil: 'networkidle0' });
+    await p.waitForFunction(() => { const i = document.querySelector('img.proof-img'); return i && i.complete && i.naturalWidth > 0; }, { timeout: 10000 });
+    assert.ok((await text(p)).includes('proof-1.png'), 'screenshot remembered after refresh');
     await shot(p, 'checkout');
     await Promise.all([p.waitForNavigation({ waitUntil: 'networkidle0' }).catch(() => {}), clickText(p, 'form button', 'Submit payment')]);
     await sleep(800);
     assert.match(p.url(), /my-files/, await text(p));
     assert.ok((await text(p)).includes('Pending confirmation'));
+    const { data: f } = await service.from('files').select('price').eq('id', FILES.pdf).single();
+    const { data: pur } = await service.from('purchases').select('amount, reference_no, proof_path').eq('user_id', buyer.id).eq('file_id', FILES.pdf).single();
+    assert.equal(Number(pur.amount), Number(f.price), 'amount is the real price');
+    assert.ok(pur.proof_path && pur.reference_no === '');
+    assert.equal(await p.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith('mn.checkout.')).length), 0, 'draft cleared after submit');
     await p.close();
   });
 
@@ -200,6 +211,15 @@ describe('buyer: browse, buy, read', () => {
     await sleep(1500);
     assert.match(await a.evaluate(() => document.querySelector('.toast')?.innerText ?? ''), /Receipt OR-\d{6}/);
     assert.ok(await toastSeen, 'buyer got the live update');
+    await b.waitForFunction(() => document.querySelector('.modal')?.innerText.includes('Payment confirmed') && !!document.querySelector('.modal .receipt'), { timeout: 10000 });
+    await shot(b, 'receipt-popup');
+    await clickText(b, '.modal button', 'Close');
+    await go(b, '/payments');
+    const pt = await text(b);
+    assert.ok(pt.includes('Payments & receipts') && /OR-\d{6}/.test(pt), 'paid list with receipts');
+    await clickText(b, '.pay-row button', 'OR-');
+    await b.waitForSelector('.modal .receipt');
+    await shot(b, 'my-payments');
     await go(b, `/file/${FILES.pdf}`);
     const t = await text(b);
     assert.ok(t.includes('Read now') && t.includes('You own this') && /OR-\d{6}/.test(t));
@@ -207,8 +227,22 @@ describe('buyer: browse, buy, read', () => {
     await a.close(); await b.close();
   });
 
+  test('reading on the website is clean by default (watermark is app-only)', async () => {
+    const p = await open(buyer);
+    await go(p, `/read/${FILES.pdf}`);
+    await p.waitForSelector('.reader canvas.content', { timeout: 15000 });
+    await sleep(1500);
+    assert.equal(await p.$('.wm'), null, 'no watermark layer');
+    const tinted = await p.evaluate(() => { const c = document.querySelector('.reader canvas.content'); const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+      let n = 0; for (let i = 0; i < d.length; i += 4 * 97) if (d[i + 2] > d[i] + 8 && d[i + 2] > 200 && d[i] > 150) n++; return n; });
+    assert.ok(tinted < 20, `no mark in the pixels (${tinted})`);
+    await p.close();
+  });
+
   for (const kind of ['pdf', 'epub', 'docx', 'xlsx', 'pptx', 'image', 'video']) {
-    test(`reader opens ${kind} through encrypted delivery`, async () => {
+    test(`reader opens ${kind} through encrypted delivery`, async (t) => {
+      await service.from('settings').update({ watermark_web: true }).eq('id', 1);
+      t.after(() => service.from('settings').update({ watermark_web: false }).eq('id', 1));
       const p = await open(buyer);
       const storageHits = [], readFile = [];
       p.on('response', async (r) => {
@@ -226,7 +260,7 @@ describe('buyer: browse, buy, read', () => {
         epub: () => p.waitForSelector('.reader iframe', { timeout: 10000 }).then(() => true, () => false),
         docx: () => p.evaluate(() => document.querySelector('.reader')?.innerText.includes('Pathology Notes')),
         xlsx: () => p.evaluate(() => document.querySelector('.sheet table')?.innerText.includes('Sodium')),
-        pptx: () => p.evaluate(() => document.querySelectorAll('.slide').length === 3),
+        pptx: () => p.evaluate(() => document.querySelectorAll('.slide2').length === 3),
         image: () => p.evaluate(() => { const c = document.querySelector('.reader canvas'); return !!c && c.width > 100 && !document.querySelector('.reader img'); }),
         video: () => p.evaluate(async () => { const v = document.querySelector('video'); if (!v || v.readyState < 2) return false;
           try { await fetch(v.currentSrc); return false; } catch { return true; } }), // blob URL already revoked
@@ -243,7 +277,7 @@ describe('buyer: browse, buy, read', () => {
         assert.match(over ?? '', /svg/, `${kind}: mark tiled over the page`);
       } else {
         // drawn into the canvas: a page/image region that was plain white now has the tinted text in it
-        const tinted = await p.evaluate(() => { const c = document.querySelector('.reader canvas'); const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+        const tinted = await p.evaluate(() => { const c = document.querySelector('.reader canvas.content'); const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
           let n = 0; for (let i = 0; i < d.length; i += 4 * 97) if (d[i + 2] > d[i] + 8 && d[i + 2] > 200 && d[i] > 150) n++; return n; });
         assert.ok(tinted > 20, `${kind}: mark drawn into the pixels (${tinted} tinted samples)`);
       }
@@ -251,6 +285,30 @@ describe('buyer: browse, buy, read', () => {
       await p.close();
     });
   }
+
+  test('reader: notes and drawings save for the buyer and come back', async () => {
+    await service.from('reader_notes').delete().eq('user_id', buyer.id);
+    const p = await open(buyer);
+    await go(p, `/read/${FILES.pdf}`);
+    await p.waitForSelector('.pdf-page canvas.content', { timeout: 15000 });
+    await p.click('button[aria-label="Notes"]');
+    await p.click('textarea.notes-text');
+    await p.keyboard.type('Remember the median nerve');
+    await p.click('button[aria-label="Draw"]');
+    await p.waitForSelector('.drawbar');
+    const b = await p.$eval('.pdf-page', (e) => { const r = e.getBoundingClientRect(); return { x: r.left, y: r.top }; });
+    await p.mouse.move(b.x + 60, b.y + 80); await p.mouse.down(); await p.mouse.move(b.x + 260, b.y + 140, { steps: 10 }); await p.mouse.up();
+    await sleep(1800);
+    const { data } = await service.from('reader_notes').select('body, ink').eq('user_id', buyer.id).eq('file_id', FILES.pdf).single();
+    assert.equal(data.body, 'Remember the median nerve');
+    assert.ok(data.ink.p1?.length === 1 && data.ink.p1[0].p.length >= 4, 'stroke saved on page 1');
+    await shot(p, 'reader-notes-draw');
+    await go(p, `/read/${FILES.pdf}`);
+    await p.waitForSelector('textarea.notes-text', { timeout: 15000 });
+    await p.waitForFunction(() => document.querySelector('textarea.notes-text').value.includes('median nerve'), { timeout: 8000 });
+    await p.close();
+    await service.from('reader_notes').delete().eq('user_id', buyer.id);
+  });
 
   test('reader protections: no right-click, shortcuts blocked, hidden on blur / Print Screen', async () => {
     const p = await open(buyer);
@@ -265,8 +323,12 @@ describe('buyer: browse, buy, read', () => {
     assert.deepEqual(r, { ctx: true, save: true, print: true, devtools: true, f12: true, viewSource: true });
     await p.evaluate(() => window.dispatchEvent(new KeyboardEvent('keyup', { key: 'PrintScreen', bubbles: true })));
     await sleep(200);
-    assert.ok(await p.evaluate(() => document.querySelector('.guard-cover')?.innerText.includes('Screenshots are not allowed')));
+    assert.ok(await p.evaluate(() => document.querySelector('.guard-cover')?.innerText.includes('Screenshots and recording are not allowed')));
     await shot(p, 'reader-guard');
+    // Win+Shift+S / game-bar recording: the page goes blank on the first key, before the tool grabs the screen
+    await sleep(2800);
+    const blank = await p.evaluate(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Meta', metaKey: true, bubbles: true })); return document.documentElement.classList.contains('capture-hide'); });
+    assert.ok(blank, 'hidden on the Windows key');
     await p.close();
   });
 
@@ -379,20 +441,21 @@ describe('admin', () => {
   });
 
   test('admin sets the watermark name and line; readers see it', async () => {
-    const { data: before } = await service.from('settings').select('publisher_name, watermark_note').eq('id', 1).single();
+    const { data: before } = await service.from('settings').select('publisher_name, watermark_note, watermark, watermark_web').eq('id', 1).single();
     try {
       const p = await open(admin);
       await go(p, '/admin/restrictions');
+      await clickText(p, '[role=radio]', 'App & website');
       await p.$eval('#wm-name', (e) => e.select());
       await p.type('#wm-name', 'Dr. Test Publisher');
       await p.$eval('#wm-note', (e) => e.select());
       await p.type('#wm-note', 'For enrolled students only');
-      const preview = await p.$eval('.wm-preview', (e) => decodeURIComponent(e.style.backgroundImage));
+      const preview = await p.$eval('.wm-sample-page', (e) => decodeURIComponent(e.style.backgroundImage));
       assert.ok(preview.includes('© Dr. Test Publisher') && preview.includes('For enrolled students only'), 'live preview');
       await clickText(p, 'button', 'Save restrictions');
       await sleep(1000);
-      const { data: st } = await service.from('settings').select('publisher_name, watermark_note').eq('id', 1).single();
-      assert.deepEqual(st, { publisher_name: 'Dr. Test Publisher', watermark_note: 'For enrolled students only' });
+      const { data: st } = await service.from('settings').select('publisher_name, watermark_note, watermark, watermark_web').eq('id', 1).single();
+      assert.deepEqual(st, { publisher_name: 'Dr. Test Publisher', watermark_note: 'For enrolled students only', watermark: true, watermark_web: true });
       await shot(p, 'admin-watermark');
       await p.close();
       const b = await open(buyer);
@@ -470,7 +533,7 @@ describe('account settings', () => {
       assert.deepEqual({ t: data.prefs.readerTheme, s: data.prefs.textSize, start: data.prefs.startPage }, { t: 'dark', s: 20, start: 'my-files' });
       await shot(p, 'account-settings');
       await go(p, `/read/${FILES.docx}`);
-      await p.waitForSelector('.wm', { timeout: 15000 });
+      await p.waitForSelector('.docx-view section.docx', { timeout: 15000 });
       const r = await p.evaluate(() => ({ dark: document.querySelector('.reader').classList.contains('rt-dark'), scale: getComputedStyle(document.querySelector('.reader')).getPropertyValue('--reader-scale').trim() }));
       assert.ok(r.dark, 'reader uses the dark page colour');
       assert.equal(Number(r.scale).toFixed(2), (20 / 17).toFixed(2), 'text size applied');
@@ -555,10 +618,13 @@ describe('admin receipts and appearance', () => {
     try {
       const p = await open(admin);
       await go(p, '/admin/appearance');
-      await p.waitForSelector('.ap-preview');
+      await p.waitForSelector('iframe.site-frame');
+      await clickText(p, '[role=tab]', 'Colours & style');
       await clickText(p, '.ap-preset', 'Berry');
       await p.type('#ap-name', 'Fritz Review Center');
-      await p.type('#ap-hero', 'Ready for boards?');
+      await clickText(p, '[role=tab]', 'Pages & text');
+      await p.select('.site-page-pick', 'library');
+      await p_type(p, '#tx-library-heroTitle', 'Ready for boards?');
       assert.equal(await p.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--blue').trim()), '#be185d', 'admin screen previews live');
       await shot(p, 'admin-appearance');
       await clickText(p, 'button', 'Save appearance');
@@ -566,6 +632,7 @@ describe('admin receipts and appearance', () => {
       await p.close();
       const { data } = await service.from('settings').select('theme').eq('id', 1).single();
       assert.equal(data.theme.primary, '#be185d');
+      assert.equal(data.theme.copy['library.heroTitle'], 'Ready for boards?');
       const b = await open(buyer);
       await go(b, '/library');
       const look = await b.evaluate(() => ({ blue: getComputedStyle(document.documentElement).getPropertyValue('--blue').trim(), bg: document.documentElement.hasAttribute('data-app-bg'), t: document.body.innerText }));
@@ -600,6 +667,59 @@ describe('free samples, extra device slots, profile', () => {
     } finally { await dropUser(u); }
   });
 
+  test('rejected payment: buyer resubmits the same payment; admin finds it by search, newest/oldest and status', async () => {
+    const u = await makeUser('e2e-resub');
+    try {
+      const { data: p0 } = await u.client.from('purchases').insert({ user_id: u.id, file_id: FILES.pdf, amount: 1, method: 'GCash', proof_path: `${u.id}/old.png` }).select().single();
+      await admin.client.rpc('reject_purchase', { p_id: p0.id, p_reason: 'Payment not received', p_note: 'Please send it again' });
+      const b = await open(u);
+      await go(b, `/checkout/${FILES.pdf}`);
+      await b.waitForSelector('input[type=file]');
+      assert.ok((await text(b)).includes('Your last payment was rejected: Payment not received'), 'reason shown');
+      await (await b.$('input[type=file]')).uploadFile(join(root, 'supabase', 'sample', 'proofs', '33333333-0000-0000-0000-000000000001', 'proof-1.png'));
+      await b.waitForSelector('img.proof-img');
+      await Promise.all([b.waitForNavigation({ waitUntil: 'networkidle0' }).catch(() => {}), clickText(b, 'form button', 'Resubmit payment')]);
+      await sleep(800);
+      const { data: rows } = await service.from('purchases').select('status, attempts, history').eq('user_id', u.id);
+      assert.equal(rows.length, 1, 'still one payment');
+      assert.deepEqual({ s: rows[0].status, a: rows[0].attempts, h: rows[0].history.length }, { s: 'pending', a: 2, h: 1 });
+      await b.close();
+      const a = await open(admin);
+      await go(a, '/admin/payments');
+      await p_type(a, 'input[aria-label="Search payments"]', u.email);
+      await sleep(300);
+      const cards = await a.$$eval('.pay-list > button.card', (els) => els.map((e) => e.innerText));
+      assert.equal(cards.length, 1, 'search finds just that buyer');
+      assert.ok(cards[0].includes('Try 2'), 'resubmission marked');
+      await a.click('.pay-list > button.card');
+      await sleep(500);
+      assert.ok((await text(a)).includes('Earlier attempts (1)'), 'earlier try listed');
+      await shot(a, 'admin-payments-search');
+      await clickText(a, '.pay-filters .chip', 'Rejected');
+      await sleep(300);
+      assert.equal(await a.$$eval('.pay-list > button.card', (els) => els.length), 0, 'filter by status (it is pending again)');
+      await a.select('select[aria-label="Sort"]', 'old');
+      await sleep(300);
+      assert.match(a.url(), /sort=old/);
+      await a.close();
+    } finally { await dropUser(u); }
+  });
+
+  test('statistics: reset from the Statistics page is saved there', async () => {
+    const { data: s0 } = await service.from('settings').select('stats_reset_at').eq('id', 1).single();
+    try {
+      const p = await open(admin);
+      await go(p, '/admin/statistics');
+      await clickText(p, 'button', 'Reset statistics');
+      await p.waitForSelector('.modal');
+      await clickText(p, '.modal button', 'Reset statistics');
+      await p.waitForFunction(() => !document.body.innerText.includes('never been reset'), { timeout: 8000 });
+      assert.ok((await text(p)).includes('Resets'));
+      await shot(p, 'admin-statistics-resets');
+      await p.close();
+    } finally { await service.from('settings').update({ stats_reset_at: s0.stats_reset_at }).eq('id', 1); }
+  });
+
   test('buyer pays for an extra computer slot; the admin confirms; the slot appears', async () => {
     const u = await makeUser('e2e-slot');
     try {
@@ -607,24 +727,34 @@ describe('free samples, extra device slots, profile', () => {
       await go(b, '/devices');
       assert.ok((await text(b)).includes('allows 1 computer'));
       await clickText(b, 'a.slot-offer', 'Extra computer');
-      await b.waitForSelector('input[type=file]');
+      // step 1: how many, then it's locked
+      await b.waitForSelector('.qty-pick');
       assert.match(b.url(), /checkout\/slot\/computer/);
+      assert.equal(await b.$('.drop'), null, 'no upload before choosing how many');
+      await b.click('.qty-pick button[aria-label="More"]');
+      await clickText(b, 'button', 'Continue to payment');
+      await b.waitForSelector('input[type=file]');
+      assert.equal(await b.$('.qty-pick'), null, 'quantity locked while paying');
+      await b.reload({ waitUntil: 'networkidle0' });
+      await b.waitForSelector('input[type=file]');
+      assert.ok((await text(b)).includes('Change how many'), 'still locked after a refresh');
       await (await b.$('input[type=file]')).uploadFile(join(root, 'supabase', 'sample', 'proofs', '33333333-0000-0000-0000-000000000001', 'proof-1.png'));
-      await b.type('#ref', 'SLOT-1');
       await shot(b, 'checkout-slot');
       await Promise.all([b.waitForNavigation({ waitUntil: 'networkidle0' }).catch(() => {}), clickText(b, 'form button', 'Submit payment')]);
       await sleep(800);
       assert.match(b.url(), /devices/);
       assert.ok((await text(b)).includes('waiting for confirmation'));
       const a = await open(admin);
-      const { data: o } = await service.from('device_orders').select('id').eq('user_id', u.id).single();
+      const { data: o } = await service.from('device_orders').select('id, qty, amount').eq('user_id', u.id).single();
+      const { data: st } = await service.from('settings').select('slot_price_computer').eq('id', 1).single();
+      assert.deepEqual({ qty: o.qty, amount: Number(o.amount) }, { qty: 2, amount: 2 * Number(st.slot_price_computer) });
       await go(a, `/admin/payments?type=slots&id=${o.id}`);
       assert.ok((await text(a)).includes('Extra computer slot'));
       await clickText(a, 'button', 'Confirm received');
       await sleep(1500);
       assert.match(await a.evaluate(() => document.querySelector('.toast')?.innerText ?? ''), /extra computer slot is added/);
       await a.close();
-      await b.waitForFunction(() => document.body.innerText.includes('allows 2 computers'), { timeout: 10000 });
+      await b.waitForFunction(() => document.body.innerText.includes('allows 3 computers'), { timeout: 10000 });
       assert.ok(await b.$('a[href^="/receipt/slot/"]'), 'receipt link');
       await b.close();
     } finally { await dropUser(u); }
@@ -705,15 +835,39 @@ describe('powerful admin', () => {
     assert.ok(/your admin account/i.test(await text(p)) && (await text(p)).includes('Receipt buyers get'));
     await p.click('button[aria-label="Dark mode"]');
     await sleep(600);
-    const dark = await p.evaluate(() => ({ on: document.documentElement.hasAttribute('data-admin-dark'), bg: getComputedStyle(document.body).backgroundColor }));
+    const dark = await p.evaluate(() => ({ on: document.documentElement.hasAttribute('data-dark'), bg: getComputedStyle(document.body).backgroundColor }));
     assert.ok(dark.on && dark.bg === 'rgb(11, 18, 32)', JSON.stringify(dark));
     await shot(p, 'admin-dark');
     await go(p, '/admin/payments');
-    assert.ok(await p.evaluate(() => document.documentElement.hasAttribute('data-admin-dark')), 'still dark on other admin pages');
+    assert.ok(await p.evaluate(() => document.documentElement.hasAttribute('data-dark')), 'still dark on other admin pages');
     await go(p, '/library');
-    assert.ok(!(await p.evaluate(() => document.documentElement.hasAttribute('data-admin-dark'))), 'not on buyer pages');
+    assert.ok(!(await p.evaluate(() => document.documentElement.hasAttribute('data-dark'))), 'not on buyer pages');
     await service.from('profiles').update({ prefs: {} }).eq('id', admin.id);
     await p.close();
+  });
+
+  test('site editor: clicking text in the preview picks it, edits show in the frame, nothing in it acts', async () => {
+    const p = await open(admin);
+    await go(p, '/admin/appearance');
+    await p.waitForSelector('iframe.site-frame');
+    const frame = await (await p.$('iframe.site-frame')).contentFrame();
+    await frame.waitForSelector('[data-edit="signin.title"]', { timeout: 10000 });
+    assert.ok(frame.url().includes('/sign-in'), 'signed-in admin still sees the sign-in page in the preview');
+    await frame.evaluate(() => document.querySelector('[data-edit="signin.title"]').click());
+    await sleep(300);
+    assert.equal(await p.evaluate(() => document.activeElement?.id), 'tx-signin-title', 'field focused');
+    await p.keyboard.type('Hello reviewers');
+    await frame.waitForFunction(() => document.querySelector('[data-edit="signin.title"]')?.textContent === 'Hello reviewers', { timeout: 5000 });
+    // links and buttons in the preview are inert
+    await frame.evaluate(() => document.querySelector('a[href$="/sign-up"]').click());
+    await sleep(500);
+    assert.ok(frame.url().includes('/sign-in'), 'link did not navigate');
+    await p.select('.site-page-pick', 'library');
+    await frame.waitForFunction(() => location.pathname.endsWith('/library'), { timeout: 8000 });
+    await shot(p, 'admin-site-editor');
+    await p.close(); // not saved: nothing changes for buyers
+    const { data } = await service.from('settings').select('theme').eq('id', 1).single();
+    assert.notEqual(data.theme.copy?.['signin.title'], 'Hello reviewers');
   });
 
   test('site edits go live on open pages without reloading', async () => {
@@ -723,7 +877,9 @@ describe('powerful admin', () => {
       await go(b, '/library');
       const a = await open(admin);
       await go(a, '/admin/appearance');
-      await p_type(a, '#ap-announce', 'Live: board review week!');
+      await a.waitForSelector('.site-page-pick');
+      await a.select('.site-page-pick', 'library');
+      await p_type(a, '#tx-library-announcement', 'Live: board review week!');
       await clickText(a, 'button', 'Save appearance');
       await b.waitForFunction(() => document.querySelector('.announce')?.textContent.includes('board review week'), { timeout: 10000 });
       await a.close(); await b.close();

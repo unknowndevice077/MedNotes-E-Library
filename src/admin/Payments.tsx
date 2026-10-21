@@ -1,16 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { must, useLoad } from '../lib/useLoad';
 import { ago, dateTime, errMsg, initials, peso } from '../lib/format';
-import type { DeviceOrder, Purchase, PurchaseStatus } from '../lib/types';
+import type { DeviceOrder, PayAttempt, Purchase, PurchaseStatus } from '../lib/types';
 import { AdminLayout, invalidateCounts } from '../components/Layouts';
 import { Empty, Modal, StatusBadge, useIsMobile, useToast } from '../components/ui';
-import { Check, Receipt } from '../components/Icons';
+import { Check, Receipt, Search } from '../components/Icons';
 import { Bar, RowsSkeleton } from '../components/Skeletons';
 
-const REASONS = ["Amount doesn't match the price", 'Payment not received / reference not found', 'Proof is unreadable'];
+const REASONS = ['The screenshot shows a different amount', 'Payment not received', 'Screenshot is unreadable or not a payment'];
+type Filter = 'all' | PurchaseStatus;
+const FILTERS: Filter[] = ['all', 'pending', 'confirmed', 'rejected'];
 
 // Extra-device-slot orders are shown like file payments; `slot` marks them so the right RPCs are used.
 type Pay = Purchase & { slot?: DeviceOrder };
@@ -24,20 +26,34 @@ export default function Payments() {
   const toast = useToast();
   const mobile = useIsMobile();
   const { settings } = useAuth();
-  const [tab, setTab] = useState<PurchaseStatus>('pending');
   const type = sp.get('type') === 'slots' ? 'slots' : 'files';
-  const go = (params: Record<string, string>) => setSp({ ...(type === 'slots' ? { type } : {}), ...params });
-  const { data, loading, error, reload } = useLoad(async (): Promise<Pay[]> => {
+  const tab = (FILTERS.includes(sp.get('status') as Filter) ? sp.get('status') : 'all') as Filter;
+  const sort = sp.get('sort') === 'old' ? 'old' : 'new';
+  const [q, setQ] = useState('');
+  // keeps type / status / sort in the address, so a refresh or the back button lands on the same view
+  const go = (params: Record<string, string>) => setSp({ ...(type === 'slots' ? { type } : {}), ...(tab !== 'all' ? { status: tab } : {}), ...(sort === 'old' ? { sort } : {}), ...params });
+  const { data: all, loading, error, reload } = useLoad(async (): Promise<Pay[]> => {
     if (type === 'slots') {
-      const rows = must(await supabase.from('device_orders').select('*, profiles!device_orders_user_id_fkey(id,email,full_name,avatar_url)').eq('status', tab)
-        .order('created_at', { ascending: tab === 'pending' }).limit(200)) as DeviceOrder[];
+      const rows = must(await supabase.from('device_orders').select('*, profiles!device_orders_user_id_fkey(id,email,full_name,avatar_url)')
+        .order('created_at', { ascending: false }).limit(1000)) as DeviceOrder[];
       return rows.map((o) => asPay(o, Number(o.kind === 'computer' ? settings?.slot_price_computer : settings?.slot_price_phone) || 0));
     }
-    return must(await supabase.from('purchases').select('*, files(*), profiles!purchases_user_id_fkey(id,email,full_name,avatar_url)').eq('status', tab)
-      .order('created_at', { ascending: tab === 'pending' }).limit(200)) as Pay[];
-  }, [tab, type]);
-  const selectedId = sp.get('id') ?? (mobile ? null : data?.[0]?.id);
-  const sel = data?.find((p) => p.id === selectedId) ?? null;
+    return must(await supabase.from('purchases').select('*, files(*), profiles!purchases_user_id_fkey(id,email,full_name,avatar_url)')
+      .order('created_at', { ascending: false }).limit(1000)) as Pay[];
+  }, [type]);
+  const counts = useMemo(() => {
+    const c: Record<Filter, number> = { all: 0, pending: 0, confirmed: 0, rejected: 0 };
+    for (const p of all ?? []) { c.all++; c[p.status]++; }
+    return c;
+  }, [all]);
+  const data = useMemo(() => {
+    const s = q.trim().toLowerCase();
+    const list = (all ?? []).filter((p) => (tab === 'all' || p.status === tab)
+      && (!s || `${p.profiles?.full_name ?? ''} ${p.profiles?.email ?? ''} ${p.files?.name ?? ''} ${p.receipt_no ?? ''} ${p.method}`.toLowerCase().includes(s)));
+    return sort === 'old' ? [...list].reverse() : list;
+  }, [all, tab, q, sort]);
+  const selectedId = sp.get('id') ?? (mobile ? null : data[0]?.id);
+  const sel = (all ?? []).find((p) => p.id === selectedId) ?? null;
   const [proofUrl, setProofUrl] = useState<string | null>(null);
   const [note, setNote] = useState('');
   const [rejecting, setRejecting] = useState(false);
@@ -62,16 +78,30 @@ export default function Payments() {
   const priceOk = sel ? Number(sel.amount) >= Number(sel.files?.price ?? 0) : true;
 
   const list = (
-    <div className="col pay-list" style={{ width: mobile ? '100%' : 420, flexShrink: 0, gap: 10 }}>
-      {(data ?? []).map((p) => (
+    <div className="col pay-list" style={{ width: mobile ? '100%' : 440, flexShrink: 0, gap: 10 }}>
+      <div className="pay-filters">
+        <label className="search"><Search width={17} color="var(--slate-400)" />
+          <input placeholder="Search name, email, file or receipt no." value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search payments" /></label>
+        <div className="spread wrap" style={{ gap: 8 }}>
+          <div className="chips">{FILTERS.map((t) => (
+            <button key={t} className={`chip${tab === t ? ' on' : ''}`} onClick={() => setSp({ ...(type === 'slots' ? { type } : {}), ...(t !== 'all' ? { status: t } : {}), ...(sort === 'old' ? { sort } : {}) })}>
+              {t === 'all' ? 'All' : t[0]!.toUpperCase() + t.slice(1)} <i className="chip-n">{counts[t]}</i></button>))}</div>
+          <select className="input" style={{ width: 140, height: 36 }} aria-label="Sort" value={sort}
+            onChange={(e) => setSp({ ...(type === 'slots' ? { type } : {}), ...(tab !== 'all' ? { status: tab } : {}), ...(e.target.value === 'old' ? { sort: 'old' } : {}) })}>
+            <option value="new">Newest first</option><option value="old">Oldest first</option>
+          </select>
+        </div>
+      </div>
+      {data.map((p) => (
         <button key={p.id} className="card row" onClick={() => go({ id: p.id })}
           style={{ padding: 14, textAlign: 'left', border: p.id === selectedId ? '2px solid var(--blue)' : undefined }}>
           <span className="avatar">{initials(p.profiles?.full_name ?? '', p.profiles?.email)}</span>
-          <div className="col grow" style={{ gap: 0 }}><b>{p.profiles?.full_name || p.profiles?.email}</b><span className="small muted">{p.files?.name}</span></div>
-          <div className="col" style={{ gap: 0, alignItems: 'flex-end' }}><b>{peso(p.amount)}</b><span className="small muted">{ago(p.created_at)}</span></div>
+          <div className="col grow" style={{ gap: 2, minWidth: 0 }}><b className="ellipsis">{p.profiles?.full_name || p.profiles?.email}</b><span className="small muted ellipsis">{p.files?.name}</span>
+            <span className="row" style={{ gap: 6 }}><StatusBadge status={p.status} />{(p.attempts ?? 1) > 1 && <span className="badge b-pending">Try {p.attempts}</span>}</span></div>
+          <div className="col" style={{ gap: 0, alignItems: 'flex-end', flexShrink: 0 }}><b>{peso(p.amount)}</b><span className="small muted">{ago(p.created_at)}</span></div>
         </button>
       ))}
-      {data?.length === 0 && <Empty title={tab === 'pending' ? 'All caught up' : 'Nothing here'}>{tab === 'pending' ? 'No payments are waiting for confirmation.' : ''}</Empty>}
+      {data.length === 0 && <Empty title={q ? 'No payments match' : tab === 'pending' ? 'All caught up' : 'Nothing here'}>{q ? 'Try another name or email.' : tab === 'pending' ? 'No payments are waiting for confirmation.' : ''}</Empty>}
     </div>
   );
 
@@ -86,12 +116,14 @@ export default function Payments() {
         <div className="col grow" style={{ gap: 10, minWidth: 240 }}>
           <div className="spread"><span className="muted">{sel.slot ? 'Order' : 'File'}</span><b>{sel.files?.name}</b></div>
           <div className="spread"><span className="muted">Price</span><b>{peso(sel.files?.price ?? 0)}</b></div>
-          <div className="spread"><span className="muted">Amount sent</span><b style={{ color: priceOk ? undefined : 'var(--red)' }}>{peso(sel.amount)} {priceOk ? <Check width={14} color="var(--green)" /> : '(short)'}</b></div>
+          <div className="spread"><span className="muted">Amount due</span><b style={{ color: priceOk ? undefined : 'var(--red)' }}>{peso(sel.amount)} {priceOk ? <Check width={14} color="var(--green)" /> : '(short)'}</b></div>
           <div className="spread"><span className="muted">Method</span><b>{sel.method}</b></div>
-          <div className="spread"><span className="muted">Reference no.</span><b>{sel.reference_no || '—'}</b></div>
+          {sel.reference_no && <div className="spread"><span className="muted">Reference no.</span><b>{sel.reference_no}</b></div>}
           <div className="spread"><span className="muted">Email</span><b>{sel.profiles?.email}</b></div>
           <div className="spread"><span className="muted">Submitted</span><b>{dateTime(sel.created_at)}</b></div>
           {sel.receipt_no && <div className="spread"><span className="muted">Receipt</span><b>{sel.receipt_no}</b></div>}
+          {sel.status === 'rejected' && <div className="note note-red"><span>Rejected: <b>{sel.reject_reason}</b>{sel.note_to_buyer ? `. ${sel.note_to_buyer}` : ''}. The buyer can resubmit; it comes back here as the same payment.</span></div>}
+          {(sel.history?.length ?? 0) > 0 && <Attempts list={sel.history!} />}
           {sel.status === 'pending' && (
             <>
               <div className="note note-blue" style={{ background: 'var(--green-50)', borderColor: '#bbf7d0', color: 'var(--green-deep)' }}><Receipt /><span>Confirming creates receipt <b>{nextReceipt}</b>, shows it to the buyer and {sel.slot ? `adds ${sel.slot.qty} ${sel.slot.kind} slot${sel.slot.qty > 1 ? 's' : ''} to their account` : 'unlocks the file on their devices'}.</span></div>
@@ -112,8 +144,7 @@ export default function Payments() {
   return (
     <AdminLayout title="Payments" actions={<div className="row wrap" style={{ gap: 8 }}>
       <div className="seg">{(['files', 'slots'] as const).map((k) => <button key={k} className={type === k ? 'on' : ''} onClick={() => setSp(k === 'slots' ? { type: k } : {})}>{k === 'files' ? 'Files' : 'Device slots'}</button>)}</div>
-      <div className="chips">{(['pending', 'confirmed', 'rejected'] as PurchaseStatus[]).map((t) => (
-      <button key={t} className={`chip${tab === t ? ' on' : ''}`} onClick={() => { setTab(t); go({}); }}>{t[0]!.toUpperCase() + t.slice(1)}</button>))}</div></div>}>
+</div>}>
       {loading ? <RowsSkeleton rows={5} /> : error ? <Empty title="Couldn't load payments">{error}</Empty> : mobile ? (sel ? <>{detail}<button className="btn" onClick={() => go({})}>← All payments</button></> : list) : (
         <div className="row pay-split" style={{ alignItems: 'flex-start', gap: 20 }}>{list}{detail ?? <div className="grow" />}</div>
       )}
@@ -149,5 +180,25 @@ function RejectModal({ p, onClose, onDone }: { p: Pay; onClose: () => void; onDo
       {err && <span className="error">{err}</span>}
       <div className="row"><button className="btn grow" onClick={onClose}>Cancel</button><button className="btn btn-danger-solid grow" onClick={go}>Reject & notify buyer</button></div>
     </Modal>
+  );
+}
+
+/** Earlier screenshots for the same payment (each one was rejected, then the buyer resubmitted). */
+function Attempts({ list }: { list: PayAttempt[] }) {
+  const open = async (path: string | null) => {
+    if (!path) return;
+    const { data } = await supabase.storage.from('proofs').createSignedUrl(path, 600);
+    if (data) window.open(data.signedUrl, '_blank', 'noopener');
+  };
+  return (
+    <div className="col" style={{ gap: 6, borderTop: '1px solid var(--line)', paddingTop: 10 }}>
+      <b className="small">Earlier attempts ({list.length})</b>
+      {list.map((a, i) => (
+        <div key={i} className="spread small" style={{ gap: 8 }}>
+          <span className="col" style={{ gap: 0 }}><span>Try {i + 1} · {dateTime(a.submitted_at)} · {a.method}</span><span className="muted">Rejected: {a.reject_reason || '—'}</span></span>
+          {a.proof_path && <button className="link" onClick={() => open(a.proof_path)}>Screenshot</button>}
+        </div>
+      ))}
+    </div>
   );
 }

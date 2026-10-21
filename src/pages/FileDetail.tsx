@@ -13,21 +13,22 @@ import { publisherOf } from '../lib/watermark';
 import { Cover, Empty, useIsMobile, useToast } from '../components/ui';
 import { Check, Clock, Download, Eye, Laptop, Lock, Phone, Receipt, Shield } from '../components/Icons';
 import { DetailSkeleton } from '../components/Skeletons';
+import { Tx } from '../lib/theme';
 
-/** Paid → publisher confirms → unlocked. */
+/** Paid → publisher confirms → yours to read. */
 function Timeline({ p }: { p?: Purchase }) {
   const step = !p || p.status === 'rejected' ? 0 : p.status === 'pending' ? 1 : 3;
   const items = [
-    { t: 'Send payment', d: p && p.status !== 'rejected' ? `${peso(p.amount)} via ${p.method}` : 'Scan the GCash QR and upload your proof' },
-    { t: 'Publisher confirms', d: step === 1 ? 'Usually within 24 hours' : step === 3 ? `Confirmed ${dateOnly(p!.confirmed_at)}` : 'They check the payment by hand' },
-    { t: 'Receipt & unlock', d: step === 3 ? `Receipt ${p!.receipt_no ?? ''}` : 'Your receipt appears and the file opens' },
+    { t: <Tx k="detail.step1" />, key: 1, d: p && p.status !== 'rejected' ? `${peso(p.amount)} via ${p.method}` : 'Scan the GCash QR and upload your proof' },
+    { t: <Tx k="detail.step2" />, key: 2, d: step === 1 ? 'Usually within 24 hours' : step === 3 ? `Confirmed ${dateOnly(p!.confirmed_at)}` : 'They check the payment by hand' },
+    { t: <Tx k="detail.step3" />, key: 3, d: step === 3 ? `Receipt ${p!.receipt_no ?? ''}` : 'Your receipt appears and the file opens' },
   ];
   return (
     <ol className="timeline">
       {items.map((it, i) => {
         const state = i < step ? 'done' : i === step && step === 1 ? 'now' : 'todo';
         return (
-          <li key={it.t} className={state}>
+          <li key={it.key} className={state}>
             <span className="tl-dot">{state === 'done' ? <Check /> : state === 'now' ? <Clock /> : i + 1}</span>
             <div className="col" style={{ gap: 0 }}><b>{it.t}</b><span className="small muted">{it.d}</span></div>
           </li>
@@ -77,11 +78,11 @@ export default function FileDetail() {
   }
 
   const cta = owned || free ? (
-    <button className="btn btn-primary btn-lg btn-block" onClick={() => nav(`/read/${file.id}`)}><Eye /> {free ? 'Read free sample' : 'Read now'}</button>
+    <button className="btn btn-primary btn-lg btn-block" onClick={() => nav(`/read/${file.id}`)}><Eye /> {free ? <Tx k="detail.readFree" /> : <Tx k="detail.read" />}</button>
   ) : pending ? (
-    <button className="btn btn-lg btn-block" disabled><Clock /> Waiting for confirmation</button>
+    <button className="btn btn-lg btn-block" disabled><Clock /> <Tx k="detail.waiting" /></button>
   ) : (
-    <button className="btn btn-primary btn-lg btn-block" onClick={() => nav(`/checkout/${file.id}`)}><Lock /> {rejected ? 'Submit payment again' : 'Buy & unlock'}</button>
+    <button className="btn btn-primary btn-lg btn-block" onClick={() => nav(`/checkout/${file.id}`)}><Lock /> {rejected ? 'Submit payment again' : <Tx k="detail.buy" />}</button>
   );
 
   const panel = (
@@ -91,7 +92,7 @@ export default function FileDetail() {
       ) : free ? (
         <div className="spread"><span className="badge b-ok"><Check /> Free sample</span><span className="small muted">No payment needed</span></div>
       ) : (
-        <div className="spread"><span className="muted">Price</span><span className="big-price">{peso(file.price)}</span></div>
+        <div className="spread"><span className="muted"><Tx k="detail.priceLabel" /></span><span className="big-price">{peso(file.price)}</span></div>
       )}
       {!mobile && cta}
       {(owned || free) && isNative && settings?.offline_saving && (
@@ -101,10 +102,10 @@ export default function FileDetail() {
       {!free && <Timeline p={current} />}
       {owned?.receipt_no && <Link to={`/receipt/${owned.id}`} className="row link"><Receipt width={18} /> View receipt {owned.receipt_no}</Link>}
       <ul className="perks">
-        <li><Eye /> View-only inside MedNotes, never downloadable</li>
-        <li><Laptop /> Read on 1 computer in your browser</li>
-        <li><Phone /> and 1 phone in the app{settings?.offline_saving ? ', even offline' : ''}</li>
-        <li><Shield /> Watermarked by the publisher</li>
+        <li><Eye /> <Tx k="detail.perk1" /></li>
+        <li><Laptop /> <Tx k="detail.perk2" /></li>
+        <li><Phone /> <span><Tx k="detail.perk3" />{settings?.offline_saving ? ', even offline' : ''}</span></li>
+        <li><Shield /> <Tx k="detail.perk4" /></li>
       </ul>
     </aside>
   );
@@ -135,10 +136,17 @@ export default function FileDetail() {
               <div className="wide"><span>Publisher</span><b>{publisherOf(settings).name}</b></div>
             </div>
             {mobile && panel}
-            {!owned && (
+            {owned || free ? (
+              <button type="button" className="ready-card" onClick={() => nav(`/read/${file.id}`)}>
+                <span className="ready-ico"><Eye /></span>
+                <span className="col" style={{ gap: 2, alignItems: 'flex-start' }}><b>{free ? 'Free to read' : 'In your library'}: the full {KIND_LABEL[file.kind].toLowerCase()}</b>
+                  <span className="small muted">Opens in the reader, with notes and drawing on your computer.</span></span>
+                <span className="btn btn-primary btn-sm">Open</span>
+              </button>
+            ) : (
               <div className="locked-preview">
                 <div className="lp-lines">{Array.from({ length: 6 }, (_, i) => <span key={i} style={{ width: `${92 - i * 9}%` }} />)}</div>
-                <div className="lp-overlay"><Lock /> <b>Unlock to read the full {KIND_LABEL[file.kind].toLowerCase()}</b><span className="small muted">Only the cover is free to preview.</span></div>
+                <div className="lp-overlay"><Lock /> <b>Buy to read the full {KIND_LABEL[file.kind].toLowerCase()}</b><span className="small muted"><Tx k="detail.lockedSub" /></span></div>
               </div>
             )}
           </div>
@@ -155,7 +163,7 @@ export default function FileDetail() {
           </section>
         )}
       </div>
-      {mobile && <div className="bottom-bar">{!owned && !pending && !free && <div className="col" style={{ gap: 0 }}><span className="small muted">Price</span><span className="price" style={{ fontSize: 20 }}>{peso(file.price)}</span></div>}<div className="grow">{cta}</div></div>}
+      {mobile && <div className="bottom-bar">{!owned && !pending && !free && <div className="col" style={{ gap: 0 }}><span className="small muted"><Tx k="detail.priceLabel" /></span><span className="price" style={{ fontSize: 20 }}>{peso(file.price)}</span></div>}<div className="grow">{cta}</div></div>}
     </ClientLayout>
   );
 }

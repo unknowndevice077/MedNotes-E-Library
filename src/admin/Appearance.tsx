@@ -1,12 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { must, useLoad } from '../lib/useLoad';
 import { brandingUrl, FONTS, PRESETS, safeImage, THEME_DEFAULTS, themeVars, useTheme } from '../lib/theme';
+import { fieldLabel, isLong, LEGACY, SITE_PAGES, TEXT, type SitePage, type TextKey } from '../lib/siteText';
 import type { Theme } from '../lib/types';
 import { AdminLayout } from '../components/Layouts';
-import { Logo, useConfirm, useToast } from '../components/ui';
+import { useConfirm, useToast } from '../components/ui';
+import type { EditMsg } from '../components/SiteEditBridge';
 import { FormSkeleton } from '../components/Skeletons';
-import { Lock, Search } from '../components/Icons';
+import { Laptop, Phone } from '../components/Icons';
 
 type Bg = NonNullable<Theme['background']>;
 
@@ -47,20 +49,45 @@ function ColorField({ id, label, value, onChange }: { id: string; label: string;
   );
 }
 
-/** A small mock of the buyer's library, drawn with the draft theme. */
-function Preview({ t }: { t: Theme }) {
-  const vars = themeVars(t) as React.CSSProperties;
+/** Older saves kept a few texts as their own fields; the editor keeps all wording in theme.copy. */
+function withCopy(th: Theme): Theme {
+  const { authTitle, authText, heroTitle, heroText, footerText, announcement, ...rest } = th;
+  const old = { authTitle, authText, heroTitle, heroText, footerText, announcement };
+  const copy = { ...(th.copy ?? {}) };
+  for (const [k, f] of Object.entries(LEGACY)) { const v = old[f!]?.trim(); if (v && !copy[k]) copy[k] = v; }
+  return { ...rest, copy };
+}
+
+const SIZES = { computer: { w: 1280, h: 800 }, phone: { w: 390, h: 780 } };
+
+/** The real website in a frame, scaled down to fit. */
+function Frame({ device, src, frameRef }: { device: 'computer' | 'phone'; src: string; frameRef: React.RefObject<HTMLIFrameElement> }) {
+  const wrap = useRef<HTMLDivElement>(null);
+  const [w, setW] = useState(900);
+  useLayoutEffect(() => {
+    const ro = new ResizeObserver(([e]) => setW(e!.contentRect.width));
+    ro.observe(wrap.current!);
+    return () => ro.disconnect();
+  }, []);
+  const size = SIZES[device];
+  const scale = Math.min(1, (w - (device === 'phone' ? 16 : 0)) / size.w);
   return (
-    <div className="ap-preview" style={{ ...vars, background: (vars as Record<string, string>)['--app-bg'] ?? 'var(--bg)', fontFamily: 'var(--font)' }} aria-label="Preview of the library">
-      <div className="ap-top"><Logo size={26} /><span className="ap-search"><Search width={14} /> Search notes…</span></div>
-      {t.announcement?.trim() && <div className="announce" style={{ margin: 0 }}>{t.announcement}</div>}
-      <div className="hero-card ap-hero"><span className="eyebrow light">Good morning, Maria</span><b>{t.heroTitle?.trim() || THEME_DEFAULTS.heroTitle}</b><span>{t.heroText?.trim() || THEME_DEFAULTS.heroText}</span></div>
-      <div className="row" style={{ gap: 10 }}>
-        {['Pharmacology Made Easy', 'Anatomy Atlas'].map((n, i) => (
-          <div key={n} className="card ap-book"><div className="ap-cover" style={{ background: i ? 'var(--green-100)' : 'var(--blue-100)' }}><Lock width={14} /></div><span className="eyebrow">{i ? 'Anatomy' : 'Pharmacology'}</span><b className="small">{n}</b><span className="price-pill">₱{i ? 350 : 450}</span></div>
-        ))}
+    <div ref={wrap} className="site-frame-wrap">
+      <div className={`site-frame-box ${device}`} style={{ width: size.w * scale, height: size.h * scale }}>
+        <iframe ref={frameRef} src={src} title="Website preview" className="site-frame" style={{ width: size.w, height: size.h, transform: `scale(${scale})` }} />
       </div>
-      <div className="row" style={{ gap: 8 }}><span className="btn btn-primary btn-sm">Buy & unlock</span><span className="btn btn-sm">Details</span><span className="chip on">All types</span></div>
+    </div>
+  );
+}
+
+function TextField({ k, value, onChange, onFocus, active }: { k: TextKey; value: string; onChange: (v: string) => void; onFocus: () => void; active: boolean }) {
+  const id = `tx-${k.replace('.', '-')}`;
+  const long = isLong(k);
+  const props = { id, className: 'input', value, placeholder: TEXT[k] || 'Leave empty to hide', maxLength: long ? 280 : 90, onFocus, onChange: (e: { target: { value: string } }) => onChange(e.target.value) };
+  return (
+    <div className={`field tx-field${active ? ' on' : ''}`}>
+      <div className="spread"><label htmlFor={id}>{fieldLabel(k)}</label>{value && <button type="button" className="link small" onClick={() => onChange('')}>Use default</button>}</div>
+      {long ? <textarea rows={2} {...props} /> : <input {...props} />}
     </div>
   );
 }
@@ -69,19 +96,59 @@ export default function AdminAppearance() {
   const toast = useToast();
   const confirm = useConfirm();
   const { preview, reload } = useTheme();
-  const { data, loading } = useLoad(async () => must(await supabase.from('settings').select('theme').eq('id', 1).single()) as { theme: Theme }, [], { cache: false });
+  const { data, loading } = useLoad(async () => {
+    const [s, f] = await Promise.all([
+      supabase.from('settings').select('theme').eq('id', 1).single(),
+      // a real file for the file details and checkout pages
+      supabase.from('files').select('id').eq('published', true).eq('is_free', false).order('created_at', { ascending: false }).limit(1),
+    ]);
+    return { theme: withCopy((must(s) as { theme: Theme }).theme ?? {}), fileId: (f.data?.[0]?.id as string | undefined) ?? null };
+  }, [], { cache: false });
   const [t, setT] = useState<Theme | null>(null);
   const [saving, setSaving] = useState(false);
-  useEffect(() => { if (data) setT(data.theme ?? {}); }, [data]);
+  const [tab, setTab] = useState<'pages' | 'style'>('pages');
+  const [pageId, setPageId] = useState('sign-in');
+  const [device, setDevice] = useState<'computer' | 'phone'>('computer');
+  const [focus, setFocus] = useState<TextKey | null>(null);
+  const [ready, setReady] = useState(false);
+  const frame = useRef<HTMLIFrameElement>(null);
+  useEffect(() => { if (data) setT(data.theme); }, [data]);
   // the whole admin screen previews the draft; leaving without saving restores the live look
   useEffect(() => { if (t) preview(t); }, [t, preview]);
   useEffect(() => () => preview(null), [preview]);
 
-  if (loading || !t) return <AdminLayout title="Appearance"><FormSkeleton cards={3} /></AdminLayout>;
+  const page = SITE_PAGES.find((p) => p.id === pageId)!;
+  const pathOf = useCallback((p: SitePage) => p.path.replace(':file', data?.fileId ?? ''), [data?.fileId]);
+  // set once: later page changes go through the bridge so the frame doesn't reload
+  const src = useMemo(() => `${import.meta.env.BASE_URL}${pathOf(page).slice(1)}?site-edit=1`, [!!data]); // eslint-disable-line react-hooks/exhaustive-deps
+  const send = useCallback((m: EditMsg) => frame.current?.contentWindow?.postMessage(m, window.location.origin), []);
+
+  useEffect(() => {
+    const onMsg = (e: MessageEvent) => {
+      if (e.origin !== window.location.origin || e.source !== frame.current?.contentWindow) return;
+      const m = e.data as { type: string; key?: TextKey; path?: string };
+      if (m.type === 'mn-ready') setReady(true);
+      else if (m.type === 'mn-page' && m.path) { const p = SITE_PAGES.find((x) => x.match.test(m.path!)); if (p) setPageId(p.id); }
+      else if (m.type === 'mn-pick' && m.key && m.key in TEXT) {
+        const key = m.key;
+        setTab('pages'); setFocus(key);
+        setTimeout(() => { const el = document.getElementById(`tx-${key.replace('.', '-')}`); el?.focus({ preventScroll: true }); el?.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, 30);
+      }
+    };
+    window.addEventListener('message', onMsg);
+    return () => window.removeEventListener('message', onMsg);
+  }, []);
+  useEffect(() => { if (ready && t) send({ type: 'mn-theme', theme: t }); }, [ready, t, send]);
+  useEffect(() => { if (ready && data) send({ type: 'mn-nav', path: pathOf(page) }); }, [ready, page, pathOf, send, data]);
+  useEffect(() => { if (ready) send({ type: 'mn-focus', key: focus }); }, [ready, focus, pageId, send]);
+
+  if (loading || !t || !data) return <AdminLayout title="Appearance"><FormSkeleton cards={3} /></AdminLayout>;
   const set = (patch: Partial<Theme>) => setT({ ...t, ...patch });
+  const setText = (k: TextKey, v: string) => { const copy = { ...(t.copy ?? {}) }; if (v.trim()) copy[k] = v; else delete copy[k]; set({ copy }); };
   const bg: Bg = t.background ?? { type: 'plain', color: '#f8fafc' };
   const setBg = (patch: Partial<Bg>) => set({ background: { ...bg, ...patch } });
-  const dirty = JSON.stringify(t) !== JSON.stringify(data?.theme ?? {});
+  const dirty = JSON.stringify(t) !== JSON.stringify(data.theme);
+  const edited = page.groups.flatMap((g) => g.keys).filter((k) => t.copy?.[k]).length;
 
   async function save() {
     setSaving(true);
@@ -91,85 +158,109 @@ export default function AdminAppearance() {
     await reload(); toast('Saved. Open copies of the website and app update right away.');
   }
   async function reset() {
-    if (await confirm({ title: 'Reset to the default look?', body: 'Colours, backgrounds, logo, font and welcome text go back to the MedNotes defaults. Save to apply.', confirmLabel: 'Reset' })) setT({});
+    if (await confirm({ title: 'Reset the whole website?', body: 'All page text, colours, backgrounds, logo and font go back to the MedNotes defaults. Save to apply.', confirmLabel: 'Reset everything' })) setT({ copy: {} });
+  }
+  function resetPage() {
+    const copy = { ...(t!.copy ?? {}) };
+    for (const g of page.groups) for (const k of g.keys) delete copy[k];
+    set({ copy });
   }
 
-  return (
-    <AdminLayout title="Appearance" subtitle="Edit how the website and the app look and read. Changes go live everywhere when you save."
-      actions={<><button className="btn" onClick={reset}>Reset</button><button className="btn btn-primary" disabled={!dirty || saving} onClick={save}>{saving ? 'Saving…' : dirty ? 'Save appearance' : 'Saved'}</button></>}>
-      <div className="row wrap" style={{ alignItems: 'flex-start', gap: 24 }}>
-        <div className="col grow" style={{ gap: 16, minWidth: 320, flexBasis: 460 }}>
-          <div className="card col">
-            <h3>Start from a preset</h3>
-            <div className="ap-presets">
-              {PRESETS.map((p) => {
-                const v = themeVars(p.theme);
-                return (
-                  <button key={p.name} type="button" className="ap-preset" onClick={() => setT({ ...t, ...p.theme, background: p.theme.background, radius: p.theme.radius })}>
-                    <span className="ap-swatches"><i style={{ background: v['--blue'] }} /><i style={{ background: v['--green'] }} /><i style={{ background: v['--app-bg'] ?? '#f8fafc' }} /></span>{p.name}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-          <div className="card col">
-            <h3>Brand</h3>
-            <div className="field"><label htmlFor="ap-name">Store name</label><input id="ap-name" className="input" maxLength={40} placeholder="MedNotes E-Library" value={t.storeName ?? ''} onChange={(e) => set({ storeName: e.target.value })} /></div>
-            <ImagePick label="Logo" hint="Square PNG or SVG, at least 128 × 128" value={t.logo} onChange={(logo) => set({ logo })} />
-            <div className="row wrap" style={{ gap: 16 }}>
-              <ColorField id="ap-primary" label="Main colour" value={t.primary ?? THEME_DEFAULTS.primary} onChange={(primary) => set({ primary })} />
-              <ColorField id="ap-accent" label="Accent colour" value={t.accent ?? THEME_DEFAULTS.accent} onChange={(accent) => set({ accent })} />
-              <ColorField id="ap-ink" label="Text colour" value={t.ink ?? THEME_DEFAULTS.ink} onChange={(ink) => set({ ink })} />
-            </div>
-          </div>
-          <div className="card col">
-            <h3>Background</h3>
-            <span className="small muted">Behind every page of the website and the app (not the reader, where pages stay clean).</span>
-            <div className="seg" role="radiogroup" aria-label="Background type">
-              {(['plain', 'gradient', 'image'] as const).map((k) => <button key={k} type="button" role="radio" aria-checked={bg.type === k} className={bg.type === k ? 'on' : ''} onClick={() => setBg({ type: k })}>{k === 'plain' ? 'Plain' : k === 'gradient' ? 'Gradient' : 'Photo'}</button>)}
-            </div>
-            {bg.type !== 'image' && (
-              <div className="row wrap" style={{ gap: 16 }}>
-                <ColorField id="ap-bg1" label={bg.type === 'gradient' ? 'From' : 'Colour'} value={bg.color ?? '#f8fafc'} onChange={(color) => setBg({ color })} />
-                {bg.type === 'gradient' && <ColorField id="ap-bg2" label="To" value={bg.color2 ?? '#eef6ff'} onChange={(color2) => setBg({ color2 })} />}
-              </div>
-            )}
-            {bg.type === 'image' && (
-              <>
-                <ImagePick label="Background photo" hint="Wide photo, about 1920 × 1080" value={bg.image} onChange={(image) => setBg({ image })} />
-                <div className="setting"><div className="col" style={{ gap: 0 }}><b>Fade</b><span className="small muted">Keeps text readable over the photo</span></div>
-                  <input type="range" min={0.5} max={0.95} step={0.05} value={bg.overlay ?? 0.85} aria-label="Photo fade" onChange={(e) => setBg({ overlay: Number(e.target.value) })} /></div>
-              </>
-            )}
-          </div>
-          <div className="card col">
-            <h3>Sign-in page & welcome</h3>
-            <ImagePick label="Sign-in background" hint="Shown behind the sign-in and sign-up forms" value={t.authImage} onChange={(authImage) => set({ authImage })} />
-            <div className="field"><label htmlFor="ap-hero">Library welcome title</label><input id="ap-hero" className="input" maxLength={70} placeholder={THEME_DEFAULTS.heroTitle} value={t.heroTitle ?? ''} onChange={(e) => set({ heroTitle: e.target.value })} /></div>
-            <div className="field"><label htmlFor="ap-hero-text">Welcome text</label><textarea id="ap-hero-text" className="input" maxLength={180} rows={2} placeholder={THEME_DEFAULTS.heroText} value={t.heroText ?? ''} onChange={(e) => set({ heroText: e.target.value })} /></div>
-          </div>
-          <div className="card col">
-            <h3>Website text</h3>
-            <span className="small muted">Saved changes show up right away on every open copy of the website and the app.</span>
-            <div className="field"><label htmlFor="ap-announce">Announcement bar (optional)</label><input id="ap-announce" className="input" maxLength={140} placeholder="e.g. New: Pharmacology board review, 20% off this week" value={t.announcement ?? ''} onChange={(e) => set({ announcement: e.target.value })} /></div>
-            <div className="field"><label htmlFor="ap-auth-title">Sign-in headline</label><input id="ap-auth-title" className="input" maxLength={80} placeholder={THEME_DEFAULTS.authTitle} value={t.authTitle ?? ''} onChange={(e) => set({ authTitle: e.target.value })} /></div>
-            <div className="field"><label htmlFor="ap-auth-text">Sign-in text</label><textarea id="ap-auth-text" className="input" maxLength={220} rows={2} placeholder={THEME_DEFAULTS.authText} value={t.authText ?? ''} onChange={(e) => set({ authText: e.target.value })} /></div>
-            <div className="field"><label htmlFor="ap-footer">Footer text</label><input id="ap-footer" className="input" maxLength={160} placeholder={THEME_DEFAULTS.footerText} value={t.footerText ?? ''} onChange={(e) => set({ footerText: e.target.value })} /></div>
-          </div>
-          <div className="card col">
-            <h3>Shape & type</h3>
-            <div className="setting"><div className="col" style={{ gap: 0 }}><b>Corner roundness</b><span className="small muted">Cards and panels</span></div>
-              <div className="row" style={{ gap: 10 }}><input type="range" min={4} max={24} step={1} value={t.radius ?? THEME_DEFAULTS.radius} aria-label="Corner roundness" onChange={(e) => set({ radius: Number(e.target.value) })} /><b className="small" style={{ width: 36 }}>{t.radius ?? THEME_DEFAULTS.radius}px</b></div></div>
-            <div className="setting"><div className="col" style={{ gap: 0 }}><b>Font</b></div>
-              <select className="input" style={{ width: 180 }} value={t.font ?? 'Inter'} aria-label="Font" onChange={(e) => set({ font: e.target.value as Theme['font'] })}>
-                {Object.keys(FONTS).map((f) => <option key={f} value={f}>{f}</option>)}
-              </select></div>
-          </div>
+  const pageFields = (
+    <div className="col" style={{ gap: 16 }}>
+      <span className="small muted">Click any text in the preview to edit it, or type below. Empty boxes use the default wording.</span>
+      {page.needsFile && !data.fileId && <div className="note note-amber"><span>Add a paid file in Files to preview this page.</span></div>}
+      {page.id === 'sign-in' && <div className="card col"><h3>Sign-in background</h3><ImagePick label="Sign-in background" hint="Shown behind the welcome side of the sign-in page" value={t.authImage} onChange={(authImage) => set({ authImage })} /></div>}
+      {page.groups.map((g) => (
+        <div key={g.title} className="card col">
+          <h3>{g.title}</h3>
+          {g.keys.map((k) => <TextField key={k} k={k} value={t.copy?.[k] ?? ''} active={focus === k} onFocus={() => setFocus(k)} onChange={(v) => setText(k, v)} />)}
         </div>
-        <div className="col ap-side" style={{ gap: 10, flexBasis: 380, flexGrow: 1 }}>
-          <span className="eyebrow">Live preview</span>
-          <Preview t={t} />
-          <span className="small muted">{dirty ? 'Not saved yet. This admin screen already shows the new look.' : 'This is what buyers see now.'}</span>
+      ))}
+      {edited > 0 && <button type="button" className="btn" style={{ alignSelf: 'flex-start' }} onClick={resetPage}>Reset this page's text ({edited})</button>}
+    </div>
+  );
+
+  const styleFields = (
+    <div className="col" style={{ gap: 16 }}>
+      <div className="card col">
+        <h3>Start from a preset</h3>
+        <div className="ap-presets">
+          {PRESETS.map((p) => {
+            const v = themeVars(p.theme);
+            return (
+              <button key={p.name} type="button" className="ap-preset" onClick={() => setT({ ...t, ...p.theme, background: p.theme.background, radius: p.theme.radius })}>
+                <span className="ap-swatches"><i style={{ background: v['--blue'] }} /><i style={{ background: v['--green'] }} /><i style={{ background: v['--app-bg'] ?? '#f8fafc' }} /></span>{p.name}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+      <div className="card col">
+        <h3>Brand</h3>
+        <div className="field"><label htmlFor="ap-name">Store name</label><input id="ap-name" className="input" maxLength={40} placeholder="MedNotes E-Library" value={t.storeName ?? ''} onChange={(e) => set({ storeName: e.target.value })} /></div>
+        <ImagePick label="Logo" hint="Square PNG or SVG, at least 128 × 128" value={t.logo} onChange={(logo) => set({ logo })} />
+        <div className="row wrap" style={{ gap: 16 }}>
+          <ColorField id="ap-primary" label="Main colour" value={t.primary ?? THEME_DEFAULTS.primary} onChange={(primary) => set({ primary })} />
+          <ColorField id="ap-accent" label="Accent colour" value={t.accent ?? THEME_DEFAULTS.accent} onChange={(accent) => set({ accent })} />
+          <ColorField id="ap-ink" label="Text colour" value={t.ink ?? THEME_DEFAULTS.ink} onChange={(ink) => set({ ink })} />
+        </div>
+      </div>
+      <div className="card col">
+        <h3>Background</h3>
+        <span className="small muted">Behind every page of the website and the app (not the reader, where pages stay clean).</span>
+        <div className="seg" role="radiogroup" aria-label="Background type">
+          {(['plain', 'gradient', 'image'] as const).map((k) => <button key={k} type="button" role="radio" aria-checked={bg.type === k} className={bg.type === k ? 'on' : ''} onClick={() => setBg({ type: k })}>{k === 'plain' ? 'Plain' : k === 'gradient' ? 'Gradient' : 'Photo'}</button>)}
+        </div>
+        {bg.type !== 'image' && (
+          <div className="row wrap" style={{ gap: 16 }}>
+            <ColorField id="ap-bg1" label={bg.type === 'gradient' ? 'From' : 'Colour'} value={bg.color ?? '#f8fafc'} onChange={(color) => setBg({ color })} />
+            {bg.type === 'gradient' && <ColorField id="ap-bg2" label="To" value={bg.color2 ?? '#eef6ff'} onChange={(color2) => setBg({ color2 })} />}
+          </div>
+        )}
+        {bg.type === 'image' && (
+          <>
+            <ImagePick label="Background photo" hint="Wide photo, about 1920 × 1080" value={bg.image} onChange={(image) => setBg({ image })} />
+            <div className="setting"><div className="col" style={{ gap: 0 }}><b>Fade</b><span className="small muted">Keeps text readable over the photo</span></div>
+              <input type="range" min={0.5} max={0.95} step={0.05} value={bg.overlay ?? 0.85} aria-label="Photo fade" onChange={(e) => setBg({ overlay: Number(e.target.value) })} /></div>
+          </>
+        )}
+      </div>
+      <div className="card col">
+        <h3>Shape & type</h3>
+        <div className="setting"><div className="col" style={{ gap: 0 }}><b>Corner roundness</b><span className="small muted">Cards and panels</span></div>
+          <div className="row" style={{ gap: 10 }}><input type="range" min={4} max={24} step={1} value={t.radius ?? THEME_DEFAULTS.radius} aria-label="Corner roundness" onChange={(e) => set({ radius: Number(e.target.value) })} /><b className="small" style={{ width: 36 }}>{t.radius ?? THEME_DEFAULTS.radius}px</b></div></div>
+        <div className="setting"><div className="col" style={{ gap: 0 }}><b>Font</b></div>
+          <select className="input" style={{ width: 180 }} value={t.font ?? 'Inter'} aria-label="Font" onChange={(e) => set({ font: e.target.value as Theme['font'] })}>
+            {Object.keys(FONTS).map((f) => <option key={f} value={f}>{f}</option>)}
+          </select></div>
+      </div>
+    </div>
+  );
+
+  return (
+    <AdminLayout title="Appearance" subtitle="Edit the whole website and app, from the sign-in page to the library. Changes go live everywhere when you save."
+      actions={<><button className="btn" onClick={reset}>Reset all</button><button className="btn btn-primary" disabled={!dirty || saving} onClick={save}>{saving ? 'Saving…' : dirty ? 'Save appearance' : 'Saved'}</button></>}>
+      <div className="site-editor">
+        <div className="site-panel col" style={{ gap: 14 }}>
+          <div className="seg" role="tablist" aria-label="Edit">
+            <button role="tab" aria-selected={tab === 'pages'} className={tab === 'pages' ? 'on' : ''} onClick={() => setTab('pages')}>Pages & text</button>
+            <button role="tab" aria-selected={tab === 'style'} className={tab === 'style' ? 'on' : ''} onClick={() => setTab('style')}>Colours & style</button>
+          </div>
+          {tab === 'pages' ? pageFields : styleFields}
+        </div>
+        <div className="site-preview col" style={{ gap: 10 }}>
+          <div className="spread wrap" style={{ gap: 10 }}>
+            <select className="input site-page-pick" aria-label="Page to edit" value={pageId} onChange={(e) => { setPageId(e.target.value); setFocus(null); setTab('pages'); }}>
+              {SITE_PAGES.map((p) => <option key={p.id} value={p.id} disabled={p.needsFile && !data.fileId}>{p.label}</option>)}
+            </select>
+            <div className="seg" role="radiogroup" aria-label="Preview size">
+              <button type="button" role="radio" aria-checked={device === 'computer'} className={device === 'computer' ? 'on' : ''} onClick={() => setDevice('computer')}><Laptop width={16} /> Computer</button>
+              <button type="button" role="radio" aria-checked={device === 'phone'} className={device === 'phone' ? 'on' : ''} onClick={() => setDevice('phone')}><Phone width={16} /> Phone</button>
+            </div>
+          </div>
+          <Frame device={device} src={src} frameRef={frame} />
+          <span className="small muted">{dirty ? 'Not saved yet. Buyers still see the old version until you save.' : 'This is what buyers see now.'}</span>
         </div>
       </div>
     </AdminLayout>

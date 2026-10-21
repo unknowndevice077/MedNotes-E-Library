@@ -6,7 +6,7 @@ import { KIND_LABEL, KIND_TAG, kindFromName, type FileKind, type LibFile } from 
 import { detectLength } from '../lib/fileInfo';
 import CategoryPicker from '../components/CategoryPicker';
 import { AdminLayout } from '../components/Layouts';
-import { Modal, Toggle, useConfirm, useIsMobile, useToast } from '../components/ui';
+import { Modal, useConfirm, useIsMobile, useToast } from '../components/ui';
 import { Search, Upload } from '../components/Icons';
 import { RowsSkeleton } from '../components/Skeletons';
 
@@ -61,9 +61,9 @@ export default function AdminFiles() {
               </div>
               <span style={{ width: 130 }}>{f.label && <span className="badge b-blue">{f.label}</span>}</span>
               <span style={{ width: 80 }}>{KIND_TAG[f.kind]}</span>
-              <b style={{ width: 90 }}>{pesoShort(f.price)}</b>
+              <b style={{ width: 90 }}>{f.is_free ? <span className="badge b-free">Free</span> : pesoShort(f.price)}</b>
               <span style={{ width: 60 }} className="r-sales">{data?.sales.get(f.id) ?? 0}<i className="r-sold"> sold</i></span>
-              <span style={{ width: 130 }}>{f.published ? <span className="badge b-ok">Published</span> : <span className="badge b-lock">Draft</span>}</span>
+              <span style={{ width: 130 }}>{f.published ? <span className="badge b-ok">Published</span> : <span className="badge b-lock">Hidden</span>}</span>
               <span className="grow" />
               <button className="btn btn-sm" onClick={() => setEditing(f)}>Edit</button>
               <button className="btn btn-sm btn-danger" onClick={() => remove(f)}>Delete</button>
@@ -168,8 +168,20 @@ function FileEditor({ file, onClose, onSaved }: { file: LibFile | null; onClose:
             {detecting === 'done' && <span className="small detected"> · detected from the file</span>}
             {detecting === 'failed' && <span className="small muted"> · couldn't count this one, type it in</span>}</label>
             <input id="fmeta" className="input" value={f.meta} onChange={(e) => { setF({ ...f, meta: e.target.value }); setDetecting(''); }} placeholder="Filled in automatically when you choose a file" /></div>
-          <div className="card setting" style={{ padding: '12px 14px' }}><div className="col" style={{ gap: 0 }}><b>Published</b><span className="small muted">Visible in the library</span></div><Toggle on={f.published} onChange={(v) => setF({ ...f, published: v })} label="Published" /></div>
-          <div className="card setting" style={{ padding: '12px 14px' }}><div className="col" style={{ gap: 0 }}><b>Free sample</b><span className="small muted">Every signed-in buyer can read it without paying</span></div><Toggle on={f.is_free} onChange={(v) => setF({ ...f, is_free: v })} label="Free sample" /></div>
+          <div className="card setting stack-sm" style={{ padding: '12px 14px' }}>
+            <div className="col" style={{ gap: 0 }}><b>Visibility</b><span className="small muted">{f.published ? 'Shown in the library' : 'Hidden from buyers; only admins can see it'}</span></div>
+            <div className="seg" role="radiogroup" aria-label="Visibility">
+              <button type="button" role="radio" aria-checked={f.published} className={f.published ? 'on' : ''} onClick={() => setF({ ...f, published: true })}>Published</button>
+              <button type="button" role="radio" aria-checked={!f.published} className={!f.published ? 'on' : ''} onClick={() => setF({ ...f, published: false })}>Hidden (draft)</button>
+            </div>
+          </div>
+          <div className="card setting stack-sm" style={{ padding: '12px 14px' }}>
+            <div className="col" style={{ gap: 0 }}><b>Pricing</b><span className="small muted">{f.is_free ? 'Every signed-in buyer can read it without paying' : 'Buyers pay before they can read it'}</span></div>
+            <div className="seg" role="radiogroup" aria-label="Pricing">
+              <button type="button" role="radio" aria-checked={!f.is_free} className={!f.is_free ? 'on' : ''} onClick={() => setF({ ...f, is_free: false })}>Paid</button>
+              <button type="button" role="radio" aria-checked={f.is_free} className={f.is_free ? 'on' : ''} onClick={() => setF({ ...f, is_free: true })}>Free sample</button>
+            </div>
+          </div>
         </div>
       </div>
       {err && <span className="error">{err}</span>}

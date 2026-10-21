@@ -10,6 +10,9 @@ import { ForgotPassword, ResetPassword, SignIn, SignUp } from './pages/Auth';
 import Library from './pages/Library';
 import { DataDeletion, Privacy } from './pages/Legal';
 import { AppShellSkeleton } from './components/Skeletons';
+import SiteEditBridge from './components/SiteEditBridge';
+import ReceiptPopup from './components/ReceiptPopup';
+import { SITE_EDIT } from './lib/siteText';
 
 // Everything past the library loads on demand; the chunks are warmed up in the background after sign-in.
 const pages = {
@@ -20,6 +23,7 @@ const pages = {
   devices: () => import('./pages/Devices'),
   account: () => import('./pages/Account'),
   saved: () => import('./pages/SavedOffline'),
+  payments: () => import('./pages/Payments'),
 };
 const FileDetail = lazy(pages.detail);
 const Checkout = lazy(pages.checkout);
@@ -28,6 +32,7 @@ const ReceiptPage = lazy(pages.receipt);
 const Devices = lazy(pages.devices);
 const Account = lazy(pages.account);
 const SavedOffline = lazy(pages.saved);
+const MyPayments = lazy(pages.payments);
 let prefetched = false;
 function prefetchPages() {
   if (prefetched) return;
@@ -58,7 +63,7 @@ function RequireAuth({ children, admin }: { children: ReactNode; admin?: boolean
   // In the app without internet, only saved files are available.
   if (isNative && !online && !/^\/(saved|read)/.test(loc.pathname)) return <Navigate to="/saved" replace />;
   if (admin && profile?.role !== 'admin') return <Navigate to="/library" replace />;
-  return <>{children}<DeviceGate /></>;
+  return <>{children}{!SITE_EDIT && <><DeviceGate /><ReceiptPopup /></>}</>;
 }
 
 /** After sign-in: admins land on the dashboard (web), everyone else on the library. */
@@ -73,7 +78,8 @@ function ApplyPrefs() { useApplyPrefs(); return null; }
 function PublicOnly({ children }: { children: ReactNode }) {
   const { loading, session, profile } = useAuth();
   if (loading) return <div className="auth" aria-busy="true" />;
-  if (session) return <Navigate to={profile?.role === 'admin' && !isNative ? '/admin' : '/library'} replace />;
+  // the Appearance preview shows these pages to the signed-in admin
+  if (session && !SITE_EDIT) return <Navigate to={profile?.role === 'admin' && !isNative ? '/admin' : '/library'} replace />;
   return <>{children}</>;
 }
 
@@ -83,6 +89,7 @@ export default function App() {
       <ThemeProvider>
       <AuthProvider>
         <ApplyPrefs />
+        <SiteEditBridge />
         <ToastProvider><ConfirmProvider>
           <Suspense fallback={<AppShellSkeleton />}>
             <Routes>
@@ -103,6 +110,7 @@ export default function App() {
               <Route path="/read/:id" element={<RequireAuth><Reader /></RequireAuth>} />
               <Route path="/devices" element={<RequireAuth><Devices /></RequireAuth>} />
               <Route path="/account" element={<RequireAuth><Account /></RequireAuth>} />
+              <Route path="/payments" element={<RequireAuth><MyPayments /></RequireAuth>} />
               <Route path="/saved" element={<RequireAuth><SavedOffline /></RequireAuth>} />
 
               <Route path="/admin" element={<RequireAuth admin><Dashboard /></RequireAuth>} />

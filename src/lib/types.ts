@@ -5,7 +5,7 @@ export interface Settings {
   store_name: string; support_email: string; publisher_name: string; watermark_note: string;
   receipt_business: string; receipt_tin: string; receipt_prefix: string; receipt_next: number; receipt_footer: string;
   computer_slots: number; phone_slots: number; swaps_per_30d: number; users_can_add_devices: boolean;
-  allow_download_default: boolean; offline_saving: boolean; offline_days: number; watermark: boolean; block_screenshots: boolean;
+  allow_download_default: boolean; offline_saving: boolean; offline_days: number; watermark: boolean; watermark_web: boolean; block_screenshots: boolean;
   payment_methods: PaymentMethod[];
   receipt_design: ReceiptDesign; theme: Theme;
   slot_sales: boolean; slot_price_computer: number; slot_price_phone: number; stats_reset_at: string | null;
@@ -20,8 +20,10 @@ export interface Theme {
   authImage?: string; logo?: string; storeName?: string; heroTitle?: string; heroText?: string;
   radius?: number; font?: 'Inter' | 'Poppins' | 'Nunito' | 'Merriweather' | 'System';
   authTitle?: string; authText?: string; footerText?: string; announcement?: string;
+  /** page wording set in Admin → Appearance, keyed like 'signin.title' (see lib/siteText) */
+  copy?: Record<string, string>;
 }
-export interface UserPrefs { readerTheme?: 'light' | 'sepia' | 'dark'; textSize?: number; reduceMotion?: boolean; startPage?: 'library' | 'my-files'; adminDark?: boolean }
+export interface UserPrefs { readerTheme?: 'light' | 'sepia' | 'dark'; textSize?: number; reduceMotion?: boolean; startPage?: 'library' | 'my-files'; adminDark?: boolean; appTheme?: 'light' | 'dark' | 'system' }
 export interface PaymentMethod { name: string; account: string; holder: string; enabled: boolean; qr_path?: string | null; qr_payload?: string | null }
 
 export interface Profile {
@@ -37,10 +39,13 @@ export interface LibFile {
   allow_download: boolean; published: boolean; created_at: string; is_free: boolean;
 }
 
+/** An earlier, rejected try at the same payment (kept when the buyer resubmits). */
+export interface PayAttempt { proof_path: string | null; method: string; amount: number; qty?: number; reject_reason: string; note_to_buyer: string; submitted_at: string; replaced_at: string }
+
 export interface Purchase {
   id: string; user_id: string; file_id: string; amount: number; method: string; reference_no: string;
   proof_path: string | null; status: PurchaseStatus; reject_reason: string; note_to_buyer: string;
-  receipt_no: string | null; created_at: string; confirmed_at: string | null;
+  receipt_no: string | null; created_at: string; confirmed_at: string | null; attempts?: number; history?: PayAttempt[];
   files?: LibFile; profiles?: Pick<Profile, 'id' | 'email' | 'full_name' | 'avatar_url'>;
 }
 
@@ -68,7 +73,7 @@ export function kindFromName(name: string, mime = ''): FileKind {
 export interface DeviceOrder {
   id: string; user_id: string; kind: 'computer' | 'phone'; qty: number; amount: number; method: string; reference_no: string;
   proof_path: string | null; status: PurchaseStatus; reject_reason: string; note_to_buyer: string; receipt_no: string | null;
-  created_at: string; confirmed_at: string | null; decided_by: string | null;
+  created_at: string; confirmed_at: string | null; decided_by: string | null; attempts?: number; history?: PayAttempt[];
   profiles?: Pick<Profile, 'id' | 'email' | 'full_name' | 'avatar_url'> | null;
 }
 export interface AuditEntry {

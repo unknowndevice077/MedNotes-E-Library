@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { must, useLoad } from '../lib/useLoad';
-import { peso, pesoShort } from '../lib/format';
+import { dateTime, peso, pesoShort } from '../lib/format';
 import { AdminLayout } from '../components/Layouts';
-import { Empty } from '../components/ui';
+import { Empty, useConfirm, useToast } from '../components/ui';
 import { DashboardSkeleton } from '../components/Skeletons';
 
+interface Reset { id: number; at: string; since: string | null; revenue: number; files_sold: number; slot_revenue: number; slots_sold: number; new_users: number; profiles: { full_name: string; email: string } | null }
 interface Month { month: string; revenue: number; sales: number; slot_revenue: number; slot_sales: number; new_users: number }
 
 const label = (m: string, long = false) => new Date(m + 'T00:00:00').toLocaleDateString('en-PH', { month: long ? 'long' : 'short', year: long ? 'numeric' : '2-digit' });
@@ -15,6 +16,16 @@ export default function AdminStatistics() {
   const [range, setRange] = useState(12);
   const { data, loading } = useLoad(async () => (must(await supabase.rpc('admin_monthly_stats', { p_months: range })) as Month[]).reverse(), [range], { cache: false });
   const [hover, setHover] = useState<number | null>(null);
+  const toast = useToast();
+  const confirm = useConfirm();
+  const { data: resets, reload: reloadResets } = useLoad(async () =>
+    must(await supabase.from('stats_resets').select('*, profiles(full_name, email)').order('at', { ascending: false }).limit(50)) as Reset[], [], { cache: false });
+  async function resetStats() {
+    if (!(await confirm({ title: 'Reset the dashboard statistics?', body: 'The dashboard counts start again from now. What it had counted is saved below under Resets, and every month stays in this chart.', confirmLabel: 'Reset statistics' }))) return;
+    const { error } = await supabase.rpc('admin_reset_stats');
+    if (error) return toast(error.message);
+    toast('Dashboard reset. Saved under Resets on this page.'); reloadResets();
+  }
   const total = (k: keyof Month) => (data ?? []).reduce((a, m) => a + Number(m[k]), 0);
   const income = (m: Month) => Number(m.revenue) + Number(m.slot_revenue);
   const max = Math.max(1, ...(data ?? []).map(income));
@@ -23,7 +34,8 @@ export default function AdminStatistics() {
 
   return (
     <AdminLayout title="Statistics" subtitle="Month by month, from the first sale. Resetting the dashboard doesn't touch this."
-      actions={<div className="seg">{[6, 12, 24].map((n) => <button key={n} className={range === n ? 'on' : ''} onClick={() => setRange(n)}>{n} months</button>)}</div>}>
+      actions={<><div className="seg">{[6, 12, 24].map((n) => <button key={n} className={range === n ? 'on' : ''} onClick={() => setRange(n)}>{n} months</button>)}</div>
+        <button className="btn" onClick={resetStats}>Reset statistics</button></>}>
       {loading || !data ? <DashboardSkeleton /> : data.length === 0 ? <Empty title="No sales yet" /> : (
         <>
           <div className="row wrap" style={{ gap: 16 }}>
@@ -64,6 +76,16 @@ export default function AdminStatistics() {
           </div>
         </>
       )}
+      <div className="card col" style={{ gap: 10 }}>
+        <h3>Resets</h3>
+        {!resets?.length ? <span className="small muted">The dashboard has never been reset.</span> : resets.map((r) => (
+          <div key={r.id} className="spread wrap" style={{ gap: 8, borderTop: '1px solid var(--line)', paddingTop: 10 }}>
+            <span className="col" style={{ gap: 0 }}><b>{dateTime(r.at)}</b>
+              <span className="small muted">by {r.profiles?.full_name || r.profiles?.email || 'an admin'} · counted {r.since ? `since ${dateTime(r.since)}` : 'from the start'}</span></span>
+            <span className="small" style={{ textAlign: 'right' }}><b style={{ color: 'var(--green)' }}>{peso(Number(r.revenue) + Number(r.slot_revenue))}</b> · {r.files_sold} files · {r.slots_sold} slots · {r.new_users} new buyers</span>
+          </div>
+        ))}
+      </div>
     </AdminLayout>
   );
 }

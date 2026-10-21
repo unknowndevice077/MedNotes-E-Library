@@ -139,8 +139,13 @@ for (const size of Object.keys(SIZES)) {
     add('buyer', 'detail-pending', () => ids.pending && `/file/${ids.pending}`);
     add('buyer', 'checkout', () => `/checkout/${ids.locked}`, { wait: 1500 });
     add('buyer', 'my-files', '/my-files');
+    add('buyer', 'payments', '/payments');
     add('buyer', 'receipt', () => `/receipt/${ids.receipt}`);
     add('buyer', 'reader', () => `/read/${ids.owned}`, { wait: 3000 });
+    // the five free samples cover every reader layout: PDF, slides, e-book, Word, Excel
+    for (const [k, n] of [['pdf', 19], ['pptx', 20], ['epub', 21], ['docx', 22], ['xlsx', 23]]) add('buyer', `reader-${k}`, `/read/a0000000-0000-0000-0000-0000000000${n}`, { wait: 3000 });
+    add('buyer', 'reader-notes', '/read/a0000000-0000-0000-0000-000000000019', { wait: 3000, before: (p) => p.click('button[aria-label="Notes"]') });
+    add('buyer', 'reader-draw', '/read/a0000000-0000-0000-0000-000000000020', { wait: 3000, before: (p) => p.click('button[aria-label="Draw"]') });
     add('buyer', 'devices', '/devices');
     add('buyer', 'checkout-slot', '/checkout/slot/computer', { wait: 1500 });
     add('buyer', 'account', '/account');
@@ -158,7 +163,8 @@ for (const size of Object.keys(SIZES)) {
     add('admin', 'admin-settings', '/admin/settings');
     add('admin', 'admin-receipts', '/admin/receipts');
     add('admin', 'admin-receipts-design', '/admin/receipts?tab=design');
-    add('admin', 'admin-appearance', '/admin/appearance');
+    add('admin', 'admin-appearance', '/admin/appearance', { wait: 2500 });
+    add('admin', 'admin-appearance-style', '/admin/appearance', { wait: 1500, before: clickText('Colours & style', '[role=tab]') });
     add('admin', 'admin-logs', '/admin/logs');
     add('admin', 'admin-statistics', '/admin/statistics');
     add('admin', 'admin-payments-slots', '/admin/payments?type=slots');

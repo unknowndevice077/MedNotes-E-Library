@@ -51,16 +51,26 @@ asks for the current one first.
 | Proofs of payment are private | `proofs` bucket, readable by the buyer and admins only |
 | Offline copies stay in the app | AES-GCM in the app's private storage; Android backup and device transfer are off |
 
-The publisher's watermark (Admin → Restrictions) is drawn into PDF pages and images and laid over every other page;
-right-click, save/print shortcuts and DevTools are blocked in the browser and screenshots are blocked in the Android
+The publisher's watermark (Admin → Restrictions: off, app only, or app & website; app only by default) is drawn into
+PDF pages and images and laid over every other page; right-click, save/print shortcuts and DevTools are blocked in the browser and screenshots are blocked in the Android
 app (`FLAG_SECURE`). These discourage copying, but nothing can stop a determined person with a second camera.
 
 ## Admin
 
 - **Receipts**: every issued receipt (search, view, print) and the receipt design with a live sample.
-- **Appearance**: store name, logo, colours, background (plain, gradient or photo), sign-in photo, welcome text,
-  corner roundness and font. Applied to the website and the app; features don't change.
-- **Restrictions**: device limits, watermark text, screenshot blocking, offline saving.
+- **Appearance**: a site editor showing the real sign-in, sign-up, library, file, checkout, my files, devices and
+  account pages in a live preview (computer or phone size). Click any text in the preview to rewrite it; colours,
+  logo, background, font and corner roundness are on the second tab. Saved wording lives in `settings.theme.copy`
+  (keys in `src/lib/siteText.ts`) and reaches open copies of the website and app right away.
+- **Restrictions**: device limits, watermark (where it shows, text, sample page), screenshot blocking, offline saving.
+
+## Reader
+
+PDFs, slides, e-books, Word and Excel files open in one reader with zoom (buttons, `+`/`-`, Ctrl + wheel), page
+jump, page colour (light, sepia, dark) and full screen. **Notes** opens a side panel for typed notes (with a button
+that marks the current page, slide or video time) and a sketch pad; **Draw** puts a pen, highlighter and eraser on PDF
+pages, images and slides. Notes and drawings are saved per buyer per file in `reader_notes` (only that buyer can read
+them) and kept on the device too, so they work offline in the app.
 
 ## GCash payments
 
