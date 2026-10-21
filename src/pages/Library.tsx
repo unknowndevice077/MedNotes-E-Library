@@ -142,7 +142,7 @@ export default function Library() {
           <div className="filterbar">
             <div className="spread wrap" style={{ gap: 12 }}>
               <div className="col" style={{ gap: 2 }}>
-                <h2>{q ? `Results for “${q}”` : label ? label : freeOnly ? 'Free samples' : <Tx k="library.all" />}</h2>
+                <h2>{q ? `Results for “${q}”` : label ? label : freeOnly ? 'Free to read' : <Tx k="library.all" />}</h2>
                 <span className="small muted">{shown.length} file{shown.length === 1 ? '' : 's'}{filtering && <> · <button className="link" onClick={() => { setKind('all'); setLabel(null); setQ(''); setFreeOnly(false); }}>Clear filters</button></>}</span>
               </div>
               <select className="input" style={{ width: 170 }} value={sort} onChange={(e) => setSort(e.target.value as typeof sort)} aria-label="Sort">

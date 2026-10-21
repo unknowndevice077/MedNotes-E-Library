@@ -90,7 +90,7 @@ export default function FileDetail() {
       {owned ? (
         <div className="spread"><span className="badge b-ok"><Check /> You own this</span><span className="small muted">since {dateOnly(owned.confirmed_at)}</span></div>
       ) : free ? (
-        <div className="spread"><span className="badge b-ok"><Check /> Free sample</span><span className="small muted">No payment needed</span></div>
+        <div className="spread"><span className="badge b-ok"><Check /> Free to read</span><span className="small muted">No payment needed</span></div>
       ) : (
         <div className="spread"><span className="muted"><Tx k="detail.priceLabel" /></span><span className="big-price">{peso(file.price)}</span></div>
       )}

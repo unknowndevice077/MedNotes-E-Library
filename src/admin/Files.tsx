@@ -132,7 +132,7 @@ function FileEditor({ file, restored, onClose: close, onSaved: saved }: { file: 
 
   async function save() {
     if (!f.name.trim()) return setErr('Give the file a name.');
-    if (!f.is_free && (f.price === '' || Number.isNaN(Number(f.price)) || Number(f.price) <= 0)) return setErr('Enter a price, or turn on Free sample.');
+    if (!f.is_free && (f.price === '' || Number.isNaN(Number(f.price)) || Number(f.price) <= 0)) return setErr('Enter a price, or turn on Free to read.');
     if (!file && !upload) return setErr('Choose the file to upload.');
     setErr('');
     try {
@@ -205,8 +205,8 @@ function FileEditor({ file, restored, onClose: close, onSaved: saved }: { file: 
               <CategoryPicker id="flabel" value={f.label || null} onChange={(v) => setF((s) => ({ ...s, label: v ?? '' }))} allowCustom placeholder="Search or type a subject" /></div>
             <div className="field" style={{ width: 210 }}><label htmlFor="fprice">Price (₱)</label>
               <input id="fprice" className="input" inputMode="decimal" value={f.is_free ? 'Free' : f.price} disabled={f.is_free} onChange={(e) => setF({ ...f, price: e.target.value })} />
-              <label className="row small" style={{ gap: 8, marginTop: 4 }}><Toggle on={f.is_free} onChange={(v) => setF({ ...f, is_free: v, price: v ? '0' : f.price === '0' ? '' : f.price })} label="Free sample" />
-                <span>Free sample{f.is_free ? ': anyone signed in can read it' : ''}</span></label></div>
+              <label className="row small" style={{ gap: 8, marginTop: 4 }}><Toggle on={f.is_free} onChange={(v) => setF({ ...f, is_free: v, price: v ? '0' : f.price === '0' ? '' : f.price })} label="Free to read" />
+                <span>Free to read{f.is_free ? ': anyone signed in can read it' : ''}</span></label></div>
           </div>
           <div className="field"><label htmlFor="fdesc">Description</label><textarea id="fdesc" className="input" value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} /></div>
           <div className="field"><label htmlFor="fmeta">Length (shown on the card)

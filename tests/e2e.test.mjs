@@ -695,10 +695,10 @@ describe('free samples, extra device slots, profile', () => {
     try {
       const p = await open(u);
       await go(p, '/library');
-      const shelf = await p.evaluate(() => [...document.querySelectorAll('.shelf')].find((s) => s.querySelector('h2')?.textContent === 'Free samples')?.querySelectorAll('.bookcard').length ?? 0);
+      const shelf = await p.evaluate(() => [...document.querySelectorAll('.shelf')].find((s) => s.querySelector('h2')?.textContent === 'Free to read')?.querySelectorAll('.bookcard').length ?? 0);
       assert.equal(shelf, 5, 'one of each: PDF, PPTX, EPUB, Word, Excel');
       await go(p, '/file/a0000000-0000-0000-0000-000000000019');
-      assert.ok((await text(p)).includes('Read free sample'));
+      assert.ok((await text(p)).includes('Read for free'));
       await go(p, '/read/a0000000-0000-0000-0000-000000000019');
       await p.waitForSelector('.reader canvas', { timeout: 15000 });
       await p.close();
@@ -713,7 +713,7 @@ describe('free samples, extra device slots, profile', () => {
       const b = await open(u);
       await go(b, `/checkout/${FILES.pdf}`);
       await b.waitForSelector('input[type=file]');
-      assert.ok((await text(b)).includes('Your last payment was rejected: Payment not received'), 'reason shown');
+      { const t = await text(b); assert.ok(t.includes('Payment not received') && t.includes('Please send it again'), 'reason and message shown'); }
       await (await b.$('input[type=file]')).uploadFile(join(root, 'supabase', 'sample', 'proofs', '33333333-0000-0000-0000-000000000001', 'proof-1.png'));
       await b.waitForSelector('img.proof-img');
       await Promise.all([b.waitForNavigation({ waitUntil: 'networkidle0' }).catch(() => {}), clickText(b, 'form button', 'Resubmit payment')]);

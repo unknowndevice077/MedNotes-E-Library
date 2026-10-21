@@ -46,7 +46,7 @@ export const TEXT = {
   'library.statWaiting': 'Waiting',
   'library.statTotal': 'In library',
   'library.continue': 'Continue reading',
-  'library.free': 'Free samples',
+  'library.free': 'Free to read',
   'library.freeSub': 'Read these without paying',
   'library.new': 'New arrivals',
   'library.all': 'All files',
@@ -55,7 +55,7 @@ export const TEXT = {
 
   'detail.buy': 'Buy this file',
   'detail.read': 'Read now',
-  'detail.readFree': 'Read free sample',
+  'detail.readFree': 'Read for free',
   'detail.waiting': 'Waiting for confirmation',
   'detail.priceLabel': 'Price',
   'detail.step1': 'Send payment',
