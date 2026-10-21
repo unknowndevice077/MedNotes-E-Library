@@ -7,7 +7,7 @@ import { ago, errMsg, initials } from '../lib/format';
 import type { Device, LibFile, Profile, Purchase } from '../lib/types';
 import { AdminLayout } from '../components/Layouts';
 import { LogList } from './Logs';
-import { Modal, Toggle, useConfirm, useIsMobile, useToast } from '../components/ui';
+import { Empty, Modal, Toggle, useConfirm, useIsMobile, useToast } from '../components/ui';
 import { Laptop, Phone, Search } from '../components/Icons';
 import { FormSkeleton, RowsSkeleton } from '../components/Skeletons';
 
@@ -75,14 +75,16 @@ export function AdminUserDetail() {
   const [granting, setGranting] = useState(false);
   const { data, loading, reload } = useLoad(async () => {
     const [p, d, pu] = await Promise.all([
-      supabase.from('profiles').select('*').eq('id', id!).single(),
+      supabase.from('profiles').select('*').eq('id', id!).maybeSingle(),
       supabase.from('devices').select('*').eq('user_id', id!).order('kind'),
       supabase.from('purchases').select('*, files(*)').eq('user_id', id!).order('created_at', { ascending: false }),
     ]);
-    const prof = must(p) as Profile;
+    const prof = must(p) as Profile | null;
+    if (!prof) return null; // deleted account (e.g. opened from an old log entry)
     setO({ computer_slots: prof.computer_slots, phone_slots: prof.phone_slots, swaps_per_30d: prof.swaps_per_30d, can_add_devices: prof.can_add_devices, admin_note: prof.admin_note });
     return { prof, devices: must(d) as Device[], purchases: must(pu) as Purchase[] };
   }, [id]);
+  if (!loading && data === null) return <AdminLayout title="User"><Empty title="This account no longer exists">It was deleted. Its history stays in Logs.</Empty></AdminLayout>;
   if (loading || !data || !o) return <AdminLayout title="User"><FormSkeleton /></AdminLayout>;
   const { prof, devices, purchases } = data;
 
