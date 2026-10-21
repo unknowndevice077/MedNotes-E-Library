@@ -60,6 +60,7 @@ function UserMenu() {
           <Link to="/my-files" role="menuitem"><Book /><Tx k="nav.myFiles" /></Link>
           <Link to="/devices" role="menuitem"><Phone /><Tx k="nav.devices" /></Link>
           <Link to="/payments" role="menuitem"><Receipt />Payments & receipts</Link>
+          <Link to="/help" role="menuitem"><Bell />Help & feedback</Link>
           {profile?.role === 'admin' && <Link to="/admin" role="menuitem"><Grid />Admin dashboard</Link>}
           <button role="menuitem" className="danger" onClick={signOut}><Logout />Sign out</button>
         </div>
@@ -79,7 +80,7 @@ function SiteFooter() {
         </div>
         <div className="footer-links">
           <div className="col"><b className="small"><Tx k="footer.colLibrary" /></b><Link to="/library">Browse</Link><Link to="/my-files"><Tx k="nav.myFiles" /></Link><Link to="/payments">Payments & receipts</Link><Link to="/devices"><Tx k="nav.devices" /></Link></div>
-          <div className="col"><b className="small"><Tx k="footer.colHelp" /></b><Link to="/privacy">Privacy policy</Link><Link to="/data-deletion">Delete your data</Link><Link to="/account"><Tx k="nav.account" /></Link></div>
+          <div className="col"><b className="small"><Tx k="footer.colHelp" /></b><Link to="/help">Help & feedback</Link><Link to="/privacy">Privacy policy</Link><Link to="/data-deletion">Delete your data</Link><Link to="/account"><Tx k="nav.account" /></Link></div>
         </div>
       </div>
       <div className="site-footer-bottom small muted">© {new Date().getFullYear()} {storeName || 'MedNotes E-Library'} · <Tx k="footer.bottom" /></div>
@@ -195,6 +196,7 @@ export function AdminLayout({ title, subtitle, actions, children }: { title: str
     { to: '/admin/files', label: 'Files', icon: <Files /> },
     { to: '/admin/payments', label: 'Payments', icon: <Pay />, count: pending },
     { to: '/admin/users', label: 'Users', icon: <Users /> },
+    { to: '/admin/support', label: 'Support', icon: <Bell /> },
     { to: '/admin/receipts', label: 'Receipts', icon: <Receipt /> },
     { to: '/admin/statistics', label: 'Statistics', icon: <Trend /> },
     { to: '/admin/logs', label: 'Logs', icon: <Clock /> },
@@ -213,12 +215,13 @@ export function AdminLayout({ title, subtitle, actions, children }: { title: str
           {links.filter((l) => ['Dashboard', 'Files', 'Payments', 'Users'].includes(l.label)).map((l) => (
             <NavLink key={l.to} to={l.to} end={l.end} className="tab">{l.icon}{l.label === 'Dashboard' ? 'Home' : l.label}</NavLink>
           ))}
-          <button type="button" className={`tab${['/admin/settings', '/admin/restrictions', '/admin/receipts', '/admin/appearance', '/admin/logs', '/admin/statistics'].includes(loc.pathname) ? ' active' : ''}`} onClick={() => setMore(true)}><Cog />More</button>
+          <button type="button" className={`tab${['/admin/settings', '/admin/restrictions', '/admin/receipts', '/admin/appearance', '/admin/logs', '/admin/statistics', '/admin/support'].includes(loc.pathname) ? ' active' : ''}`} onClick={() => setMore(true)}><Cog />More</button>
         </nav>
         {more && (
           <Modal onClose={() => setMore(false)} width={420}>
             <h2>More</h2>
             <div className="col more-menu" style={{ gap: 4 }}>
+              <Link to="/admin/support" onClick={() => setMore(false)}><Bell />Support</Link>
               <Link to="/admin/receipts" onClick={() => setMore(false)}><Receipt />Receipts</Link>
               <Link to="/admin/statistics" onClick={() => setMore(false)}><Trend />Statistics</Link>
               <Link to="/admin/logs" onClick={() => setMore(false)}><Clock />Logs</Link>

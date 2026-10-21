@@ -442,3 +442,30 @@ describe('payment amounts', () => {
   });
 });
 
+describe('support tickets', () => {
+  test('buyers see only their own tickets, can only rate/close them; the admin replies', async () => {
+    const a = await makeUser('tix-a'), b = await makeUser('tix-b');
+    try {
+      const { data: t, error } = await a.client.from('tickets').insert({ user_id: a.id, kind: 'bug', subject: 'PDF will not open', body: 'Spinner forever', rating: 4 }).select().single();
+      assert.ifError(error);
+      assert.equal((await b.client.from('tickets').select('id').eq('id', t.id)).data.length, 0, 'other buyers see nothing');
+      assert.ok((await b.client.from('ticket_messages').insert({ ticket_id: t.id, author_id: b.id, body: 'hi' })).error, 'nor can they post in it');
+      assert.ok((await a.client.from('tickets').insert({ user_id: b.id, kind: 'bug', subject: 'forged', body: 'forged' })).error, 'cannot open one as someone else');
+      assert.ok((await a.client.from('tickets').update({ status: 'resolved' }).eq('id', t.id)).error, 'buyer cannot resolve');
+      assert.ok((await a.client.from('tickets').update({ subject: 'changed' }).eq('id', t.id)).error, 'buyer cannot rewrite it');
+      assert.ok((await a.client.from('tickets').update({ satisfaction: 5 }).eq('id', t.id)).error, 'no rating the help before it is resolved');
+      assert.ok((await a.client.from('ticket_messages').insert({ ticket_id: t.id, author_id: a.id, body: 'pretend staff', from_admin: true })).error, 'buyer cannot post as staff');
+      assert.ifError((await admin.client.from('ticket_messages').insert({ ticket_id: t.id, author_id: admin.id, from_admin: true, body: 'Try reloading' })).error);
+      let { data: row } = await service.from('tickets').select('status, unread_user').eq('id', t.id).single();
+      assert.deepEqual(row, { status: 'answered', unread_user: true }, 'reply marks it answered and unread for the buyer');
+      assert.ifError((await a.client.from('ticket_messages').insert({ ticket_id: t.id, author_id: a.id, body: 'Still broken' })).error);
+      assert.equal((await service.from('tickets').select('status').eq('id', t.id).single()).data.status, 'open', 'buyer reply reopens it');
+      assert.ifError((await admin.client.from('tickets').update({ status: 'resolved' }).eq('id', t.id)).error);
+      assert.ifError((await a.client.from('tickets').update({ satisfaction: 5 }).eq('id', t.id)).error, 'rate the help once resolved');
+      assert.ifError((await a.client.from('tickets').update({ status: 'closed' }).eq('id', t.id)).error, 'buyer can close');
+      assert.equal((await a.client.from('ticket_messages').select('id').eq('ticket_id', t.id)).data.length, 2);
+      assert.equal((await anon().from('tickets').select('id')).data?.length ?? 0, 0, 'anonymous reads nothing');
+    } finally { await dropUser(a); await dropUser(b); }
+  });
+});
+

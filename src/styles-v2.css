@@ -621,3 +621,35 @@ html.capture-hide .notes-panel, html.capture-hide .drawbar-dock { visibility: hi
 :root[data-dark] .menu a:hover, :root[data-dark] .menu button:hover { background: #1f2937; }
 :root[data-dark] .reader-sample { border-color: #273244; }
 :root[data-dark] .logo .tile { background: #fff; }
+
+/* hidden buyer mark over the reader (src/lib/leakMark.ts): far too faint to see, kept by screenshots */
+.leak-mark { position: absolute; inset: 0; pointer-events: none; z-index: 7; background-repeat: repeat; image-rendering: pixelated; }
+
+/* help & support tickets */
+.stars { display: inline-flex; align-items: center; gap: 2px; }
+.stars button, .stars i { font-style: normal; line-height: 1; color: #cbd5e1; padding: 0 1px; transition: color .1s, transform .1s; }
+.stars button { cursor: pointer; }
+.stars button:hover { transform: scale(1.12); }
+.stars .on { color: #f59e0b; }
+.stars-word { margin-left: 8px; }
+.help-start { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; }
+.help-kind { display: flex; flex-direction: column; gap: 2px; text-align: left; padding: 14px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--card, #fff); transition: border-color .15s, box-shadow .15s; }
+.help-kind:hover { border-color: var(--blue); box-shadow: var(--ring); }
+.ticket-row { display: flex; align-items: center; gap: 10px; padding: 12px 4px; border-top: 1px solid var(--line); width: 100%; }
+.ticket-row:first-of-type { border-top: 0; }
+.unread-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--blue); margin-right: 6px; flex-shrink: 0; }
+.faq { border-top: 1px solid var(--line); padding: 10px 0; }
+.faq summary { cursor: pointer; font-weight: 600; }
+.faq p { margin: 6px 0 0; }
+.msg { max-width: 88%; padding: 10px 14px; border-radius: 14px; background: var(--surface-2, #f1f5f9); align-self: flex-start; }
+.msg.mine { align-self: flex-end; background: var(--blue-50); border: 1px solid var(--blue-100); }
+.msg.staff:not(.mine) { border-left: 3px solid var(--green); }
+.msg-meta { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.msg-body { white-space: pre-wrap; word-break: break-word; }
+.reply { display: flex; gap: 10px; align-items: flex-end; }
+.reply textarea { min-height: 70px; resize: vertical; }
+.ticket-shot { display: block; margin-top: 8px; width: 220px; max-width: 100%; border-radius: 10px; overflow: hidden; border: 1px solid var(--line); }
+.ticket-shot img { display: block; width: 100%; }
+.ticket-shot.skeleton { height: 140px; }
+.ticket-preview { width: 120px; height: 90px; object-fit: cover; border-radius: 10px; border: 1px solid var(--line); }
+@media (max-width: 760px) { .reply { flex-direction: column; align-items: stretch; } .msg { max-width: 100%; } }

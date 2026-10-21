@@ -53,7 +53,11 @@ asks for the current one first.
 
 The publisher's watermark (Admin → Restrictions: off, app only, or app & website; app only by default) is drawn into
 PDF pages and images and laid over every other page; right-click, save/print shortcuts and DevTools are blocked in the browser and screenshots are blocked in the Android
-app (`FLAG_SECURE`). These discourage copying, but nothing can stop a determined person with a second camera.
+app (`FLAG_SECURE`, so screenshots and recordings come out black). A website can't make an OS screenshot black (only
+DRM video can), so the web reader instead blanks itself on screenshot/recording shortcuts and when it loses focus, and
+carries an invisible **buyer mark** (`src/lib/leakMark.ts`): a faint 36-bit pattern with the buyer's account. Drop a
+leaked screenshot into **Admin → Restrictions → Trace a leaked screenshot** to see whose account took it. A photo of the
+screen taken with a second camera can't be traced.
 
 ## Admin
 

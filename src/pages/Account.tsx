@@ -173,6 +173,7 @@ export default function Account() {
           {profile?.role === 'admin' && <Link to="/admin" className="btn btn-sm">Admin</Link>}
         </div>
         <Link to="/payments" className="card spread" style={{ color: 'inherit' }}><span className="col" style={{ gap: 0 }}><b>Payments & receipts</b><span className="small muted">Everything you paid for, with receipts</span></span><span className="link">Open →</span></Link>
+        <Link to="/help" className="card spread" style={{ color: 'inherit' }}><span className="col" style={{ gap: 0 }}><b>Help & feedback</b><span className="small muted">Report a bug, send feedback or ask the publisher</span></span><span className="link">Open →</span></Link>
         <ProfileEditor />
         <PrefsCard />
         <div className="card col">

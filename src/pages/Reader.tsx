@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
@@ -15,6 +15,7 @@ import { stampCanvas, useMark, usePublisher, type Mark } from '../lib/watermark'
 import { usePrefs } from '../lib/prefs';
 import { ReaderSkeleton } from '../components/Skeletons';
 import { DrawBar, InkLayer, useReaderNotes, type Ink, type Stroke, type Tool } from '../components/ReaderTools';
+import { STRENGTH, TILE, markTile } from '../lib/leakMark';
 
 type Source = { kind: FileKind; name: string; mime: string; blob?: Blob; url?: string };
 
@@ -52,8 +53,10 @@ export default function Reader() {
   const nav = useNavigate();
   const mobile = useIsMobile();
   const confirm = useConfirm();
-  const { settings } = useAuth();
+  const { settings, session } = useAuth();
   const { prefs, save: savePrefs } = usePrefs();
+  // hidden buyer mark: invisible, but any screenshot of the reader can be traced to this account
+  const leak = useMemo(() => (session ? markTile(session.user.id) : null), [session?.user.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const [src, setSrc] = useState<Source | null>(null);
   const [err, setErr] = useState('');
   const [progress, setProgress] = useState(0);
@@ -190,6 +193,7 @@ export default function Reader() {
             </div>
           )}
         </div>
+        {leak && src && <div className="leak-mark" aria-hidden style={{ backgroundImage: `url("${leak}")`, backgroundSize: `${TILE}px`, opacity: STRENGTH }} />}
         {drawing && canDraw && (
           <div className="drawbar-dock"><DrawBar tool={tool} setTool={setTool} onUndo={notes.undo} canUndo={notes.canUndo} onClear={clearInk} onDone={() => setDrawing(false)} /></div>
         )}

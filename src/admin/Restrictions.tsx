@@ -15,7 +15,8 @@ import { PasswordCard } from '../pages/Account';
 import { useAdminDark } from '../components/Layouts';
 import { downloadReceiptImage } from '../lib/receiptImage';
 import { markTile, publisherOf, watermarkLine } from '../lib/watermark';
-import { Laptop, Shield, Trash } from '../components/Icons';
+import { Laptop, Search, Shield, Trash } from '../components/Icons';
+import { readMark } from '../lib/leakMark';
 import { Bar, FormSkeleton } from '../components/Skeletons';
 
 export function useSettingsForm() {
@@ -95,6 +96,7 @@ export function AdminRestrictions() {
             <div className="setting"><div className="col" style={{ gap: 0 }}><b>Offline saving (mobile app only)</b><span className="small muted">Encrypted copies inside the app</span></div><Toggle on={s.offline_saving} onChange={(v) => set({ offline_saving: v })} /></div>
             <div className="setting"><div className="col" style={{ gap: 0 }}><b>Saved copies lock after</b><span className="small muted">Days the phone can stay offline before it must check in</span></div><Num value={s.offline_days} onChange={(n) => set({ offline_days: Math.max(1, n) })} suffix="days" /></div>
           </div>
+          <TraceLeak />
         </div>
         <div className="card col" style={{ width: 420, maxWidth: '100%' }}>
           <h3>Active user overrides</h3>
@@ -286,5 +288,39 @@ export function AdminSettings() {
       </div>
     {testing && <TestQrModal m={testing} onClose={() => setTesting(null)} />}
     </AdminLayout>
+  );
+}
+
+/** Drop in a leaked screenshot of the reader: the hidden buyer mark says whose account took it. */
+function TraceLeak() {
+  const [state, setState] = useState<{ busy?: boolean; msg?: string; who?: { id: string; full_name: string; email: string; created_at: string }[] }>({});
+  async function trace(file?: File | null) {
+    if (!file) return;
+    setState({ busy: true });
+    try {
+      const bmp = await createImageBitmap(file);
+      const c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height;
+      const ctx = c.getContext('2d', { willReadFrequently: true })!; ctx.drawImage(bmp, 0, 0);
+      await new Promise((r) => setTimeout(r, 30)); // let the "Reading…" state paint first
+      const prefix = readMark(ctx.getImageData(0, 0, c.width, c.height));
+      if (!prefix) return setState({ msg: "No buyer mark found. Use the original screenshot (PNG), not a photo of the screen or a compressed copy." });
+      const { data, error } = await supabase.rpc('admin_trace_mark', { p_prefix: prefix });
+      if (error) return setState({ msg: error.message });
+      setState(data?.length ? { who: data } : { msg: `Mark ${prefix} found, but no current account matches it (the account may have been deleted).` });
+    } catch { setState({ msg: "Couldn't read that image." }); }
+  }
+  return (
+    <div className="card col" style={{ gap: 10 }}>
+      <div className="row"><Search width={20} color="var(--blue)" /><h3>Trace a leaked screenshot</h3></div>
+      <span className="small muted">Every page in the reader carries a hidden mark with the buyer's account. It can't be seen, but screenshots keep it. Drop a leaked screenshot here to see who took it.</span>
+      <label className="drop" style={{ minHeight: 100 }}>
+        <b>{state.busy ? 'Reading the hidden mark…' : 'Choose or drop the screenshot'}</b><span className="small">PNG or JPG straight from the screenshot works best</span>
+        <input id="trace-file" type="file" accept="image/*" hidden onChange={(e) => { void trace(e.target.files?.[0]); e.target.value = ''; }} />
+      </label>
+      {state.msg && <div className="note note-amber"><span>{state.msg}</span></div>}
+      {state.who?.map((u) => (
+        <div key={u.id} className="note note-red trace-hit"><span>Taken from the account of <b>{u.full_name || u.email}</b> ({u.email}), member since {new Date(u.created_at).toLocaleDateString()}. <Link to={`/admin/users/${u.id}`} className="link">Open their account</Link></span></div>
+      ))}
+    </div>
   );
 }

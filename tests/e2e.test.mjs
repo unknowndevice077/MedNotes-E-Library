@@ -310,6 +310,44 @@ describe('buyer: browse, buy, read', () => {
     await service.from('reader_notes').delete().eq('user_id', buyer.id);
   });
 
+  test('hidden buyer mark: a screenshot of the reader is traced back to the buyer (100% and 200% screens, dark pages)', async () => {
+    const shots = [];
+    for (const [scale, kind, dark] of [[1, 'pptx', false], [2, 'docx', true]]) {
+      const p = await open(buyer);
+      await p.setViewport({ width: 1280, height: 800, deviceScaleFactor: scale });
+      if (dark) await service.from('profiles').update({ prefs: { readerTheme: 'dark' } }).eq('id', buyer.id);
+      await go(p, `/read/${FILES[kind]}`);
+      await p.waitForSelector('.leak-mark', { timeout: 15000 });
+      await sleep(2000);
+      const op = await p.$eval('.leak-mark', (e) => Number(getComputedStyle(e).opacity));
+      assert.ok(op > 0 && op < 0.03, 'mark is far too faint to see');
+      const file = join(root, 'tests', 'screenshots', `leak-${scale}x.png`);
+      await p.screenshot({ path: file });
+      shots.push(file);
+      await p.close();
+    }
+    await service.from('profiles').update({ prefs: {} }).eq('id', buyer.id);
+    const a = await open(admin);
+    await go(a, '/admin/restrictions');
+    for (const file of shots) {
+      await go(a, '/admin/restrictions');
+      const input = await a.waitForSelector('#trace-file');
+      await input.uploadFile(file);
+      await a.waitForFunction(() => document.querySelector('.trace-hit') || document.querySelector('.note-amber'), { timeout: 30000 });
+      const t = await a.$eval('.trace-hit', (e) => e.innerText).catch(() => a.evaluate(() => [...document.querySelectorAll('.note')].map((n) => n.innerText).join(' | ')));
+      assert.ok(t.includes(buyer.email), `${file}: traced to the buyer (${t})`);
+    }
+    await shot(a, 'admin-trace-leak');
+    // a screenshot without the mark must not accuse anyone
+    await go(a, '/admin/restrictions');
+    const clean = join(root, 'tests', 'screenshots', 'leak-none.png');
+    await a.screenshot({ path: clean });
+    await (await a.$('#trace-file')).uploadFile(clean);
+    await a.waitForFunction(() => /No buyer mark/.test(document.body.innerText), { timeout: 30000 });
+    assert.equal(await a.$('.trace-hit'), null);
+    await a.close();
+  });
+
   test('reader protections: no right-click, shortcuts blocked, hidden on blur / Print Screen', async () => {
     const p = await open(buyer);
     await go(p, `/read/${FILES.docx}`);
@@ -702,6 +740,43 @@ describe('free samples, extra device slots, profile', () => {
       await sleep(300);
       assert.match(a.url(), /sort=old/);
       await a.close();
+    } finally { await dropUser(u); }
+  });
+
+  test('help: buyer opens a bug ticket with stars and a screenshot; the admin replies live; buyer rates the help', async () => {
+    const u = await makeUser('e2e-help');
+    try {
+      const b = await open(u);
+      await go(b, '/help');
+      await clickText(b, '.help-kind', 'Report a bug');
+      await b.waitForSelector('#t-subject');
+      await b.type('#t-subject', 'Slides look cut off');
+      await b.type('#t-body', 'On my phone the last bullet is hidden.');
+      await b.click('.modal .stars button[aria-label="4 stars"]');
+      await (await b.$('#t-file')).uploadFile(join(root, 'supabase', 'sample', 'proofs', '33333333-0000-0000-0000-000000000001', 'proof-1.png'));
+      await b.waitForSelector('.ticket-preview');
+      await shot(b, 'help-new-ticket');
+      await clickText(b, '.modal button', 'Send');
+      await b.waitForFunction(() => location.search.includes('t='), { timeout: 8000 });
+      const { data: t } = await service.from('tickets').select('*').eq('user_id', u.id).single();
+      assert.deepEqual({ k: t.kind, r: t.rating, s: t.status, att: !!t.attachment_path }, { k: 'bug', r: 4, s: 'open', att: true });
+      const a = await open(admin);
+      await go(a, `/admin/support?t=${t.id}`);
+      await a.waitForSelector('.ticket-shot img');
+      await p_type(a, 'textarea[aria-label="Reply"]', 'Thanks! Fixed in the next update.');
+      await clickText(a, '.reply button', 'Send');
+      await b.waitForFunction(() => document.body.innerText.includes('Fixed in the next update'), { timeout: 10000 });
+      await clickText(a, 'button', 'Mark resolved');
+      await sleep(800);
+      await shot(a, 'admin-support');
+      await a.close();
+      await b.reload({ waitUntil: 'networkidle0' });
+      await b.waitForSelector('.stars button[aria-label="5 stars"]');
+      await b.click('.stars button[aria-label="5 stars"]');
+      await sleep(800);
+      assert.equal((await service.from('tickets').select('satisfaction').eq('id', t.id).single()).data.satisfaction, 5);
+      await shot(b, 'help-ticket');
+      await b.close();
     } finally { await dropUser(u); }
   });
 

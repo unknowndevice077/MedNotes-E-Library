@@ -24,6 +24,7 @@ const pages = {
   account: () => import('./pages/Account'),
   saved: () => import('./pages/SavedOffline'),
   payments: () => import('./pages/Payments'),
+  help: () => import('./pages/Help'),
 };
 const FileDetail = lazy(pages.detail);
 const Checkout = lazy(pages.checkout);
@@ -33,6 +34,7 @@ const Devices = lazy(pages.devices);
 const Account = lazy(pages.account);
 const SavedOffline = lazy(pages.saved);
 const MyPayments = lazy(pages.payments);
+const Help = lazy(pages.help);
 let prefetched = false;
 function prefetchPages() {
   if (prefetched) return;
@@ -53,6 +55,7 @@ const AdminReceipts = lazy(() => import('./admin/Receipts'));
 const AdminAppearance = lazy(() => import('./admin/Appearance'));
 const AdminLogs = lazy(() => import('./admin/Logs'));
 const AdminStatistics = lazy(() => import('./admin/Statistics'));
+const AdminSupport = lazy(() => import('./admin/Support'));
 
 function RequireAuth({ children, admin }: { children: ReactNode; admin?: boolean }) {
   const { loading, session, profile, online } = useAuth();
@@ -110,6 +113,7 @@ export default function App() {
               <Route path="/read/:id" element={<RequireAuth><Reader /></RequireAuth>} />
               <Route path="/devices" element={<RequireAuth><Devices /></RequireAuth>} />
               <Route path="/account" element={<RequireAuth><Account /></RequireAuth>} />
+              <Route path="/help" element={<RequireAuth><Help /></RequireAuth>} />
               <Route path="/payments" element={<RequireAuth><MyPayments /></RequireAuth>} />
               <Route path="/saved" element={<RequireAuth><SavedOffline /></RequireAuth>} />
 
@@ -123,6 +127,7 @@ export default function App() {
               <Route path="/admin/receipts" element={<RequireAuth admin><AdminReceipts /></RequireAuth>} />
               <Route path="/admin/appearance" element={<RequireAuth admin><AdminAppearance /></RequireAuth>} />
               <Route path="/admin/logs" element={<RequireAuth admin><AdminLogs /></RequireAuth>} />
+              <Route path="/admin/support" element={<RequireAuth admin><AdminSupport /></RequireAuth>} />
               <Route path="/admin/statistics" element={<RequireAuth admin><AdminStatistics /></RequireAuth>} />
 
               <Route path="/" element={<RequireAuth><Home /></RequireAuth>} />

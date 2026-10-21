@@ -20,6 +20,7 @@
     "test:backend": "node --test --test-concurrency=1 tests/backend.test.mjs",
     "test:e2e": "node --test --test-concurrency=1 --experimental-strip-types --no-warnings tests/e2e.test.mjs",
     "test:ui": "node --test --test-concurrency=1 tests/ui.test.mjs",
+    "test:clicks": "node --test --test-concurrency=1 tests/clickall.test.mjs",
     "test": "npm run test:unit && npm run test:backend && npm run test:e2e && npm run test:ui"
   },
   "dependencies": {
