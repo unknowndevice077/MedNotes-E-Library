@@ -319,7 +319,8 @@ input[type="range"] { accent-color: var(--blue); width: 150px; }
 .slot-offer:hover { border-color: var(--blue); box-shadow: var(--ring); }
 .slot-ico.g { background: var(--green-50); color: var(--green); }
 /* Admin → Logs */
-.log-filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.log-filters { display: flex; flex-direction: row; flex-wrap: wrap; gap: 10px; align-items: center; }
+.log-filters .search { height: 44px; flex: 1 1 240px; }
 .log-filters select.input { width: auto; min-width: 150px; }
 .log-row { border-bottom: 1px solid #f1f5f9; }
 .log-row:last-child { border-bottom: none; }

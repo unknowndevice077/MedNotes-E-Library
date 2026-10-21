@@ -142,6 +142,7 @@ for (const size of Object.keys(SIZES)) {
     add('buyer', 'receipt', () => `/receipt/${ids.receipt}`);
     add('buyer', 'reader', () => `/read/${ids.owned}`, { wait: 3000 });
     add('buyer', 'devices', '/devices');
+    add('buyer', 'checkout-slot', '/checkout/slot/computer', { wait: 1500 });
     add('buyer', 'account', '/account');
     add('buyer', 'account-delete-dialog', '/account', { before: clickText('Delete my account') });
     if (!SIZES[size].isMobile) add('buyer', 'user-menu', '/library', { before: (p) => p.click('.user-chip') });
@@ -158,6 +159,9 @@ for (const size of Object.keys(SIZES)) {
     add('admin', 'admin-receipts', '/admin/receipts');
     add('admin', 'admin-receipts-design', '/admin/receipts?tab=design');
     add('admin', 'admin-appearance', '/admin/appearance');
+    add('admin', 'admin-logs', '/admin/logs');
+    add('admin', 'admin-statistics', '/admin/statistics');
+    add('admin', 'admin-payments-slots', '/admin/payments?type=slots');
 
     const pages = {};
     before(async () => {
