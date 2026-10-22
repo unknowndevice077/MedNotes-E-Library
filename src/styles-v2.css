@@ -713,3 +713,11 @@ html.site-edit [data-edit]:not(.editing):hover::after { content: "✎"; font-siz
 .gsi-wrap { position: relative; width: 100%; min-height: 44px; display: flex; justify-content: center; }
 .gsi-box { width: 100%; max-width: 400px; display: flex; justify-content: center; min-height: 44px; }
 .gsi-busy { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--card, #fff); border-radius: 999px; font-weight: 600; }
+
+/* charts: one hover area per chart, a soft column behind the bar and a gliding label */
+.chart-wrap { position: relative; touch-action: pan-y; cursor: crosshair; }
+.chart-band { fill: var(--blue-50, #eff6ff); }
+:root[data-dark] .chart-band { fill: rgba(96, 165, 250, .12); }
+.chart-tip { position: absolute; top: 0; pointer-events: none; display: flex; flex-direction: column; gap: 1px; padding: 7px 10px; border-radius: 10px;
+  background: #0f172a; color: #fff; font-size: 12px; white-space: nowrap; box-shadow: var(--shadow-md); transition: left .12s ease-out, transform .12s ease-out; }
+.chart-tip span { opacity: .85; }

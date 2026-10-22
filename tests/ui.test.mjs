@@ -110,6 +110,8 @@ function audit(isPhone) {
     for (let j = i + 1; j < boxes.length; j++) {
       const b = boxes[j];
       if (a.el.contains(b.el) || b.el.contains(a.el)) continue;
+      // a sticky bottom bar sliding over the page while scrolling isn't crowding
+      if (!!a.el.closest('.bottom-bar, .topbar') !== !!b.el.closest('.bottom-bar, .topbar')) continue;
       const vOverlap = Math.min(a.r.bottom, b.r.bottom) - Math.max(a.r.top, b.r.top);
       if (vOverlap <= Math.min(a.r.height, b.r.height) * 0.5) continue; // not on the same line
       const hGap = Math.max(a.r.left, b.r.left) - Math.min(a.r.right, b.r.right);

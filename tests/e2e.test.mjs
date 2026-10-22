@@ -371,8 +371,8 @@ describe('admin', () => {
     const p = await open(admin);
     await go(p, '/admin');
     const t = await text(p);
-    for (const s of ['Payments to confirm', 'Revenue', 'New buyers', 'Top sellers']) assert.ok(t.includes(s), s);
-    assert.ok(await p.$('svg[aria-label^="Revenue this month"]'));
+    for (const s of ['Sales today', 'Payments to confirm', 'Latest sales', 'New buyers', 'Top sellers']) assert.ok(t.includes(s), s);
+    assert.ok(!(await p.$('svg[aria-label^="Revenue this month"]')), 'charts live in Statistics, not the dashboard');
     await shot(p, 'admin-dashboard');
     await p.close();
   });
@@ -756,7 +756,7 @@ describe('free samples, extra device slots, profile', () => {
     } finally { await dropUser(u); }
   });
 
-  test('statistics: reset from the Statistics page is saved there', async () => {
+  test('statistics: reset from the Statistics page is saved there and can be undone', async () => {
     const { data: s0 } = await service.from('settings').select('stats_reset_at').eq('id', 1).single();
     try {
       const p = await open(admin);
@@ -767,6 +767,12 @@ describe('free samples, extra device slots, profile', () => {
       await p.waitForFunction(() => !document.body.innerText.includes('never been reset'), { timeout: 8000 });
       assert.ok((await text(p)).includes('Resets'));
       await shot(p, 'admin-statistics-resets');
+      await clickText(p, 'button', 'Undo reset');
+      await p.waitForSelector('.modal');
+      await clickText(p, '.modal button', 'Undo reset');
+      await p.waitForFunction(() => document.body.innerText.includes('Undone'), { timeout: 8000 });
+      const { data: s1 } = await service.from('settings').select('stats_reset_at').eq('id', 1).single();
+      assert.equal(s1.stats_reset_at, s0.stats_reset_at, 'counters back where they were');
       await p.close();
     } finally { await service.from('settings').update({ stats_reset_at: s0.stats_reset_at }).eq('id', 1); }
   });
@@ -778,15 +784,20 @@ describe('free samples, extra device slots, profile', () => {
     let t = await text(p);
     for (const s of ['Report', 'Revenue', 'Net after revoked', 'Orders', 'Average order', 'Returning buyers', 'New sign-ups', 'By category', 'Payments', 'Average time to confirm', 'Files sold', 'Monthly history', 'Resets']) assert.ok(t.includes(s), s);
     assert.match(t, /compared with/);
-    // this month's revenue is the same number the dashboard shows
-    const reportRevenue = await p.$eval('.range-report .kpi-grid .stat .v', (e) => e.textContent);
     // every preset loads without errors
     for (const label of ['Today', 'Last 7 days', 'Last 30 days', 'Last month', 'This year', 'This month']) {
       await clickText(p, '.range-chips button', label);
       await p.waitForFunction((l) => document.querySelector('.range-chips button[aria-pressed="true"]')?.textContent === l, {}, label);
       await p.waitForSelector('.range-report .kpi-grid .stat .v');
     }
+    // pointing anywhere over the chart (gaps included) shows one steady label
+    const cw = await (await p.$('.range-report .chart-wrap')).boundingBox();
+    for (const f of [0.2, 0.5, 0.8]) {
+      await p.mouse.move(cw.x + cw.width * f, cw.y + cw.height * 0.6);
+      await p.waitForSelector('.range-report .chart-tip');
+    }
     await shot(p, 'admin-statistics-report');
+    await p.mouse.move(0, 0);
     // custom dates
     await clickText(p, '.range-chips button', 'Custom');
     await p.waitForSelector('#rr-from');
@@ -803,10 +814,6 @@ describe('free samples, extra device slots, profile', () => {
     assert.ok(lines.length > 2, 'has sales');
     const sum = lines.slice(1, -1).reduce((a, l) => a + Number(l.match(/,(-?\d+\.\d{2}),[^,]*$/)[1]), 0);
     assert.equal(Number(lines.at(-1).split(',')[7]), Math.round(sum * 100) / 100, 'total line adds up');
-    // the dashboard chart shows the same this-month revenue
-    await go(p, '/admin');
-    const dash = await p.$eval('svg[aria-label^="Revenue this month"]', (e) => e.closest('.col').querySelector('b').textContent);
-    assert.equal(dash, reportRevenue, 'dashboard and report agree');
     await p.close();
   });
 

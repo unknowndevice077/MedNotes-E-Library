@@ -206,23 +206,36 @@ function BarChart({ bars }: { bars: { key: string; label: string; value: number 
   const ticks = n <= 1 ? [0] : [0, Math.floor((n - 1) / 2), n - 1];
   return (
     <div className="col" style={{ gap: 6 }}>
-      <span className="small muted" style={{ alignSelf: 'flex-end' }}>{h ? `${h.label}: ${peso(h.value)}` : 'Hover or tap a bar'}</span>
-      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Revenue chart" style={{ width: '100%', height: 'auto', display: 'block' }}>
-        <defs><linearGradient id="rr" x1="0" x2="0" y1="0" y2="1"><stop offset="0" style={{ stopColor: 'var(--blue)' }} /><stop offset="1" style={{ stopColor: 'var(--green)' }} /></linearGradient></defs>
-        {[0.25, 0.5, 0.75, 1].map((t) => <line key={t} x1="0" x2={W} y1={H - H * t} y2={H - H * t} style={{ stroke: 'var(--line)' }} />)}
-        {bars.map((b, i) => {
-          const bh = b.value ? Math.max(4, (b.value / max) * (H - 8)) : 2;
-          return (
-            <g key={b.key} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)} onClick={() => setHover(i)}>
-              <rect x={i * (bw + gap)} y={0} width={bw} height={H} fill="transparent" />
-              <rect x={i * (bw + gap)} y={H - bh} width={bw} height={bh} rx={Math.min(3, bw / 3)} style={{ fill: b.value ? 'url(#rr)' : 'var(--line-strong, #cbd5e1)' }} opacity={hover === null || hover === i ? 1 : 0.45} />
-            </g>
-          );
-        })}
-      </svg>
+      <div className="chart-wrap" onPointerMove={(e) => setHover(barAt(e, n))} onPointerLeave={() => setHover(null)}>
+        <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Revenue chart" style={{ width: '100%', height: 'auto', display: 'block' }}>
+          {[0.25, 0.5, 0.75, 1].map((t) => <line key={t} x1="0" x2={W} y1={H - H * t} y2={H - H * t} style={{ stroke: 'var(--line)' }} />)}
+          {hover !== null && <rect className="chart-band" x={hover * (bw + gap) - gap / 2} y={0} width={bw + gap} height={H} />}
+          {bars.map((b, i) => {
+            const bh = b.value ? Math.max(4, (b.value / max) * (H - 8)) : 2;
+            return <rect key={b.key} x={i * (bw + gap)} y={H - bh} width={bw} height={bh} rx={Math.min(3, bw / 3)}
+              style={{ fill: !b.value ? 'var(--line-strong, #cbd5e1)' : hover === i ? 'var(--blue-deep, #1d4ed8)' : 'var(--blue)' }} />;
+          })}
+        </svg>
+        {h && <ChartTip x={(hover! + 0.5) / n} title={h.label} lines={[peso(h.value)]} />}
+      </div>
       <div className="chart-x small muted">
         {ticks.map((i) => <span key={i} style={{ left: `${((i + 0.5) / n) * 100}%` }}>{bars[i]!.label}</span>)}
       </div>
+    </div>
+  );
+}
+
+/** Which bar the pointer is over, from its x position, so moving across gaps never "leaves" the chart. */
+export function barAt(e: React.PointerEvent<HTMLElement>, n: number) {
+  const r = e.currentTarget.getBoundingClientRect();
+  return Math.min(n - 1, Math.max(0, Math.floor(((e.clientX - r.left) / r.width) * n)));
+}
+
+/** A small label that glides above the hovered bar. */
+export function ChartTip({ x, title, lines }: { x: number; title: string; lines: string[] }) {
+  return (
+    <div className="chart-tip" style={{ left: `${x * 100}%`, transform: `translateX(${x < 0.15 ? '-10%' : x > 0.85 ? '-90%' : '-50%'})` }}>
+      <b>{title}</b>{lines.map((l) => <span key={l}>{l}</span>)}
     </div>
   );
 }
