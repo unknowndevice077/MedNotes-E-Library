@@ -770,7 +770,7 @@ describe('free samples, extra device slots, profile', () => {
       await clickText(p, 'button', 'Undo reset');
       await p.waitForSelector('.modal');
       await clickText(p, '.modal button', 'Undo reset');
-      await p.waitForFunction(() => document.body.innerText.includes('Undone'), { timeout: 8000 });
+      await p.waitForFunction(() => document.body.innerText.includes('Reset undone'), { timeout: 8000 });
       const { data: s1 } = await service.from('settings').select('stats_reset_at').eq('id', 1).single();
       assert.equal(s1.stats_reset_at, s0.stats_reset_at, 'counters back where they were');
       await p.close();

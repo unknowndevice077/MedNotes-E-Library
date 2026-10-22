@@ -40,7 +40,7 @@ export default function MyPayments() {
   const receipt = open && (open.kind === 'file' ? toReceipt(open.p, profile) : slotReceipt(open.p, profile));
 
   return (
-    <ClientLayout title="Payments">
+    <ClientLayout back="/account" title="Payments">
       <div className="page" style={{ maxWidth: 980, margin: mobile ? undefined : '0' }}>
         {!mobile && <div className="col" style={{ gap: 4 }}><h1>Payments & receipts</h1><span className="muted">Every file and extra device you paid for, with your receipts.</span></div>}
         <div className="row wrap" style={{ gap: 12 }}>

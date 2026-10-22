@@ -24,7 +24,7 @@ export default function SavedOffline() {
   const total = (list ?? []).reduce((a, f) => a + f.size, 0);
 
   return (
-    <ClientLayout title="Saved offline">
+    <ClientLayout back title="Saved offline">
       <div className="page">
         {!online && <div className="note note-slate"><Wifi /><span>You're offline. Your saved files still open.</span></div>}
         {expired && <div className="note note-red"><span>Saved files are locked because this phone hasn't been online for {days} days. Connect to the internet once to unlock them.</span></div>}

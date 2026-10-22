@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, type ReactNode, type FormEvent } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { initials } from '../lib/format';
@@ -17,7 +17,7 @@ async function squareAvatar(file: File): Promise<Blob> {
 }
 
 /** Profile picture + name, for buyers (Account) and admins (Admin → Settings). */
-export default function ProfileEditor({ hint = 'Shown on your receipts.' }: { hint?: string }) {
+export default function ProfileEditor({ hint = 'Shown on your receipts.', action }: { hint?: string; action?: ReactNode }) {
   const { profile, patchProfile } = useAuth();
   const toast = useToast();
   const [name, setName] = useState(profile?.full_name ?? '');
@@ -61,10 +61,11 @@ export default function ProfileEditor({ hint = 'Shown on your receipts.' }: { hi
 
   return (
     <form className="card col" onSubmit={saveName}>
-      <h3>Profile</h3>
+      <div className="spread"><h3>Profile</h3>{action}</div>
       <div className="row" style={{ gap: 16 }}>
         <span className="avatar avatar-lg">{profile.avatar_url ? <img src={profile.avatar_url} alt="" referrerPolicy="no-referrer" /> : initials(profile.full_name, profile.email)}</span>
-        <div className="col" style={{ gap: 6 }}>
+        <div className="col" style={{ gap: 6, minWidth: 0 }}>
+          <span className="small muted ellipsis">{profile.email}</span>
           <div className="row" style={{ gap: 8 }}>
             <label className="btn btn-sm">{busy ? 'Uploading…' : profile.avatar_url ? 'Change photo' : 'Add a photo'}<input type="file" accept="image/png,image/jpeg,image/webp" hidden aria-label="Profile picture" onChange={(e) => photo(e.target.files?.[0])} /></label>
             {profile.avatar_url && <button type="button" className="btn btn-sm" onClick={removePhoto}>Remove</button>}

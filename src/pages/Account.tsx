@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
 import { usePrefs } from '../lib/prefs';
-import { bytes, errMsg, initials } from '../lib/format';
+import { bytes, errMsg } from '../lib/format';
 import { isNative } from '../lib/platform';
 import { listSaved, removeOffline } from '../lib/offline';
 import type { UserPrefs } from '../lib/types';
@@ -144,7 +144,7 @@ function useAccount() {
 /** Profile: who you are, your picture and name, and shortcuts to everything else. */
 export default function Account() {
   const { signOut } = useAuth();
-  const { profile, email } = useAccount();
+  const { profile } = useAccount();
   const mobile = useIsMobile();
   const links: [string, string, string][] = [
     ['/payments', 'Payments & receipts', 'Everything you paid for, with receipts'],
@@ -157,14 +157,7 @@ export default function Account() {
     <ClientLayout title={<Tx k="nav.account" />}>
       <div className="page account" style={{ maxWidth: 820, margin: mobile ? undefined : '0' }}>
         {!mobile && <h1><Tx k="account.title" /></h1>}
-        <div className="card row profile-head">
-          <span className="avatar" style={{ width: 64, height: 64, borderRadius: 32, fontSize: 20 }}>
-            {profile?.avatar_url ? <img src={profile.avatar_url} alt="" referrerPolicy="no-referrer" /> : initials(profile?.full_name ?? '', profile?.email)}
-          </span>
-          <div className="col grow" style={{ gap: 2, minWidth: 0 }}><b style={{ fontSize: 18 }}>{profile?.full_name || 'No name yet'}</b><span className="small muted ellipsis">{email}</span></div>
-          {profile?.role === 'admin' && <Link to="/admin" className="btn btn-sm">Admin</Link>}
-        </div>
-        <ProfileEditor />
+        <ProfileEditor action={profile?.role === 'admin' && <Link to="/admin" className="btn btn-sm">Admin</Link>} />
         <div className="card col link-list" style={{ gap: 0, padding: 6 }}>
           {links.map(([to, title, sub]) => (
             <Link key={to} to={to} className="link-row"><span className="col" style={{ gap: 0 }}><b>{title}</b><span className="small muted">{sub}</span></span><span aria-hidden>›</span></Link>

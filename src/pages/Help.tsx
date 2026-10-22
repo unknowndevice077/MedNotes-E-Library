@@ -38,7 +38,7 @@ export default function Help() {
   if (open) return <TicketView t={open} onBack={() => setSp({})} onChanged={reload} />;
 
   return (
-    <ClientLayout title="Help">
+    <ClientLayout back="/account" title="Help">
       <div className="page" style={{ maxWidth: 900, margin: mobile ? undefined : '0' }}>
         {!mobile && <div className="col" style={{ gap: 4 }}><h1>Help & feedback</h1><span className="muted">Report a problem, send feedback or ask the publisher anything. We usually reply within a day.</span></div>}
         <div className="help-start">

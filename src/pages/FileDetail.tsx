@@ -111,7 +111,7 @@ export default function FileDetail() {
   );
 
   return (
-    <ClientLayout back title="File details" hideTabs={mobile}>
+    <ClientLayout back={mobile || undefined} title="File details" hideTabs={mobile}>
       <div className="page detail">
         {!mobile && <nav className="crumbs small"><Link to="/library">Library</Link><span>/</span>{file.label && <><Link to={`/library?q=${encodeURIComponent(file.label)}`}>{file.label}</Link><span>/</span></>}<span className="muted ellipsis">{file.name}</span></nav>}
         <div className="detail-grid">
