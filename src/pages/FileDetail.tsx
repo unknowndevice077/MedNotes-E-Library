@@ -58,7 +58,10 @@ export default function FileDetail() {
   useEffect(() => { if (isNative && id) isSaved(id).then(setSaved); }, [id]);
 
   if (loading) return <ClientLayout back title="File details"><div className="page"><DetailSkeleton /></div></ClientLayout>;
-  if (error || !data) return <ClientLayout back title="File details"><div className="page"><Empty title="File not found">{error}</Empty></div></ClientLayout>;
+  if (error || !data) return <ClientLayout back title="File details"><div className="page"><Empty title="This file isn't available">
+    {error && !/couldn't find/.test(error) ? error : 'It may have been removed by the publisher, or the link is wrong.'}
+    <div style={{ marginTop: 14 }}><Link to="/library" className="btn btn-primary">Browse the library</Link></div>
+  </Empty></div></ClientLayout>;
 
   const { file, purchases, related } = data;
   const owned = purchases.find((p) => p.status === 'confirmed');

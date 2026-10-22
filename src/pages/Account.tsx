@@ -95,11 +95,13 @@ function EmailCard({ email }: { email: string }) {
 }
 
 function PrefsCard() {
+  // opened from Profile → Appearance: bring this card into view
+  useEffect(() => { if (location.hash === '#appearance') setTimeout(() => document.getElementById('appearance')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 150); }, []);
   const { prefs, save } = usePrefs();
   const toast = useToast();
   const set = async (patch: Partial<UserPrefs>) => { const err = await save(patch); if (err) toast(err); };
   return (
-    <div className="card col" style={{ gap: 16 }}>
+    <div className="card col" id="appearance" style={{ gap: 16, scrollMarginTop: 90 }}>
       <h3><Tx k="account.prefs" /></h3>
       <div className="setting stack-sm"><div className="col" style={{ gap: 0 }}><b>Reader page colour</b><span className="small muted">For books, notes, slides and sheets</span></div>
         <div className="seg" role="radiogroup" aria-label="Reader page colour">
@@ -151,6 +153,7 @@ export default function Account() {
     ['/my-files', 'My files', 'Files you own and their payment status'],
     ['/devices', 'Devices', 'Your computer and phone'],
     ['/help', 'Help & feedback', 'Report a bug, send feedback or ask the publisher'],
+    ['/account/settings#appearance', 'Appearance', 'Light or dark mode, reading page colour and text size'],
     ['/account/settings', 'Account settings', 'Email, password, sign-in, reading and app, delete account'],
   ];
   return (

@@ -177,7 +177,7 @@ function RejectModal({ p, onClose, onDone }: { p: Pay; onClose: () => void; onDo
       <span className="muted">{p.profiles?.full_name || p.profiles?.email} · {p.files?.name} · {peso(p.amount)}</span>
       <div className="col" style={{ gap: 8 }}>
         <span className="label">Reason</span>
-        <div className="chips">{[...REASONS, OTHER].map((r) => <button key={r} type="button" className={`chip${reason === r ? ' on' : ''}`} onClick={() => setReason(r)}>{r}</button>)}</div>
+        <div className="chips chips-wrap">{[...REASONS, OTHER].map((r) => <button key={r} type="button" className={`chip${reason === r ? ' on' : ''}`} onClick={() => setReason(r)}>{r}</button>)}</div>
         {other && <input className="input" autoFocus maxLength={120} value={custom} onChange={(e) => setCustom(e.target.value)} placeholder="Type the reason" aria-label="Your reason" />}
       </div>
       <div className="field"><label htmlFor="msg">Message to the buyer (optional)</label>

@@ -97,9 +97,21 @@ export function AdminUserDetail() {
 
   return (
     <AdminLayout title={prof.full_name || prof.email} subtitle={prof.email} actions={!isMe && <>
-      <button className="btn btn-danger" onClick={() => act(() => supabase.from('profiles').update({ suspended: !prof.suspended }).eq('id', prof.id), prof.suspended ? 'User reactivated.' : 'User suspended.')}>{prof.suspended ? 'Reactivate' : 'Suspend'}</button>
-      <button className="btn btn-danger" onClick={async () => { if (!(await confirm({ title: 'Delete this user?', body: `Permanently deletes ${prof.email}, their devices and purchases.`, confirmLabel: 'Delete user', danger: true }))) return; const { error } = await supabase.rpc('admin_delete_user', { p_user: prof.id }); if (error) toast(error.message); else { toast('User deleted.'); nav('/admin/users'); } }}>Delete user</button>
-      <button className="btn" onClick={() => act(() => supabase.from('profiles').update({ role: prof.role === 'admin' ? 'client' : 'admin' }).eq('id', prof.id), 'Role changed.')}>{prof.role === 'admin' ? 'Remove admin' : 'Make admin'}</button></>}>
+      <button className="btn btn-danger" onClick={async () => {
+        const off = prof.suspended;
+        if (!(await confirm(off
+          ? { title: 'Reactivate this user?', body: `${prof.email} will be able to sign in and read their files again.`, confirmLabel: 'Reactivate' }
+          : { title: 'Suspend this user?', body: `${prof.email} is signed out everywhere and can't sign in or read anything until you reactivate them. Their purchases are kept.`, confirmLabel: 'Suspend user', danger: true }))) return;
+        act(() => supabase.from('profiles').update({ suspended: !off }).eq('id', prof.id), off ? 'User reactivated.' : 'User suspended.');
+      }}>{prof.suspended ? 'Reactivate' : 'Suspend'}</button>
+      <button className="btn btn-danger" onClick={async () => { if (!(await confirm({ title: 'Delete this user for good?', body: `This permanently deletes ${prof.email} with their purchases, receipts and devices. It can't be undone and isn't in Logs. To only block them, use Suspend instead.`, confirmLabel: 'Delete forever', danger: true }))) return; const { error } = await supabase.rpc('admin_delete_user', { p_user: prof.id }); if (error) toast(error.message); else { toast('User deleted.'); nav('/admin/users'); } }}>Delete user</button>
+      <button className="btn" onClick={async () => {
+        const admin = prof.role === 'admin';
+        if (!(await confirm(admin
+          ? { title: 'Remove admin access?', body: `${prof.email} goes back to being a normal buyer and loses access to the admin panel.`, confirmLabel: 'Remove admin', danger: true }
+          : { title: 'Give full admin access?', body: `${prof.email} will see every buyer, payment and file, and can confirm payments, change prices, delete users and make other admins. Only do this for someone you fully trust.`, confirmLabel: 'Make admin', danger: true }))) return;
+        act(() => supabase.from('profiles').update({ role: admin ? 'client' : 'admin' }).eq('id', prof.id), admin ? 'Admin access removed.' : 'Admin access given.');
+      }}>{prof.role === 'admin' ? 'Remove admin' : 'Make admin'}</button></>}>
       <div className="row wrap" style={{ alignItems: 'flex-start', gap: 20 }}>
         <div className="col grow" style={{ gap: 16, minWidth: 'min(320px, 100%)' }}>
           <div className="card col">

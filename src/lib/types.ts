@@ -20,6 +20,8 @@ export interface Theme {
   authImage?: string; logo?: string; storeName?: string; heroTitle?: string; heroText?: string;
   radius?: number; font?: 'Inter' | 'Poppins' | 'Nunito' | 'Merriweather' | 'System';
   authTitle?: string; authText?: string; footerText?: string; announcement?: string;
+  /** "Get the app" on the sign-in page: the Play Store link, and an optional QR image (else one is made from the link) */
+  playStoreUrl?: string; appQr?: string;
   /** page wording set in Admin → Appearance, keyed like 'signin.title' (see lib/siteText) */
   copy?: Record<string, string>;
 }

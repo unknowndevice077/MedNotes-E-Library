@@ -29,4 +29,14 @@ export function bytes(n: number) {
   return `${n.toFixed(i ? 1 : 0)} ${u[i]}`;
 }
 
-export const errMsg = (e: unknown) => (e instanceof Error ? e.message : typeof e === 'object' && e && 'message' in e ? String((e as { message: unknown }).message) : String(e));
+const rawMsg = (e: unknown) => (e instanceof Error ? e.message : typeof e === 'object' && e && 'message' in e ? String((e as { message: unknown }).message) : String(e));
+// database/network wording people shouldn't have to read
+const PLAIN: [RegExp, string][] = [
+  [/single JSON object|PGRST116|no rows/i, "We couldn't find that. It may have been removed, or the link is wrong."],
+  [/failed to fetch|networkerror|load failed|network request failed/i, "Can't reach MedNotes right now. Check your internet connection and try again."],
+  [/jwt expired|invalid jwt|refresh token/i, 'Your session has ended. Please sign in again.'],
+  [/row-level security|permission denied|not authorized|admin only/i, "You don't have access to this."],
+  [/duplicate key|already exists/i, 'That already exists.'],
+  [/timeout|timed out/i, 'That took too long. Please try again.'],
+];
+export const errMsg = (e: unknown) => { const m = rawMsg(e); return PLAIN.find(([re]) => re.test(m))?.[1] ?? m; };

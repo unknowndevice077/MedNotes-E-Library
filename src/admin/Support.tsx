@@ -54,7 +54,7 @@ export default function AdminSupport() {
       <div className="pay-filters">
         <label className="search"><Search width={17} color="var(--slate-400)" />
           <input placeholder="Search subject, message, name or email" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search tickets" /></label>
-        <div className="chips">{FILTERS.map((f) => (
+        <div className="chips chips-wrap">{FILTERS.map((f) => (
           <button key={f} className={`chip${filter === f ? ' on' : ''}`} onClick={() => setSp(f === 'active' ? {} : { status: f })}>
             {f === 'active' ? 'Needs reply' : f === 'all' ? 'All' : STATUS_LABEL[f]} <i className="chip-n">{count(f)}</i></button>))}</div>
         <select className="input" style={{ height: 36 }} aria-label="Type" value={kind} onChange={(e) => setKind(e.target.value as TicketKind | 'all')}>
@@ -96,7 +96,12 @@ export default function AdminSupport() {
   return (
     <AdminLayout title="Support" subtitle={rated.length ? `App rating ${avg.toFixed(1)} ★ from ${rated.length} buyer${rated.length > 1 ? 's' : ''}${helped.length ? ` · help rated ${avgHelp.toFixed(1)} ★` : ''}` : 'Bug reports, feedback and questions from buyers'}>
       {loading && !data ? <RowsSkeleton rows={5} /> : mobile ? (sel ? <>{detail}<button className="btn" onClick={() => go({})}>← All tickets</button></> : inbox) : (
-        <div className="row pay-split" style={{ alignItems: 'flex-start', gap: 20 }}>{inbox}{detail ?? <div className="grow" />}</div>
+        <div className="row pay-split" style={{ alignItems: 'flex-start', gap: 20 }}>{inbox}{detail ?? (
+          <div className="card col grow support-empty">
+            <b>{list.length ? 'Pick a ticket to read and reply' : 'No tickets to show'}</b>
+            <span className="small muted">{list.length ? 'The conversation, the buyer’s details and the reply box open here.' : 'New bug reports, feedback and questions from buyers will appear on the left as they come in.'}</span>
+          </div>
+        )}</div>
       )}
     </AdminLayout>
   );

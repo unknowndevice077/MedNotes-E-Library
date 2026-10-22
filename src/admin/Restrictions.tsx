@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase, paymentQrUrl } from '../lib/supabase';
 import { decodeQrImage, qrDataUrl } from '../lib/qrimage';
 import { describe as describeQr, inspect, isQrPh } from '../lib/qrph';
 import { useAuth } from '../lib/auth';
 import { must, useLoad } from '../lib/useLoad';
-import { initials } from '../lib/format';
+import { errMsg, initials } from '../lib/format';
 import type { PaymentMethod, Profile, Settings } from '../lib/types';
 import { AdminLayout } from '../components/Layouts';
 import { Modal, Toggle, useConfirm, useToast } from '../components/ui';
@@ -293,35 +293,64 @@ export function AdminSettings() {
 }
 
 /** Drop in a leaked screenshot of the reader: the hidden buyer mark says whose account took it. */
+type Who = { id: string; full_name: string; email: string; created_at: string };
 function TraceLeak() {
-  const [state, setState] = useState<{ busy?: boolean; msg?: string; who?: { id: string; full_name: string; email: string; created_at: string }[] }>({});
+  const [state, setState] = useState<{ busy?: boolean; msg?: string; mark?: string; who?: Who[] }>({});
+  const [img, setImg] = useState<{ url: string; name: string; w: number; h: number; kb: number } | null>(null);
+  const [over, setOver] = useState(false);
   async function trace(file?: File | null) {
     if (!file) return;
+    if (img) URL.revokeObjectURL(img.url);
     setState({ busy: true });
     try {
       const bmp = await createImageBitmap(file);
+      setImg({ url: URL.createObjectURL(file), name: file.name, w: bmp.width, h: bmp.height, kb: Math.round(file.size / 1024) });
       const c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height;
       const ctx = c.getContext('2d', { willReadFrequently: true })!; ctx.drawImage(bmp, 0, 0);
-      await new Promise((r) => setTimeout(r, 30)); // let the "Reading…" state paint first
+      await new Promise((r) => setTimeout(r, 900)); // long enough to see the scan run
       const prefix = readMark(ctx.getImageData(0, 0, c.width, c.height));
-      if (!prefix) return setState({ msg: "No buyer mark found. Use the original screenshot (PNG), not a photo of the screen or a compressed copy." });
+      if (!prefix) return setState({ msg: 'No buyer mark found. Use the original screenshot (PNG), not a photo of the screen or a compressed copy.' });
       const { data, error } = await supabase.rpc('admin_trace_mark', { p_prefix: prefix });
-      if (error) return setState({ msg: error.message });
-      setState(data?.length ? { who: data } : { msg: `Mark ${prefix} found, but no current account matches it (the account may have been deleted).` });
+      if (error) return setState({ mark: prefix, msg: errMsg(error) });
+      setState(data?.length ? { mark: prefix, who: data } : { mark: prefix, msg: 'The mark was found, but no current account matches it (the account may have been deleted).' });
     } catch { setState({ msg: "Couldn't read that image." }); }
   }
+  const line = (k: string, v: ReactNode, tone?: 'ok' | 'bad' | 'dim') => <div className="tr-line"><span className="tr-k">{k}</span><span className={`tr-v${tone ? ` ${tone}` : ''}`}>{v}</span></div>;
   return (
     <div className="card col" style={{ gap: 10 }}>
       <div className="row"><Search width={20} color="var(--blue)" /><h3>Trace a leaked screenshot</h3></div>
       <span className="small muted">Every page in the reader carries a hidden mark with the buyer's account. It can't be seen, but screenshots keep it. Drop a leaked screenshot here to see who took it.</span>
-      <label className="drop" style={{ minHeight: 100 }}>
-        <b>{state.busy ? 'Reading the hidden mark…' : 'Choose or drop the screenshot'}</b><span className="small">PNG or JPG straight from the screenshot works best</span>
+      <label className={`drop${over ? ' over' : ''}`} style={{ minHeight: 90 }}
+        onDragOver={(e) => { e.preventDefault(); setOver(true); }} onDragLeave={() => setOver(false)}
+        onDrop={(e) => { e.preventDefault(); setOver(false); void trace(e.dataTransfer.files?.[0]); }}>
+        <b>{img ? 'Trace another screenshot' : 'Choose or drop the screenshot'}</b><span className="small">PNG or JPG straight from the screenshot works best</span>
         <input id="trace-file" type="file" accept="image/*" hidden onChange={(e) => { void trace(e.target.files?.[0]); e.target.value = ''; }} />
       </label>
-      {state.msg && <div className="note note-amber"><span>{state.msg}</span></div>}
-      {state.who?.map((u) => (
-        <div key={u.id} className="note note-red trace-hit"><span>Taken from the account of <b>{u.full_name || u.email}</b> ({u.email}), member since {new Date(u.created_at).toLocaleDateString()}. <Link to={`/admin/users/${u.id}`} className="link">Open their account</Link></span></div>
-      ))}
+      {img && (
+        <div className="tracer">
+          <div className={`tr-shot${state.busy ? ' scanning' : ''}`}>
+            <img src={img.url} alt="The screenshot being traced" />
+            {state.busy && <i className="tr-beam" aria-hidden />}
+          </div>
+          <div className="tr-out" role="status" aria-live="polite">
+            <div className="tr-title">MARK TRACE</div>
+            {line('file', img.name, 'dim')}
+            {line('size', `${img.w} × ${img.h} px · ${img.kb} KB`, 'dim')}
+            {line('scan', state.busy ? <span className="tr-blink">reading hidden mark…</span> : state.mark ? 'mark found' : 'no mark', state.busy ? undefined : state.mark ? 'ok' : 'bad')}
+            {state.mark && line('mark id', state.mark)}
+            {state.who?.map((u) => (
+              <div key={u.id} className="tr-hit">
+                {line('match', 'buyer account found', 'bad')}
+                {line('name', u.full_name || '—')}
+                {line('email', u.email)}
+                {line('member since', new Date(u.created_at).toLocaleDateString())}
+                <Link to={`/admin/users/${u.id}`} className="btn btn-sm" style={{ marginTop: 10 }}>Open their account</Link>
+              </div>
+            ))}
+            {!state.busy && state.msg && <div className="tr-msg">{state.msg}</div>}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

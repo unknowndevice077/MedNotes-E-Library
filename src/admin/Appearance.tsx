@@ -247,6 +247,15 @@ export default function AdminAppearance() {
         </div>
       </div>
       <div className="card col">
+        <h3>Android app download</h3>
+        <span className="small muted">Shown on the sign-in page. The QR code is made from this link automatically, unless you upload your own.</span>
+        <div className="field"><label htmlFor="ap-play">Google Play link</label>
+          <input id="ap-play" className="input" type="url" placeholder="https://play.google.com/store/apps/details?id=…" value={t.playStoreUrl ?? ''}
+            onChange={(e) => set({ playStoreUrl: e.target.value.trim() || undefined })} /></div>
+        {t.playStoreUrl && !/^https:\/\//.test(t.playStoreUrl) && <span className="small" style={{ color: 'var(--red)' }}>The link should start with https://</span>}
+        <ImagePick label="Download QR code" hint="Optional. Leave on Default to use a QR made from the link above." value={t.appQr} onChange={(appQr) => set({ appQr })} />
+      </div>
+      <div className="card col">
         <h3>Background</h3>
         <span className="small muted">Behind every page of the website and the app (not the reader, where pages stay clean).</span>
         <div className="seg" role="radiogroup" aria-label="Background type">

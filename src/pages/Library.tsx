@@ -60,8 +60,12 @@ export default function Library() {
   const mobile = useIsMobile();
   const [sp, setSp] = useSearchParams();
   const q = sp.get('q') ?? '';
-  const [kind, setKind] = useState<FileKind | 'all'>('all');
-  const [label, setLabel] = useState<string | null>(null);
+  // several types and subjects can be picked at once; nothing picked = everything
+  const [kinds, setKinds] = useState<FileKind[]>([]);
+  const [labelsOn, setLabelsOn] = useState<string[]>([]);
+  const toggleKind = (k: FileKind) => setKinds((a) => (a.includes(k) ? a.filter((x) => x !== k) : [...a, k]));
+  const toggleLabel = (l: string) => setLabelsOn((a) => (a.includes(l) ? a.filter((x) => x !== l) : [...a, l]));
+  const setLabel = (l: string | null) => setLabelsOn(l ? [l] : []);
   const [sort, setSort] = useState<'new' | 'price' | 'name'>('new');
   const [freeOnly, setFreeOnly] = useState(false);
   const { data, loading, error } = useLoad(async () => {
@@ -81,15 +85,15 @@ export default function Library() {
   const labelCounts = useMemo(() => { const m = new Map<string, number>(); for (const f of data?.files ?? []) if (f.label) m.set(f.label, (m.get(f.label) ?? 0) + 1); return m; }, [data]);
   const owned = (data?.files ?? []).filter((f) => status.get(f.id) === 'confirmed');
   const pendingCount = (data?.files ?? []).filter((f) => status.get(f.id) === 'pending').length;
-  const filtering = !!q || kind !== 'all' || !!label || freeOnly;
+  const filtering = !!q || kinds.length > 0 || labelsOn.length > 0 || freeOnly;
   const shown = useMemo(() => {
     const s = q.trim().toLowerCase();
-    const list = (data?.files ?? []).filter((f) => (kind === 'all' || f.kind === kind) && (!label || f.label === label) && (!freeOnly || f.is_free)
+    const list = (data?.files ?? []).filter((f) => (!kinds.length || kinds.includes(f.kind)) && (!labelsOn.length || labelsOn.includes(f.label)) && (!freeOnly || f.is_free)
       && (!s || `${f.name} ${f.label} ${f.description}`.toLowerCase().includes(s)));
     if (sort === 'price') list.sort((a, b) => a.price - b.price);
     if (sort === 'name') list.sort((a, b) => a.name.localeCompare(b.name));
     return list;
-  }, [data, q, kind, label, sort, freeOnly]);
+  }, [data, q, kinds, labelsOn, sort, freeOnly]);
   const setQ = (v: string) => { const n = new URLSearchParams(sp); if (v) n.set('q', v); else n.delete('q'); setSp(n, { replace: true }); };
   const first = profile?.full_name?.split(' ')[0];
   const topLabels = labels.slice(0, 3);
@@ -142,22 +146,31 @@ export default function Library() {
           <div className="filterbar">
             <div className="spread wrap" style={{ gap: 12 }}>
               <div className="col" style={{ gap: 2 }}>
-                <h2>{q ? `Results for “${q}”` : label ? label : freeOnly ? 'Free to read' : <Tx k="library.all" />}</h2>
-                <span className="small muted">{shown.length} file{shown.length === 1 ? '' : 's'}{filtering && <> · <button className="link" onClick={() => { setKind('all'); setLabel(null); setQ(''); setFreeOnly(false); }}>Clear filters</button></>}</span>
+                <h2>{q ? `Results for “${q}”` : filtering ? 'Filtered files' : <Tx k="library.all" />}</h2>
+                <span className="small muted">{shown.length} file{shown.length === 1 ? '' : 's'}{filtering && <> · <button className="link" onClick={() => { setKinds([]); setLabelsOn([]); setQ(''); setFreeOnly(false); }}>Clear filters</button></>}</span>
               </div>
               <select className="input" style={{ width: 170 }} value={sort} onChange={(e) => setSort(e.target.value as typeof sort)} aria-label="Sort">
                 <option value="new">Newest first</option><option value="price">Lowest price</option><option value="name">A–Z</option>
               </select>
             </div>
             <div className="chips">
-              <button className={`chip${kind === 'all' ? ' on' : ''}`} onClick={() => setKind('all')}>All types</button>
-              {KINDS.map((k) => <button key={k} className={`chip${kind === k ? ' on' : ''}`} onClick={() => setKind(k)}>{KIND_LABEL[k]}</button>)}
-              <button className={`chip soft${freeOnly ? ' on' : ''}`} aria-pressed={freeOnly} onClick={() => setFreeOnly(!freeOnly)}>Free</button>
+              <button className={`chip${!kinds.length ? ' on' : ''}`} aria-pressed={!kinds.length} onClick={() => setKinds([])}>All types</button>
+              {KINDS.map((k) => <button key={k} className={`chip${kinds.includes(k) ? ' on' : ''}`} aria-pressed={kinds.includes(k)} onClick={() => toggleKind(k)}>{kinds.includes(k) && <span className="chip-check" aria-hidden>✓</span>}{KIND_LABEL[k]}</button>)}
+              <button className={`chip soft${freeOnly ? ' on' : ''}`} aria-pressed={freeOnly} onClick={() => setFreeOnly(!freeOnly)}>{freeOnly && <span className="chip-check" aria-hidden>✓</span>}Free</button>
             </div>
             <div className="row wrap" style={{ gap: 10 }}>
-              <div style={{ flex: '0 1 340px', minWidth: 220 }}><CategoryPicker id="subject" value={label} onChange={setLabel} counts={labelCounts} allLabel="All subjects" placeholder="Search a subject" /></div>
-              {[...labelCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([l]) => <button key={l} className={`chip soft${label === l ? ' on' : ''}`} onClick={() => setLabel(label === l ? null : l)}>{l}</button>)}
+              <div style={{ flex: '0 1 340px', minWidth: 220 }}><CategoryPicker id="subject" value={null} onChange={(l) => (l ? setLabelsOn((a) => (a.includes(l) ? a : [...a, l])) : setLabelsOn([]))} counts={labelCounts} allLabel="All subjects" placeholder="Add a subject" /></div>
+              {[...labelCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([l]) => <button key={l} className={`chip soft${labelsOn.includes(l) ? ' on' : ''}`} aria-pressed={labelsOn.includes(l)} onClick={() => toggleLabel(l)}>{labelsOn.includes(l) && <span className="chip-check" aria-hidden>✓</span>}{l}</button>)}
             </div>
+            {filtering && (
+              <div className="active-filters" aria-label="Filters in use">
+                <span className="small muted">Showing:</span>
+                {kinds.map((k) => <button key={k} className="af-pill" onClick={() => toggleKind(k)} aria-label={`Remove ${KIND_LABEL[k]}`}>{KIND_LABEL[k]} <span aria-hidden>×</span></button>)}
+                {labelsOn.map((l) => <button key={l} className="af-pill" onClick={() => toggleLabel(l)} aria-label={`Remove ${l}`}>{l} <span aria-hidden>×</span></button>)}
+                {freeOnly && <button className="af-pill" onClick={() => setFreeOnly(false)} aria-label="Remove Free">Free <span aria-hidden>×</span></button>}
+                {q && <button className="af-pill" onClick={() => setQ('')} aria-label="Clear search">“{q}” <span aria-hidden>×</span></button>}
+              </div>
+            )}
           </div>
           {loading ? <SkeletonGrid /> : error ? <Empty title="Couldn't load the library">{error}</Empty>
             : shown.length === 0 ? <Empty title={<Tx k="library.empty" />}><Tx k="library.emptySub" /></Empty>

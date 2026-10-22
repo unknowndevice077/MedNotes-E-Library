@@ -288,9 +288,9 @@ describe('books: an admin edit lands everywhere', () => {
       await searchLibrary(s, name);
       assert.equal((await cardNames(s)).length, 0, 'not in search');
       await go(s, `/file/${id}`);
-      await waitText(s, 'File not found');
+      await waitText(s, "This file isn't available");
       await go(s, `/checkout/${id}`);
-      await waitText(s, 'File not found');
+      await waitText(s, "This file isn't available");
 
       const o = await open(owner);
       await searchLibrary(o, name);
@@ -554,6 +554,8 @@ describe('users: admin actions reach the buyer', () => {
       const a = await open(admin);
       await go(a, `/admin/users/${u.id}`);
       await click(a, 'button', 'Suspend');
+      await a.waitForSelector('.modal');
+      await click(a, '.modal button', 'Suspend user');
       await sleep(1000);
       assert.equal((await service.from('profiles').select('suspended').eq('id', u.id).single()).data.suspended, true);
       await go(a, '/admin/users');
@@ -566,6 +568,8 @@ describe('users: admin actions reach the buyer', () => {
 
       await go(a, `/admin/users/${u.id}`);
       await click(a, 'button', 'Reactivate');
+      await a.waitForSelector('.modal');
+      await click(a, '.modal button', 'Reactivate');
       await sleep(1000);
       await go(b, `/read/${id}`);
       await b.waitForSelector('.reader canvas.content', { timeout: 20000 });

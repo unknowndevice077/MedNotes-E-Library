@@ -8,7 +8,7 @@ import { editAttr, Tx, useText, useTheme } from '../lib/theme';
 import { usePrefs } from '../lib/prefs';
 import { SITE_EDIT } from '../lib/siteText';
 import NotificationBell from './Notifications';
-import { Back, Bell, Book, Chevron, Clock, Cog, Files, Grid, Home, Logout, Palette, Pay, Phone, Receipt, Search, Shield, Trend, User, Users } from './Icons';
+import { Back, Bell, Book, Chevron, Clock, Cog, Files, Grid, Home, Logout, Moon, Palette, Pay, Phone, Receipt, Search, Shield, Sun, Trend, User, Users } from './Icons';
 
 function Avatar({ size }: { size?: number }) {
   const { profile } = useAuth();
@@ -106,13 +106,26 @@ function useUserDark() {
     document.documentElement.toggleAttribute('data-dark', dark);
     return () => document.documentElement.removeAttribute('data-dark');
   }, [dark]);
+  return dark;
+}
+
+/** One click between light and dark, right next to the bell. */
+function ThemeToggle({ dark }: { dark: boolean }) {
+  const { save } = usePrefs();
+  const next = dark ? 'light' : 'dark';
+  return (
+    <button className="icon-btn" onClick={() => { try { localStorage.setItem('mn.app-theme', next); } catch { /* private mode */ } save({ appTheme: next }); }}
+      aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'} title={dark ? 'Light mode' : 'Dark mode'}>
+      {dark ? <Sun width={20} /> : <Moon width={20} />}
+    </button>
+  );
 }
 
 /** Client pages: top bar + footer on desktop, compact header + bottom tabs on phones and in the app. */
 export function ClientLayout({ children, title, back, hideTabs, actions }: { children: ReactNode; title?: ReactNode; back?: string | true; hideTabs?: boolean; actions?: ReactNode }) {
   const mobile = useIsMobile();
   const t = useText();
-  useUserDark();
+  const dark = useUserDark();
   const nav = useNavigate();
   const loc = useLocation();
   const pending = usePendingCount();
@@ -158,6 +171,7 @@ export function ClientLayout({ children, title, back, hideTabs, actions }: { chi
           <input placeholder={t('nav.search')} {...editAttr('nav.search')} value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search the library" />
         </form>
         <span className="grow" />
+        {!SITE_EDIT && <ThemeToggle dark={dark} />}
         <NotificationBell />
         <UserMenu />
       </header>

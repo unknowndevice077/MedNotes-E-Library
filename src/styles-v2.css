@@ -722,3 +722,46 @@ html.site-edit [data-edit]:not(.editing):hover::after { content: "✎"; font-siz
   background: #0f172a; color: #fff; font-size: 12px; white-space: nowrap; box-shadow: var(--shadow-md); transition: left .12s ease-out, transform .12s ease-out; }
 .chart-tip span { opacity: .85; }
 
+
+/* choices that must all be visible (no sideways scrolling) */
+.chips.chips-wrap { flex-wrap: wrap; overflow: visible; }
+.chips.chips-wrap .chip { white-space: normal; text-align: left; }
+
+/* library: picked filters stay ticked, and a row lists everything in use */
+.chip-check { font-weight: 800; margin-right: 6px; }
+.active-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.af-pill { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 14px; border: 1px solid var(--blue-200, #bfdbfe);
+  background: var(--blue-50, #eff6ff); color: var(--blue-deep, #1d4ed8); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.af-pill:hover { background: var(--blue-100, #dbeafe); }
+.af-pill span { font-size: 15px; line-height: 1; opacity: .7; }
+:root[data-dark] .af-pill { background: rgba(59, 130, 246, .15); border-color: rgba(96, 165, 250, .35); color: #bfdbfe; }
+
+/* search bars: one outline on the whole bar, never a second ring on the text box inside */
+.search input:focus-visible { box-shadow: none; border-radius: 0; }
+.search { border: 1px solid transparent; transition: border-color .15s, box-shadow .15s, background .15s; }
+.search:focus-within { border-color: var(--blue); box-shadow: var(--ring); }
+:root[data-dark] :is(.top-search, .hero-search, .search):focus-within { background: #111827; border-color: #3b82f6; }
+.support-empty { align-items: center; justify-content: center; text-align: center; gap: 6px; min-height: 320px; border-style: dashed; }
+
+/* leak tracer: the screenshot beside a scanner-style readout */
+.drop.over { border-color: var(--blue); background: rgba(59, 130, 246, .08); }
+.tracer { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
+@media (max-width: 760px) { .tracer { grid-template-columns: 1fr; } }
+.tr-shot { position: relative; overflow: hidden; border-radius: 12px; border: 1px solid #1e3a5f; background: #020617; display: grid; place-items: center; max-height: 360px; }
+.tr-shot img { max-width: 100%; max-height: 360px; object-fit: contain; display: block; }
+.tr-shot.scanning img { filter: saturate(.4) brightness(.8); }
+.tr-beam { position: absolute; left: 0; right: 0; height: 3px; top: 0; background: #22d3ee; box-shadow: 0 0 18px 6px rgba(34, 211, 238, .55); animation: tr-scan 1.1s linear infinite; }
+@keyframes tr-scan { from { top: 0; } to { top: 100%; } }
+.tr-out { border-radius: 12px; background: #020617; border: 1px solid #1e3a5f; color: #cbd5e1; padding: 14px 16px;
+  font: 12.5px/1.7 ui-monospace, SFMono-Regular, Consolas, monospace; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.tr-title { color: #22d3ee; font-weight: 700; letter-spacing: .14em; margin-bottom: 6px; }
+.tr-line { display: flex; gap: 10px; min-width: 0; }
+.tr-k { color: #64748b; width: 110px; flex-shrink: 0; }
+.tr-k::before { content: '> '; color: #334155; }
+.tr-v { color: #e2e8f0; overflow-wrap: anywhere; min-width: 0; }
+.tr-v.dim { color: #94a3b8; } .tr-v.ok { color: #4ade80; } .tr-v.bad { color: #f87171; font-weight: 700; }
+.tr-hit { margin-top: 8px; padding-top: 8px; border-top: 1px dashed #1e3a5f; display: flex; flex-direction: column; gap: 2px; }
+.tr-msg { margin-top: 8px; color: #fbbf24; font-family: inherit; }
+.tr-blink { color: #22d3ee; animation: tr-blink 1s steps(2) infinite; }
+@keyframes tr-blink { 50% { opacity: .35; } }
+@media (prefers-reduced-motion: reduce) { .tr-beam, .tr-blink { animation: none; } }

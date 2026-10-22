@@ -110,6 +110,18 @@ describe('buyer: browse, buy, read', () => {
     await sleep(300);
     const vids = await p.$$eval('.grid .bookcard .small', (els) => els.map((e) => e.textContent));
     assert.ok(vids.every((v) => v.startsWith('Video')), 'type filter');
+    // filters mix and stay visibly picked
+    await go(p, '/library');
+    await clickText(p, '.chip', 'Video');
+    await clickText(p, '.chip', 'PDF');
+    await sleep(300);
+    const picked = await p.$$eval('.chips .chip[aria-pressed="true"]', (els) => els.map((e) => e.textContent.replace('✓', '')));
+    assert.deepEqual(picked.sort(), ['PDF', 'Video']);
+    const pills = await p.$$eval('.active-filters .af-pill', (els) => els.map((e) => e.textContent.replace('×', '').trim()));
+    assert.deepEqual(pills.sort(), ['PDF', 'Video']);
+    const kinds = await p.$$eval('.grid .bookcard .small', (els) => els.map((e) => e.textContent.split(' ·')[0]));
+    assert.ok(kinds.length && kinds.every((k) => /^(Video|PDF)/.test(k)) && kinds.some((k) => k.startsWith('PDF')) && kinds.some((k) => k.startsWith('Video')), `mixed: ${kinds}`);
+    await shot(p, 'library-mixed-filters');
     await p.close();
   });
 
@@ -309,8 +321,8 @@ describe('buyer: browse, buy, read', () => {
       await go(a, '/admin/restrictions');
       const input = await a.waitForSelector('#trace-file');
       await input.uploadFile(file);
-      await a.waitForFunction(() => document.querySelector('.trace-hit') || document.querySelector('.note-amber'), { timeout: 30000 });
-      const t = await a.$eval('.trace-hit', (e) => e.innerText).catch(() => a.evaluate(() => [...document.querySelectorAll('.note')].map((n) => n.innerText).join(' | ')));
+      await a.waitForFunction(() => document.querySelector('.tr-hit') || document.querySelector('.tr-msg'), { timeout: 30000 });
+      const t = await a.$eval('.tr-hit', (e) => e.innerText).catch(() => a.evaluate(() => [...document.querySelectorAll('.tr-msg')].map((n) => n.innerText).join(' | ')));
       assert.ok(t.includes(buyer.email), `${file}: traced to the buyer (${t})`);
     }
     await shot(a, 'admin-trace-leak');
@@ -320,7 +332,7 @@ describe('buyer: browse, buy, read', () => {
     await a.screenshot({ path: clean });
     await (await a.$('#trace-file')).uploadFile(clean);
     await a.waitForFunction(() => /No buyer mark/.test(document.body.innerText), { timeout: 30000 });
-    assert.equal(await a.$('.trace-hit'), null);
+    assert.equal(await a.$('.tr-hit'), null);
     await a.close();
   });
 
@@ -616,7 +628,6 @@ describe('admin receipts and appearance', () => {
       const cdp = await b.target().createCDPSession();
       await cdp.send('Page.setDownloadBehavior', { behavior: 'allow', downloadPath: dir });
       await clickText(b, 'button', 'Save as image');
-      await b.waitForFunction(() => true, { timeout: 100 });
       let png = '';
       for (let i = 0; i < 30 && !png; i++) { await sleep(300); png = readdirSync(dir).find((f) => f.startsWith('receipt-') && f.endsWith('.png')) ?? ''; }
       assert.ok(png, 'receipt image downloaded');
@@ -919,6 +930,8 @@ describe('free samples, extra device slots, profile', () => {
 
 describe('powerful admin', () => {
   test('logs: a change shows with before/after and can be reverted from the page', async () => {
+    // a run cut short can leave 777 behind, and then the update below would log nothing
+    await service.from('files').update({ price: 150 }).eq('id', FILES.xlsx).eq('price', 777);
     const { data: f } = await service.from('files').select('price').eq('id', FILES.xlsx).single();
     await admin.client.from('files').update({ price: 777 }).eq('id', FILES.xlsx);
     const p = await open(admin);

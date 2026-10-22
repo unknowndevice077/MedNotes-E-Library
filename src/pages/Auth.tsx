@@ -6,12 +6,29 @@ import { errMsg } from '../lib/format';
 import { appUrl, asset, isNative } from '../lib/platform';
 import { Logo, Toggle } from '../components/ui';
 import { Facebook, Google, Laptop } from '../components/Icons';
-import { Tx } from '../lib/theme';
+import { safeImage, Tx, useTheme } from '../lib/theme';
+import { qrDataUrl } from '../lib/qrimage';
 import { googleButtonAvailable, renderGoogleButton } from '../lib/googleSignIn';
 
 const PLAY_URL = import.meta.env.VITE_PLAY_STORE_URL || 'https://play.google.com/store/apps/details?id=com.mednotes.elibrary';
 
+/** The "Get the app" QR + link: set in Admin → Appearance, falling back to the built-in ones. */
+function useAppDownload() {
+  const { theme } = useTheme();
+  const url = /^https:\/\//.test(theme.playStoreUrl ?? '') ? theme.playStoreUrl! : PLAY_URL;
+  const custom = safeImage(theme.appQr);
+  const [made, setMade] = useState<string | null>(null);
+  useEffect(() => {
+    if (custom || !theme.playStoreUrl) return setMade(null);
+    let live = true;
+    qrDataUrl(url).then((d) => { if (live) setMade(d); }).catch(() => undefined);
+    return () => { live = false; };
+  }, [custom, theme.playStoreUrl, url]);
+  return { url, qr: custom || made || asset('qr-playstore.png') };
+}
+
 function AuthShell({ children, withHero = true }: { children: ReactNode; withHero?: boolean }) {
+  const app = useAppDownload();
   return (
     <div className="auth">
       {withHero ? (
@@ -20,12 +37,12 @@ function AuthShell({ children, withHero = true }: { children: ReactNode; withHer
             <Logo light />
             {!isNative && (
               <div className="qr">
-                <img className="code" src={asset('qr-playstore.png')} alt="QR code to download the MedNotes Android app" />
+                <img className="code" src={app.qr} alt="QR code to download the MedNotes Android app" />
                 <div className="col shadowed" style={{ gap: 4 }}>
                   <b style={{ fontSize: 18 }}><Tx k="auth.appTitle" /></b>
                   <span style={{ opacity: 0.85 }}><Tx k="auth.appSub" /></span>
                   <b style={{ maxWidth: 320 }}><Tx k="auth.appPitch" /></b>
-                  <a className="store-btn" href={PLAY_URL} target="_blank" rel="noreferrer">▶&nbsp; Get it on Google Play</a>
+                  <a className="store-btn" href={app.url} target="_blank" rel="noreferrer">▶&nbsp; Get it on Google Play</a>
                 </div>
               </div>
             )}

@@ -85,7 +85,7 @@ export default function Checkout() {
   useEffect(() => () => { if (preview?.startsWith('blob:')) URL.revokeObjectURL(preview); }, [preview]);
 
   if (!slot && loading) return <ClientLayout back title="Pay"><div className="page"><CheckoutSkeleton /></div></ClientLayout>;
-  if (!slot && !file) return <ClientLayout back title="Pay"><div className="page"><Empty title="File not found" /></div></ClientLayout>;
+  if (!slot && !file) return <ClientLayout back title="Pay"><div className="page"><Empty title="This file isn't available">It may have been removed by the publisher, or the link is wrong.</Empty></div></ClientLayout>;
   if (file?.is_free) return <Navigate to={`/file/${file.id}`} replace />;
   if (slot && settings && !settings.slot_sales) return <ClientLayout back title="Pay"><div className="page"><Empty title="Extra devices aren't for sale">Ask the publisher to add a device for you.</Empty></div></ClientLayout>;
   const price = slot ? unitSlot * qty : Number(file!.price);
