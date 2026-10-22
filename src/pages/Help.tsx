@@ -1,3 +1,4 @@
+import { Tx } from '../lib/theme';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
@@ -39,8 +40,8 @@ export default function Help() {
 
   return (
     <ClientLayout back="/account" title="Help">
-      <div className="page" style={{ maxWidth: 900, margin: mobile ? undefined : '0' }}>
-        {!mobile && <div className="col" style={{ gap: 4 }}><h1>Help & feedback</h1><span className="muted">Report a problem, send feedback or ask the publisher anything. We usually reply within a day.</span></div>}
+      <div className="page" style={{ maxWidth: 900,  }}>
+        {!mobile && <div className="col" style={{ gap: 4 }}><Link to="/account" className="link small">‹ <Tx k="nav.account" /></Link><h1>Help & feedback</h1><span className="muted">Report a problem, send feedback or ask the publisher anything. We usually reply within a day.</span></div>}
         <div className="help-start">
           {KINDS.map((k) => (
             <button key={k.k} type="button" className="help-kind" onClick={() => { setComposing(true); setSp({ new: '1', kind: k.k }); }}>
@@ -158,7 +159,7 @@ function TicketView({ t, onBack, onChanged }: { t: Ticket; onBack: () => void; o
   };
   return (
     <ClientLayout back title="Ticket" hideTabs>
-      <div className="page" style={{ maxWidth: 820, margin: mobile ? undefined : '0' }}>
+      <div className="page" style={{ maxWidth: 820,  }}>
         {!mobile && <button className="link row" style={{ gap: 4, alignSelf: 'flex-start' }} onClick={onBack}><Back width={16} /> All tickets</button>}
         <div className="spread wrap" style={{ gap: 10 }}>
           <div className="col" style={{ gap: 2 }}><h2 style={{ margin: 0 }}>{t.subject}</h2><span className="small muted">{kindLabel(t.kind)} · opened {ago(t.created_at)}</span></div>

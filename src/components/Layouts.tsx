@@ -161,10 +161,7 @@ export function ClientLayout({ children, title, back, hideTabs, actions }: { chi
         <NotificationBell />
         <UserMenu />
       </header>
-      <main className="d-main">
-        {back && <div className="back-row"><button className="back-link" onClick={() => (back === true ? nav(-1) : nav(back))}><Back width={18} />Back</button></div>}
-        {children}
-      </main>
+      <main className="d-main">{children}</main>
       <SiteFooter />
     </div>
   );

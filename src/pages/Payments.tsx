@@ -1,3 +1,4 @@
+import { Tx } from '../lib/theme';
 import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
@@ -41,8 +42,8 @@ export default function MyPayments() {
 
   return (
     <ClientLayout back="/account" title="Payments">
-      <div className="page" style={{ maxWidth: 980, margin: mobile ? undefined : '0' }}>
-        {!mobile && <div className="col" style={{ gap: 4 }}><h1>Payments & receipts</h1><span className="muted">Every file and extra device you paid for, with your receipts.</span></div>}
+      <div className="page" style={{ maxWidth: 980 }}>
+        {!mobile && <div className="col" style={{ gap: 4 }}><Link to="/account" className="link small">‹ <Tx k="nav.account" /></Link><h1>Payments & receipts</h1><span className="muted">Every file and extra device you paid for, with your receipts.</span></div>}
         <div className="row wrap" style={{ gap: 12 }}>
           <div className="stat"><span className="muted">Total paid</span><span className="v" style={{ color: 'var(--green)' }}>{peso(paid)}</span></div>
           <div className="stat"><span className="muted">Receipts</span><span className="v">{count('confirmed')}</span></div>

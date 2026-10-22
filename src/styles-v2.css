@@ -722,11 +722,3 @@ html.site-edit [data-edit]:not(.editing):hover::after { content: "✎"; font-siz
   background: #0f172a; color: #fff; font-size: 12px; white-space: nowrap; box-shadow: var(--shadow-md); transition: left .12s ease-out, transform .12s ease-out; }
 .chart-tip span { opacity: .85; }
 
-/* desktop back link above the page */
-.back-link { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px 6px 6px; border: 0; border-radius: 10px;
-  background: none; color: var(--slate-600); font: inherit; font-weight: 600; cursor: pointer; align-self: flex-start; }
-.back-link:hover { background: var(--slate-100, #f1f5f9); color: var(--ink); }
-:root[data-dark] .back-link { color: #cbd5e1; }
-:root[data-dark] .back-link:hover { background: #1f2937; color: #fff; }
-.back-row { max-width: 1360px; margin: 0 auto; padding: 20px 34px 0; }
-.back-row + .page { padding-top: 10px; }

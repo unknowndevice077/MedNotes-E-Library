@@ -83,7 +83,7 @@ export default function Devices() {
 
   return (
     <ClientLayout title={<Tx k="nav.devices" />}>
-      <div className="page" style={{ maxWidth: 940, margin: mobile ? undefined : '0' }}>
+      <div className="page" style={{ maxWidth: 940 }}>
         <div className="col" style={{ gap: 4 }}>
           {!mobile && <h1><Tx k="devices.title" /></h1>}
           <span className="muted">Your plan allows {computers} computer{computers === 1 ? '' : 's'} and {phones} phone{phones === 1 ? '' : 's'}. On a computer, MedNotes runs in your web browser, so there's nothing to install. Offline reading is only in the mobile app. Removing a device signs it out.</span>

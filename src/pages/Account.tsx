@@ -155,7 +155,7 @@ export default function Account() {
   ];
   return (
     <ClientLayout title={<Tx k="nav.account" />}>
-      <div className="page account" style={{ maxWidth: 820, margin: mobile ? undefined : '0' }}>
+      <div className="page account" style={{ maxWidth: 820 }}>
         {!mobile && <h1><Tx k="account.title" /></h1>}
         <ProfileEditor action={profile?.role === 'admin' && <Link to="/admin" className="btn btn-sm">Admin</Link>} />
         <div className="card col link-list" style={{ gap: 0, padding: 6 }}>
@@ -193,7 +193,7 @@ export function AccountSettings() {
   }
   return (
     <ClientLayout back="/account" title="Account settings">
-      <div className="page account" style={{ maxWidth: 820, margin: mobile ? undefined : '0' }}>
+      <div className="page account" style={{ maxWidth: 820 }}>
         {!mobile && <div className="col" style={{ gap: 4 }}><Link to="/account" className="link small">‹ <Tx k="nav.account" /></Link><h1>Account settings</h1></div>}
 
         <h2 className="settings-h">Sign-in and security</h2>
