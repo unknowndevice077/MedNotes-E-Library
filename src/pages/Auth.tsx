@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase, setRememberMe, enabledProviders } from '../lib/supabase';
 import { useAuth } from '../lib/auth';
@@ -7,6 +7,7 @@ import { appUrl, asset, isNative } from '../lib/platform';
 import { Logo, Toggle } from '../components/ui';
 import { Facebook, Google, Laptop } from '../components/Icons';
 import { Tx } from '../lib/theme';
+import { googleButtonAvailable, renderGoogleButton } from '../lib/googleSignIn';
 
 const PLAY_URL = import.meta.env.VITE_PLAY_STORE_URL || 'https://play.google.com/store/apps/details?id=com.mednotes.elibrary';
 
@@ -57,15 +58,43 @@ function Providers({ divider }: { divider: ReactNode }) {
   }
   return (
     <>
-      <button type="button" className="btn btn-block btn-social" disabled={!!busy} onClick={() => go('google')}>
-        {busy === 'google' ? <span className="spinner sm" /> : <Google />} Continue with Google
-      </button>
+      {googleButtonAvailable && on?.google !== false
+        ? <GoogleButton onBusy={() => { setNote(''); setBusy('google'); }} onError={(m) => { setNote(m); setBusy(null); }} fallback={() => go('google')} busy={busy === 'google'} />
+        : (
+          <button type="button" className="btn btn-block btn-social" disabled={!!busy} onClick={() => go('google')}>
+            {busy === 'google' ? <span className="spinner sm" /> : <Google />} Continue with Google
+          </button>
+        )}
       <button type="button" className="btn btn-block btn-social" disabled={!!busy} onClick={() => go('facebook')}>
         {busy === 'facebook' ? <span className="spinner sm" /> : <Facebook />} Continue with Facebook
       </button>
       {note && <div className="note note-amber fade-in" role="status">{note}</div>}
       <div className="divider">{divider}</div>
     </>
+  );
+}
+
+/** Google's own button on the website; if Google's script can't load, our usual button (redirect sign-in) is shown instead. */
+function GoogleButton({ onBusy, onError, fallback, busy }: { onBusy: () => void; onError: (m: string) => void; fallback: () => void; busy: boolean }) {
+  const box = useRef<HTMLDivElement>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    if (!box.current) return;
+    renderGoogleButton(box.current, { dark: document.documentElement.hasAttribute('data-dark'), onStart: onBusy, onError })
+      .catch(() => setFailed(true));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  if (failed) {
+    return (
+      <button type="button" className="btn btn-block btn-social" onClick={fallback}>
+        <Google /> Continue with Google
+      </button>
+    );
+  }
+  return (
+    <div className="gsi-wrap" aria-busy={busy}>
+      <div ref={box} className="gsi-box" />
+      {busy && <div className="gsi-busy"><span className="spinner sm" /> Signing you in…</div>}
+    </div>
   );
 }
 

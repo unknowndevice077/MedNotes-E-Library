@@ -708,3 +708,8 @@ html.site-edit [data-edit]:not(.editing):hover::after { content: "✎"; font-siz
 @media (max-width: 600px) { .kpi-grid { grid-template-columns: 1fr 1fr; gap: 10px; } .kpi-grid .stat { padding: 14px; } .kpi-grid .stat .v { font-size: 22px; } }
 /* growing buttons in a wrapping row keep their text width, so they wrap to a new line instead of squashing together */
 .row.wrap > .btn.grow, .btn-row > .btn.grow { flex: 1 1 auto; }
+
+/* Google's own sign-in button (an iframe from Google), centred and the same height as our buttons */
+.gsi-wrap { position: relative; width: 100%; min-height: 44px; display: flex; justify-content: center; }
+.gsi-box { width: 100%; max-width: 400px; display: flex; justify-content: center; min-height: 44px; }
+.gsi-busy { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 8px; background: var(--card, #fff); border-radius: 999px; font-weight: 600; }
