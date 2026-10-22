@@ -6,15 +6,14 @@ import { isNative } from '../lib/platform';
 import { errMsg } from '../lib/format';
 import { isSaved, listSaved, offlineExpired, readOffline } from '../lib/offline';
 import { KIND_LABEL, type FileKind, type LibFile, type UserPrefs } from '../lib/types';
-import { useConfirm, useIsMobile } from '../components/ui';
+import { useIsMobile } from '../components/ui';
 import { fetchSecureFile } from '../lib/secureFile';
 import { guardMessage, useContentGuard } from '../lib/contentGuard';
 import { blockScreenshots } from '../lib/screenGuard';
-import { Back, Expand, Minus, Moon, Notes, Pen, Plus, Sun } from '../components/Icons';
+import { Back, Expand, Minus, Moon, Plus, Sun } from '../components/Icons';
 import { stampCanvas, useMark, usePublisher, type Mark } from '../lib/watermark';
 import { usePrefs } from '../lib/prefs';
 import { ReaderSkeleton } from '../components/Skeletons';
-import { DrawBar, InkLayer, useReaderNotes, type Ink, type Stroke, type Tool } from '../components/ReaderTools';
 import { STRENGTH, TILE, markTile } from '../lib/leakMark';
 
 type Source = { kind: FileKind; name: string; mime: string; blob?: Blob; url?: string };
@@ -36,15 +35,13 @@ async function loadSource(id: string, preferOffline: boolean, offlineDays: numbe
 }
 
 const ZOOMS = [0.5, 0.67, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3];
-const DRAWABLE: FileKind[] = ['pdf', 'image', 'pptx'];
 const PAGED: FileKind[] = ['pdf', 'pptx'];
 const THEMES: UserPrefs['readerTheme'][] = ['light', 'sepia', 'dark'];
 
-/** What the viewers need for zoom, pages and drawing. */
+/** What the viewers need for zoom and pages. */
 interface View {
   zoom: number; fit: number; mark: Mark | null;
-  ink: Ink; setPage: (key: string, s: Stroke[]) => void; drawing: boolean; tool: Tool;
-  onPages: (n: number) => void; setRef: (f: () => string) => void;
+  onPages: (n: number) => void;
 }
 
 export default function Reader() {
@@ -52,7 +49,6 @@ export default function Reader() {
   const [sp] = useSearchParams();
   const nav = useNavigate();
   const mobile = useIsMobile();
-  const confirm = useConfirm();
   const { settings, session } = useAuth();
   const { prefs, save: savePrefs } = usePrefs();
   // hidden buyer mark: invisible, but any screenshot of the reader can be traced to this account
@@ -65,14 +61,8 @@ export default function Reader() {
   const [zoom, setZoom] = useState(1);
   const [pages, setPages] = useState(0);
   const [page, setPageNo] = useState(1);
-  const [drawing, setDrawing] = useState(false);
-  const [notesOpen, setNotesOpen] = useState(() => { try { return !mobile && localStorage.getItem('mn.reader.notes') === '1'; } catch { return false; } });
-  const [notesTab, setNotesTab] = useState<'notes' | 'sketch'>('notes');
-  const [tool, setTool] = useState<Tool>({ mode: 'pen', color: '#dc2626', size: 4 });
   const [fit, setFit] = useState(800);
   const body = useRef<HTMLDivElement>(null);
-  const refLabel = useRef<() => string>(() => '');
-  const notes = useReaderNotes(id!);
 
   useEffect(() => {
     loadSource(id!, sp.get('offline') === '1', settings?.offline_days ?? 30, setProgress).then(setSrc).catch((e) => setErr(errMsg(e)));
@@ -106,38 +96,21 @@ export default function Reader() {
   const mark = useMark();
   const publisher = usePublisher();
   const kind = src?.kind;
-  const canDraw = !!kind && DRAWABLE.includes(kind);
   const zoomable = !!kind && kind !== 'video';
   const step = (dir: 1 | -1) => {
     if (kind === 'epub') return void savePrefs({ textSize: Math.min(26, Math.max(13, prefs.textSize + dir)) });
     const i = ZOOMS.findIndex((z) => z >= zoom - 0.001);
     setZoom(ZOOMS[Math.min(ZOOMS.length - 1, Math.max(0, i + dir))]!);
   };
-  const toggleNotes = (open = !notesOpen) => { setNotesOpen(open); try { localStorage.setItem('mn.reader.notes', open ? '1' : '0'); } catch { /* private mode */ } };
-  const toggleDraw = () => {
-    if (canDraw) return setDrawing((d) => !d);
-    toggleNotes(true); setNotesTab('sketch'); // e-books, Word, sheets, video: draw on the sketch pad
-  };
   const cycleTheme = () => savePrefs({ readerTheme: THEMES[(THEMES.indexOf(prefs.readerTheme) + 1) % THEMES.length] });
   const fullscreen = () => (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()).catch(() => undefined);
-  async function clearInk() {
-    if (await confirm({ title: 'Clear all drawings in this file?', body: 'Your pen and highlighter marks on every page are removed. Your typed notes stay.', confirmLabel: 'Clear drawings', danger: true })) {
-      const keep: Ink = notes.ink.sketch ? { sketch: notes.ink.sketch } : {};
-      notes.setInk(keep);
-    }
-  }
-
-  // keyboard: +/- zoom, D draw, N notes, Ctrl+Z undo (never while typing a note)
+  // keyboard: +/- zoom
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement)?.closest?.('textarea, input, select')) return;
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); notes.undo(); return; }
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       if (e.key === '+' || e.key === '=') step(1);
       else if (e.key === '-') step(-1);
-      else if (e.key.toLowerCase() === 'd') toggleDraw();
-      else if (e.key.toLowerCase() === 'n') toggleNotes();
-      else if (e.key === 'Escape' && drawing) setDrawing(false);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -150,11 +123,11 @@ export default function Reader() {
     return () => el.removeEventListener('wheel', onWheel);
   });
 
-  const view: View = { zoom, fit, mark, ink: notes.ink, setPage: notes.setPage, drawing, tool, onPages: setPages, setRef: (f) => { refLabel.current = f; } };
+  const view: View = { zoom, fit, mark, onPages: setPages };
   const zoomLabel = kind === 'epub' ? `${prefs.textSize}px` : `${Math.round(zoom * 100)}%`;
 
   return (
-    <div className={`reader rt-${prefs.readerTheme}${drawing ? ' is-drawing' : ''}`} style={{ '--reader-scale': prefs.textSize / 17 } as React.CSSProperties} onContextMenu={(e) => e.preventDefault()}>
+    <div className={`reader rt-${prefs.readerTheme}`} style={{ '--reader-scale': prefs.textSize / 17 } as React.CSSProperties} onContextMenu={(e) => e.preventDefault()}>
       <header className="reader-top">
         <button onClick={() => nav(-1)} aria-label="Back" className="rt-btn"><Back width={22} /></button>
         <div className="rt-title">
@@ -176,13 +149,11 @@ export default function Reader() {
           </div>
         )}
         <div className="rt-group">
-          {src && <button className={`rt-btn${drawing ? ' on' : ''}`} onClick={toggleDraw} aria-pressed={drawing} aria-label="Draw" title={canDraw ? 'Draw on the pages (D)' : 'Sketch pad (D)'}><Pen /><span className="hide-sm">Draw</span></button>}
-          <button className={`rt-btn${notesOpen ? ' on' : ''}`} onClick={() => toggleNotes()} aria-pressed={notesOpen} aria-label="Notes" title="Notes (N)"><Notes /><span className="hide-sm">Notes</span></button>
           <button className="rt-btn" onClick={cycleTheme} aria-label={`Page colour: ${prefs.readerTheme}`} title="Page colour">{prefs.readerTheme === 'dark' ? <Moon /> : <Sun />}</button>
           {!mobile && !isNative && <button className="rt-btn" onClick={fullscreen} aria-label="Full screen" title="Full screen"><Expand /></button>}
         </div>
       </header>
-      <div className={`reader-main${notesOpen ? ' with-notes' : ''}`}>
+      <div className="reader-main">
         <div className="reader-body" ref={body} onScroll={track}>
           {err ? <div className="page"><div className="note note-red">{err}</div></div>
             : !src ? <ReaderSkeleton progress={progress} label={progress > 0 && progress < 1 ? `Opening securely… ${Math.round(progress * 100)}%` : 'Opening your file securely…'} />
@@ -194,59 +165,8 @@ export default function Reader() {
           )}
         </div>
         {leak && src && <div className="leak-mark" aria-hidden style={{ backgroundImage: `url("${leak}")`, backgroundSize: `${TILE}px`, opacity: STRENGTH }} />}
-        {drawing && canDraw && (
-          <div className="drawbar-dock"><DrawBar tool={tool} setTool={setTool} onUndo={notes.undo} canUndo={notes.canUndo} onClear={clearInk} onDone={() => setDrawing(false)} /></div>
-        )}
-        {notesOpen && (
-          <NotesPanel notes={notes} tab={notesTab} setTab={setNotesTab} tool={tool} setTool={setTool} onClose={() => toggleNotes(false)}
-            refLabel={() => refLabel.current() || (kind && PAGED.includes(kind) ? `${kind === 'pptx' ? 'Slide' : 'p.'} ${page}` : '')} />
-        )}
       </div>
     </div>
-  );
-}
-
-function NotesPanel({ notes, tab, setTab, tool, setTool, onClose, refLabel }: {
-  notes: ReturnType<typeof useReaderNotes>; tab: 'notes' | 'sketch'; setTab: (t: 'notes' | 'sketch') => void;
-  tool: Tool; setTool: (t: Tool) => void; onClose: () => void; refLabel: () => string;
-}) {
-  const area = useRef<HTMLTextAreaElement>(null);
-  const insertRef = () => {
-    const ref = refLabel(); const el = area.current; if (!ref || !el) return;
-    const at = el.selectionStart ?? notes.body.length;
-    const tag = `${at && !/\s$/.test(notes.body.slice(0, at)) ? '\n' : ''}[${ref}] `;
-    notes.setBody(notes.body.slice(0, at) + tag + notes.body.slice(at));
-    requestAnimationFrame(() => { el.focus(); el.selectionStart = el.selectionEnd = at + tag.length; });
-  };
-  const status = { idle: '', saving: 'Saving…', saved: 'Saved', offline: 'Saved on this device' }[notes.status];
-  const ref = refLabel();
-  return (
-    <aside className="notes-panel" aria-label="Your notes">
-      <div className="notes-head">
-        <div className="seg" role="tablist">
-          <button role="tab" aria-selected={tab === 'notes'} className={tab === 'notes' ? 'on' : ''} onClick={() => setTab('notes')}>Notes</button>
-          <button role="tab" aria-selected={tab === 'sketch'} className={tab === 'sketch' ? 'on' : ''} onClick={() => setTab('sketch')}>Sketch</button>
-        </div>
-        <span className="small muted grow" style={{ textAlign: 'right' }}>{status}</span>
-        <button className="rt-btn" onClick={onClose} aria-label="Close notes">×</button>
-      </div>
-      {tab === 'notes' ? (
-        <>
-          <textarea ref={area} className="notes-text" value={notes.body} maxLength={20000} onChange={(e) => notes.setBody(e.target.value)}
-            placeholder={'Type your notes here.\n\nThey save as you go, only you can see them, and they follow you to your other device.'} aria-label="Notes" />
-          <div className="notes-foot">
-            {ref && <button className="btn btn-sm" onClick={insertRef}>+ Mark {ref}</button>}
-            <span className="small muted grow" style={{ textAlign: 'right' }}>{notes.body.length ? `${notes.body.trim().split(/\s+/).length} words` : ''}</span>
-          </div>
-        </>
-      ) : (
-        <div className="col" style={{ gap: 10, padding: 14, minHeight: 0, flex: 1 }}>
-          <div className="sketch-pad"><InkLayer strokes={notes.ink.sketch} onChange={(s) => notes.setPage('sketch', s)} active tool={tool} /></div>
-          <DrawBar tool={tool} setTool={setTool} onUndo={notes.undo} canUndo={notes.canUndo} onClear={() => notes.setPage('sketch', [])} />
-          <span className="small muted">Draw diagrams, mnemonics or quick sketches. Saved with this file.</span>
-        </div>
-      )}
-    </aside>
   );
 }
 
@@ -257,9 +177,9 @@ function Render({ src, view }: { src: Source; view: View }) {
   const style = mark ? ({ '--wm': mark.tile, '--wm-dark': mark.tileDark } as React.CSSProperties) : undefined;
   const body = (() => {
     switch (src.kind) {
-      case 'epub': return <Epub blob={src.blob!} view={view} />;
+      case 'epub': return <Epub blob={src.blob!} />;
       case 'pdf': return <Pdf blob={src.blob!} view={view} />;
-      case 'video': return <Video src={src} view={view} />;
+      case 'video': return <Video src={src} />;
       case 'image': return <ImageView blob={src.blob!} view={view} />;
       case 'docx': return <Docx blob={src.blob!} view={view} />;
       case 'xlsx': return <Sheet blob={src.blob!} view={view} />;
@@ -274,7 +194,7 @@ const EPUB_COLORS = { light: ['#ffffff', '#1f2937'], sepia: ['#f4ecd8', '#433422
 type Rendition = { prev: () => void; next: () => void; display: (h?: string) => Promise<void>; themes: { override: (k: string, v: string) => void; default: (s: object) => void }; on: (e: string, f: (l: { start: { href: string; index: number } }) => void) => void };
 
 /** E-books: real pages with a two-page spread on wide screens, arrows or ←/→ to turn. */
-function Epub({ blob, view }: { blob: Blob; view: View }) {
+function Epub({ blob }: { blob: Blob }) {
   const el = useRef<HTMLDivElement>(null);
   const { prefs } = usePrefs();
   const mobile = useIsMobile();
@@ -311,7 +231,6 @@ function Epub({ blob, view }: { blob: Blob; view: View }) {
     return () => { alive = false; book?.destroy(); };
   }, [blob, mobile]);
   const chapter = toc.find((t) => at.href && t.href.split('#')[0]!.endsWith(at.href.split('/').pop()!));
-  useEffect(() => { view.setRef(() => chapter?.label ?? ''); });
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement)?.closest?.('textarea, input, select')) return;
@@ -396,17 +315,15 @@ function PdfPage({ doc, n, width, ratio, view }: { doc: PdfDoc; n: number; width
     });
     return () => { alive = false; task?.cancel(); };
   }, [doc, n, width, near, view.mark]);
-  const key = `p${n}`;
   return (
     <div ref={box} className="reader-page pdf-page" data-page={n} style={{ width, height: h }}>
       <canvas ref={canvas} className="content" style={{ width: '100%', height: '100%', display: 'block' }} aria-label={`Page ${n}`} />
-      <InkLayer strokes={view.ink[key]} onChange={(s) => view.setPage(key, s)} active={view.drawing} tool={view.tool} />
       <span className="page-no">{n}</span>
     </div>
   );
 }
 
-function Video({ src, view }: { src: Source; view: View }) {
+function Video({ src }: { src: Source }) {
   const ref = useRef<HTMLVideoElement>(null);
   useEffect(() => {
     const v = ref.current;
@@ -418,13 +335,6 @@ function Video({ src, view }: { src: Source; view: View }) {
     v.addEventListener('loadeddata', drop, { once: true });
     return () => { drop(); v.removeAttribute('src'); v.load(); };
   }, [src.blob]);
-  // notes can mark the current time, e.g. [12:04]
-  useEffect(() => {
-    view.setRef(() => {
-      const t = Math.floor(ref.current?.currentTime ?? 0);
-      return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
-    });
-  });
   return (
     <div className="video-stage wm-box wm-dark">
       <video ref={ref} controls autoPlay playsInline controlsList="nodownload noplaybackrate noremoteplayback" disablePictureInPicture disableRemotePlayback
@@ -451,7 +361,6 @@ function ImageView({ blob, view }: { blob: Blob; view: View }) {
     <div className="pdf-pages">
       <div className="reader-page pdf-page" style={{ width, height: Math.round(width * ratio) }}>
         <canvas ref={ref} className="content" style={{ width: '100%', height: '100%', display: 'block' }} />
-        <InkLayer strokes={view.ink.img} onChange={(s) => view.setPage('img', s)} active={view.drawing} tool={view.tool} />
       </div>
     </div>
   );
@@ -527,7 +436,6 @@ function Slides({ blob, view }: { blob: Blob; view: View }) {
   return (
     <div className="pdf-pages">
       {slides.map((s, i) => {
-        const key = `s${i + 1}`;
         return (
           <div key={i} className="slide2 wm-box" data-page={i + 1} style={{ width, height: Math.round(width * 9 / 16), fontSize: width / 48 }}>
             <div className={`slide2-body${s.images.length ? ' with-pic' : ''}`}>
@@ -537,7 +445,6 @@ function Slides({ blob, view }: { blob: Blob; view: View }) {
               </div>
               {s.images.length > 0 && <div className="slide2-pics">{s.images.map((u) => <div key={u} style={{ backgroundImage: `url("${u}")` }} />)}</div>}
             </div>
-            <InkLayer strokes={view.ink[key]} onChange={(st) => view.setPage(key, st)} active={view.drawing} tool={view.tool} />
             <span className="page-no">{i + 1} / {slides.length}</span>
           </div>
         );

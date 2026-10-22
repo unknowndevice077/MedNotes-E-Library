@@ -456,23 +456,6 @@ describe('accounts', () => {
   });
 });
 
-describe('reader notes', () => {
-  test('each buyer only sees and writes their own notes', async () => {
-    const a = await makeUser('notes-a'), b = await makeUser('notes-b');
-    try {
-      const row = { file_id: XLSX, user_id: a.id, body: 'my secret mnemonic', ink: { p1: [{ t: 'pen', c: '#000', w: 0.004, p: [0.1, 0.1, 0.2, 0.2] }] } };
-      assert.ifError((await a.client.from('reader_notes').upsert(row)).error);
-      assert.equal((await a.client.from('reader_notes').select('body').eq('file_id', XLSX).single()).data.body, 'my secret mnemonic');
-      assert.equal((await b.client.from('reader_notes').select('body').eq('user_id', a.id)).data.length, 0, 'other buyer reads nothing');
-      assert.ok((await b.client.from('reader_notes').insert({ ...row, body: 'forged' })).error, 'cannot write as someone else');
-      await b.client.from('reader_notes').update({ body: 'hacked' }).eq('user_id', a.id);
-      assert.equal((await service.from('reader_notes').select('body').eq('user_id', a.id).single()).data.body, 'my secret mnemonic');
-      assert.equal((await anon().from('reader_notes').select('body')).data?.length ?? 0, 0, 'anonymous reads nothing');
-      assert.ok((await a.client.from('reader_notes').upsert({ ...row, ink: [] })).error, 'ink must be an object');
-    } finally { await dropUser(a); await dropUser(b); }
-  });
-});
-
 describe('payment amounts', () => {
   test('a buyer cannot choose what they pay: the server sets the real price', async () => {
     const u = await makeUser('amount');

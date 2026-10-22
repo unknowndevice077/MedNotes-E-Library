@@ -71,10 +71,7 @@ screen taken with a second camera can't be traced.
 ## Reader
 
 PDFs, slides, e-books, Word and Excel files open in one reader with zoom (buttons, `+`/`-`, Ctrl + wheel), page
-jump, page colour (light, sepia, dark) and full screen. **Notes** opens a side panel for typed notes (with a button
-that marks the current page, slide or video time) and a sketch pad; **Draw** puts a pen, highlighter and eraser on PDF
-pages, images and slides. Notes and drawings are saved per buyer per file in `reader_notes` (only that buyer can read
-them) and kept on the device too, so they work offline in the app.
+jump, page colour (light, sepia, dark) and full screen.
 
 ## GCash payments
 

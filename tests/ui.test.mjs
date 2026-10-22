@@ -17,7 +17,13 @@ const OUT = join(root, 'tests', 'screenshots', 'ui');
 const SIZES = {
   'small-phone': { width: 320, height: 640, isMobile: true, hasTouch: true },
   phone: { width: 390, height: 844, isMobile: true, hasTouch: true },
+  'large-phone': { width: 430, height: 932, isMobile: true, hasTouch: true },
+  'phone-dark': { width: 390, height: 844, isMobile: true, hasTouch: true, dark: true },
+  'phone-landscape': { width: 844, height: 390, isMobile: true, hasTouch: true, isLandscape: true },
+  'small-tablet': { width: 768, height: 1024, isMobile: true, hasTouch: true },
   tablet: { width: 820, height: 1180, isMobile: true, hasTouch: true },
+  'tablet-landscape': { width: 1180, height: 820, isMobile: true, hasTouch: true, isLandscape: true },
+  'small-laptop': { width: 1280, height: 720 },
   laptop: { width: 1366, height: 768 },
   desktop: { width: 1920, height: 1080 },
 };
@@ -87,7 +93,7 @@ function audit(isPhone) {
       out.smallTargets.push(`${name(el)} ${Math.round(r.width)}x${Math.round(r.height)}`);
   }
   // buttons and badges that overlap, touch (closer than 6px on the same line) or stick out of their card / dialog
-  const SKIP = '.seg, .rt-group, .drawbar, .stars, .tabbar, .edit-history, .chips, .pv-pop, .site-frame-wrap, .bottom-bar .price, .tl-dot';
+  const SKIP = '.seg, .rt-group, .stars, .tabbar, .edit-history, .chips, .pv-pop, .site-frame-wrap, .bottom-bar .price, .tl-dot';
   // with a dialog open, only the dialog counts (the page behind it is covered)
   const modal = [...document.querySelectorAll('.modal')].filter(visible).pop();
   const boxes = [...(modal ?? document).querySelectorAll('.btn, .badge, button.link, .price-pill, .icon-btn')]
@@ -118,8 +124,12 @@ function audit(isPhone) {
 async function newPage(size) {
   const ctx = await browser.createBrowserContext();
   const page = await ctx.newPage();
-  const v = SIZES[size];
+  const { dark, ...v } = SIZES[size];
   await page.setViewport({ deviceScaleFactor: 1, ...v });
+  if (dark) {
+    await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'dark' }]);
+    await page.evaluateOnNewDocument(() => { localStorage.setItem('mn.app-theme', 'dark'); localStorage.setItem('mn.admin-dark', '1'); });
+  }
   if (v.isMobile) await page.setUserAgent(MOBILE_UA);
   await page.emulateMediaFeatures([{ name: 'prefers-reduced-motion', value: 'reduce' }]); // screenshots without half-finished animations
   page.errors = [];
@@ -142,7 +152,7 @@ async function check(page, size, name, path, { before: prep, wait = 900 } = {}) 
   if (prep) { await prep(page); await sleep(500); }
   mkdirSync(join(OUT, size), { recursive: true });
   await page.screenshot({ path: join(OUT, size, `${name}.png`), fullPage: true });
-  const found = await page.evaluate(audit, size.endsWith('phone'));
+  const found = await page.evaluate(audit, SIZES[size].isMobile && SIZES[size].width < 600);
   found.consoleErrors = page.errors.splice(0);
   (report[size] ??= {})[name] = found;
   return found;
@@ -175,8 +185,6 @@ for (const size of Object.keys(SIZES)) {
     add('buyer', 'reader', () => `/read/${ids.owned}`, { wait: 3000 });
     // the five free samples cover every reader layout: PDF, slides, e-book, Word, Excel
     for (const [k, n] of [['pdf', 19], ['pptx', 20], ['epub', 21], ['docx', 22], ['xlsx', 23]]) add('buyer', `reader-${k}`, `/read/a0000000-0000-0000-0000-0000000000${n}`, { wait: 3000 });
-    add('buyer', 'reader-notes', '/read/a0000000-0000-0000-0000-000000000019', { wait: 3000, before: (p) => p.click('button[aria-label="Notes"]') });
-    add('buyer', 'reader-draw', '/read/a0000000-0000-0000-0000-000000000020', { wait: 3000, before: (p) => p.click('button[aria-label="Draw"]') });
     add('buyer', 'devices', '/devices');
     add('buyer', 'checkout-slot', '/checkout/slot/computer', { wait: 1500 });
     add('buyer', 'account', '/account');

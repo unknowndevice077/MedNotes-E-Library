@@ -77,7 +77,8 @@ export default function Payments() {
   }
 
   const nextReceipt = settings ? `${settings.receipt_prefix}${String(settings.receipt_next).padStart(6, '0')}` : 'a new receipt';
-  const priceOk = sel ? Number(sel.amount) >= Number(sel.files?.price ?? 0) : true;
+  // the amount is the price the buyer was shown when they paid; the file's price may have changed since
+  const priceNow = sel?.files && Number(sel.files.price) !== Number(sel.amount) ? Number(sel.files.price) : null;
 
   const list = (
     <div className="col pay-list" style={{ width: mobile ? '100%' : 440, flexShrink: 0, gap: 10 }}>
@@ -118,7 +119,7 @@ export default function Payments() {
         <div className="col grow" style={{ gap: 10, minWidth: 240 }}>
           <div className="spread"><span className="muted">{sel.slot ? 'Order' : 'File'}</span><b>{sel.files?.name}</b></div>
           <div className="spread"><span className="muted">Price</span><b>{peso(sel.files?.price ?? 0)}</b></div>
-          <div className="spread"><span className="muted">Amount due</span><b style={{ color: priceOk ? undefined : 'var(--red)' }}>{peso(sel.amount)} {priceOk ? <Check width={14} color="var(--green)" /> : '(short)'}</b></div>
+          <div className="spread"><span className="muted">Amount due</span><b>{peso(sel.amount)} <Check width={14} color="var(--green)" />{priceNow !== null && <span className="small muted" style={{ fontWeight: 400 }}> · price is now {peso(priceNow)}</span>}</b></div>
           <div className="spread"><span className="muted">Method</span><b>{sel.method}</b></div>
           {sel.reference_no && <div className="spread"><span className="muted">Reference no.</span><b>{sel.reference_no}</b></div>}
           <div className="spread"><span className="muted">Email</span><b>{sel.profiles?.email}</b></div>

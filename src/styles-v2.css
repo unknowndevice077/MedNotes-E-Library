@@ -430,7 +430,7 @@ html.site-edit [data-edit].edit-on { outline: 2px solid #0ea5e9; background: rgb
 .wm-sample-lines i { display: block; height: 8px; border-radius: 4px; background: #e2e8f0; }
 :root[data-dark] .wm-sample-page { background-color: #fff !important; color: #1f2937 !important; }
 
-/* ---------- reader v2: toolbar, notes panel, drawing ---------- */
+/* ---------- reader v2: toolbar ---------- */
 .reader { background: #e9edf2; }
 .reader-top { height: 58px; gap: 10px; padding: 0 12px; padding-top: env(safe-area-inset-top); box-shadow: 0 1px 0 var(--line); z-index: 5; position: relative; }
 .rt-title { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
@@ -452,41 +452,9 @@ html.site-edit [data-edit].edit-on { outline: 2px solid #0ea5e9; background: rgb
 .reader-page.pdf-page { margin: 0; max-width: none; position: relative; border-radius: 4px; box-shadow: 0 1px 3px rgba(15, 23, 42, .12), 0 8px 24px rgba(15, 23, 42, .08); background: #fff; flex-shrink: 0; }
 .page-no { position: absolute; right: 10px; bottom: 8px; font-size: 11px; font-weight: 600; color: #94a3b8; background: rgba(255, 255, 255, .85); padding: 1px 7px; border-radius: 999px; pointer-events: none; z-index: 2; }
 
-/* drawing layer */
-.ink { position: absolute; inset: 0; z-index: 4; pointer-events: none; touch-action: auto; }
-.ink.on { pointer-events: auto; touch-action: none; cursor: crosshair; }
-.ink.on.erasing { cursor: cell; }
-.is-drawing .reader-page, .is-drawing .slide2 { outline: 2px dashed rgba(37, 99, 235, .35); outline-offset: 3px; }
-.drawbar-dock { position: absolute; left: 0; right: 0; bottom: 18px; display: flex; justify-content: center; pointer-events: none; z-index: 8; }
-.drawbar { pointer-events: auto; display: flex; align-items: center; flex-wrap: wrap; gap: 4px; padding: 6px; border-radius: 14px; background: #fff; color: #0f172a; box-shadow: 0 10px 30px rgba(15, 23, 42, .18), 0 0 0 1px rgba(15, 23, 42, .06); }
-.drawbar > button { height: 36px; min-width: 36px; padding: 0 8px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-weight: 600; font-size: 13px; }
-.drawbar > button svg { width: 19px; height: 19px; }
-.drawbar > button:hover:not(:disabled) { background: #f1f5f9; }
-.drawbar > button.on { background: #e0f2fe; color: #0369a1; }
-.drawbar > button:disabled { opacity: .35; }
-.drawbar .swatch-btn { min-width: 26px; width: 26px; height: 26px; padding: 0; border-radius: 50%; background: var(--sw); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .7), 0 0 0 1px rgba(15, 23, 42, .15); }
-.drawbar .swatch-btn.on { box-shadow: inset 0 0 0 2px #fff, 0 0 0 2px #0f172a; }
-.drawbar-sizes { display: inline-flex; gap: 2px; }
-.drawbar-sizes button { width: 30px; height: 36px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; }
-.drawbar-sizes button i { display: block; border-radius: 50%; background: #0f172a; }
-.drawbar-sizes button.on { background: #e0f2fe; }
-.drawbar-sep { width: 1px; height: 24px; background: #e2e8f0; margin: 0 4px; }
-.drawbar-done { background: #0f172a; color: #fff !important; padding: 0 12px !important; }
-.drawbar-done:hover { background: #1e293b !important; }
-
-/* notes panel */
-.notes-panel { width: 360px; flex-shrink: 0; display: flex; flex-direction: column; background: #fff; border-left: 1px solid var(--line); color: #0f172a; min-height: 0; z-index: 6; }
-.notes-head { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
-.notes-head .rt-btn { font-size: 22px; font-weight: 400; }
-.notes-text { flex: 1; border: 0; resize: none; padding: 16px 18px; font: inherit; font-size: 15px; line-height: 1.65; outline: none; color: #0f172a; background: repeating-linear-gradient(#fff 0 25.75px, #eef2f7 25.75px 26.75px); background-attachment: local; background-position: 0 14px; user-select: text; -webkit-user-select: text; min-height: 0; }
-.notes-foot { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--line); }
-.sketch-pad { position: relative; flex: 1; min-height: 240px; border-radius: 12px; border: 1px solid var(--line); background: #fff radial-gradient(#e2e8f0 1px, transparent 1px) 0 0 / 18px 18px; overflow: hidden; }
-.notes-panel .drawbar { box-shadow: 0 0 0 1px var(--line); justify-content: center; }
 @media (max-width: 760px) {
-  .notes-panel { position: absolute; inset: auto 0 0 0; width: auto; height: 62%; border-left: 0; border-top: 1px solid var(--line); border-radius: 18px 18px 0 0; box-shadow: 0 -12px 30px rgba(15, 23, 42, .18); }
   .reader-top { gap: 6px; padding: 0 6px; }
   .rt-title b { max-width: 38vw; }
-  .drawbar-dock { bottom: 10px; padding: 0 8px; }
 }
 
 /* e-books */
@@ -540,7 +508,7 @@ html.site-edit [data-edit].edit-on { outline: 2px solid #0ea5e9; background: rgb
 .video-stage { height: 100%; min-height: 60vh; display: flex; align-items: center; justify-content: center; background: #0b1220; padding: 16px; box-sizing: border-box; }
 .video-stage video { max-width: 100%; max-height: calc(100vh - 110px); border-radius: 10px; box-shadow: 0 20px 60px rgba(0, 0, 0, .5); }
 
-/* page colours: content only, never the drawing layer */
+/* page colours: content only */
 .rt-sepia .reader-body { background: #e4dcc6; }
 .rt-sepia .reader-page canvas.content, .rt-sepia .docx-view section.docx { filter: sepia(.38) brightness(.98); }
 .rt-sepia .slide2, .rt-sepia .epub-book, .rt-sepia .sheet-scroll { background: #f4ecd8; }
@@ -556,20 +524,11 @@ html.site-edit [data-edit].edit-on { outline: 2px solid #0ea5e9; background: rgb
 .rt-dark .page-no { background: rgba(17, 24, 39, .85); }
 .rt-dark .sheet-tabs button { background: #1f2937; color: #cbd5e1; }
 
-.drawbar .swatch-btn.on, .drawbar .swatch-btn:hover { background: var(--sw) !important; }
 .docx-view section.docx { padding: 56px 64px !important; min-height: 60vh; }
 @media (max-width: 760px) { .docx-view section.docx { padding: 28px 22px !important; } }
 .sheet-scroll { flex: 0 1 auto; align-self: flex-start; max-width: calc(100% - 28px); }
 .epub-book { display: flex; flex-direction: column; box-sizing: border-box; }
 .epub-book > div { flex: 1; min-height: 0; }
-.rt-dark .notes-panel { background: #111827; color: #e5e7eb; border-color: #1f2937; }
-.rt-dark .notes-head, .rt-dark .notes-foot { border-color: #1f2937; }
-.rt-dark .notes-text { color: #e5e7eb; background: repeating-linear-gradient(#111827 0 25.75px, #1f2937 25.75px 26.75px); background-attachment: local; background-position: 0 14px; }
-.rt-dark .notes-panel .seg { background: #1f2937; }
-.rt-dark .notes-panel .seg button.on { background: #374151; color: #f9fafb; }
-/* keep the drawing toolbar over the pages, clear of the notes panel */
-.with-notes .drawbar-dock { right: 360px; }
-@media (max-width: 760px) { .with-notes .drawbar-dock { right: 0; bottom: calc(62% + 10px); } }
 .rt-pages { white-space: nowrap; }
 
 /* checkout: the uploaded payment screenshot */
@@ -581,7 +540,6 @@ html.site-edit [data-edit].edit-on { outline: 2px solid #0ea5e9; background: rgb
 
 /* reader: blanked instantly on a screenshot / recording shortcut (contentGuard.ts) */
 html.capture-hide .reader-body > :not(.guard-cover) { visibility: hidden !important; }
-html.capture-hide .notes-panel, html.capture-hide .drawbar-dock { visibility: hidden !important; }
 
 /* checkout: device slots, step 1 */
 .qty-pick { display: flex; align-items: center; justify-content: center; gap: 22px; padding: 10px 0; }

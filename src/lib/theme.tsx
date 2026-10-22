@@ -106,7 +106,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
   }, [theme]);
 
-  const value = useMemo(() => ({ theme, storeName: theme.storeName?.trim() || '', reload, preview: setDraft }), [theme, reload]);
+  const value = useMemo(() => ({ theme, storeName: theme.storeName?.trim() || saved.store_name?.trim() || '', reload, preview: setDraft }), [theme, saved.store_name, reload]);
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 

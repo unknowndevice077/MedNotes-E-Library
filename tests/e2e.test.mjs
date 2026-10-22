@@ -286,30 +286,6 @@ describe('buyer: browse, buy, read', () => {
     });
   }
 
-  test('reader: notes and drawings save for the buyer and come back', async () => {
-    await service.from('reader_notes').delete().eq('user_id', buyer.id);
-    const p = await open(buyer);
-    await go(p, `/read/${FILES.pdf}`);
-    await p.waitForSelector('.pdf-page canvas.content', { timeout: 15000 });
-    await p.click('button[aria-label="Notes"]');
-    await p.click('textarea.notes-text');
-    await p.keyboard.type('Remember the median nerve');
-    await p.click('button[aria-label="Draw"]');
-    await p.waitForSelector('.drawbar');
-    const b = await p.$eval('.pdf-page', (e) => { const r = e.getBoundingClientRect(); return { x: r.left, y: r.top }; });
-    await p.mouse.move(b.x + 60, b.y + 80); await p.mouse.down(); await p.mouse.move(b.x + 260, b.y + 140, { steps: 10 }); await p.mouse.up();
-    await sleep(1800);
-    const { data } = await service.from('reader_notes').select('body, ink').eq('user_id', buyer.id).eq('file_id', FILES.pdf).single();
-    assert.equal(data.body, 'Remember the median nerve');
-    assert.ok(data.ink.p1?.length === 1 && data.ink.p1[0].p.length >= 4, 'stroke saved on page 1');
-    await shot(p, 'reader-notes-draw');
-    await go(p, `/read/${FILES.pdf}`);
-    await p.waitForSelector('textarea.notes-text', { timeout: 15000 });
-    await p.waitForFunction(() => document.querySelector('textarea.notes-text').value.includes('median nerve'), { timeout: 8000 });
-    await p.close();
-    await service.from('reader_notes').delete().eq('user_id', buyer.id);
-  });
-
   test('hidden buyer mark: a screenshot of the reader is traced back to the buyer (100% and 200% screens, dark pages)', async () => {
     const shots = [];
     for (const [scale, kind, dark] of [[1, 'pptx', false], [2, 'docx', true]]) {
@@ -659,7 +635,7 @@ describe('admin receipts and appearance', () => {
       await p.waitForSelector('iframe.site-frame');
       await clickText(p, '[role=tab]', 'Colours & style');
       await clickText(p, '.ap-preset', 'Berry');
-      await p.type('#ap-name', 'Fritz Review Center');
+      await p.type('#ap-name', 'MedNotes Review Center');
       await clickText(p, '[role=tab]', 'Edit website');
       await p.select('.site-page-pick', 'library');
       await p_type(p, '#tx-library-heroTitle', 'Ready for boards?');
@@ -676,7 +652,7 @@ describe('admin receipts and appearance', () => {
       const look = await b.evaluate(() => ({ blue: getComputedStyle(document.documentElement).getPropertyValue('--blue').trim(), bg: document.documentElement.hasAttribute('data-app-bg'), t: document.body.innerText }));
       assert.equal(look.blue, '#be185d');
       assert.ok(look.bg, 'background applied');
-      assert.ok(look.t.includes('Ready for boards?') && look.t.includes('Fritz Review Center'), 'welcome text + name');
+      assert.ok(look.t.includes('Ready for boards?') && look.t.includes('MedNotes Review Center'), 'welcome text + name');
       await shot(b, 'library-themed');
       await b.close();
       const a = await open(null);
