@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from 'react';
+import { useLayoutEffect, type CSSProperties, type ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useIsMobile } from './ui';
 
@@ -125,9 +125,27 @@ export function ReaderSkeleton({ progress, label }: { progress: number; label: s
 }
 
 /** First paint before we know who is signed in: the app's frame with placeholder content. */
+/** The loader paints in the saved light/dark look, so a page that's still loading never flashes white. */
+function useSavedDark(admin: boolean) {
+  useLayoutEffect(() => {
+    let dark = false;
+    try {
+      if (admin) dark = localStorage.getItem('mn.admin-dark') === '1';
+      else {
+        const m = localStorage.getItem('mn.app-theme');
+        dark = m === 'dark' || (m === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
+      }
+    } catch { /* private mode */ }
+    if (!dark || document.documentElement.hasAttribute('data-dark')) return;
+    document.documentElement.setAttribute('data-dark', '');
+    return () => document.documentElement.removeAttribute('data-dark');
+  }, [admin]);
+}
+
 export function AppShellSkeleton() {
   const mobile = useIsMobile();
   const admin = useLocation().pathname.startsWith('/admin');
+  useSavedDark(admin);
   if (admin && !mobile) {
     return (
       <div className="shell" role="status" aria-busy="true" aria-label="Loading MedNotes">

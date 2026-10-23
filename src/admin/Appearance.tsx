@@ -206,10 +206,23 @@ export default function AdminAppearance() {
     set({ copy });
   }
 
+  const appDownload = (
+    <div className="card col" id="ap-app-download">
+        <h3>Android app download</h3>
+        <span className="small muted">Shown on the sign-in page. The QR code is made from this link automatically, unless you upload your own.</span>
+        <div className="field"><label htmlFor="ap-play">Google Play link</label>
+          <input id="ap-play" className="input" type="url" placeholder="https://play.google.com/store/apps/details?id=…" value={t.playStoreUrl ?? ''}
+            onChange={(e) => set({ playStoreUrl: e.target.value.trim() || undefined })} /></div>
+        {t.playStoreUrl && !/^https:\/\//.test(t.playStoreUrl) && <span className="small" style={{ color: 'var(--red)' }}>The link should start with https://</span>}
+        <ImagePick label="Download QR code" hint="Optional. Leave on Default to use a QR made from the link above." value={t.appQr} onChange={(appQr) => set({ appQr })} />
+    </div>
+  );
+
   const pageFields = (
     <div className="col" style={{ gap: 16 }}>
       <div className="note note-blue"><span><b>Edit mode:</b> click any text on the page on the right and type over it, like a design canvas. Press Enter when done. Undo with Ctrl+Z; nothing goes live until you press Save website.</span></div>
       {page.needsFile && !data.fileId && <div className="note note-amber"><span>Add a paid file in Files to preview this page.</span></div>}
+      {page.id === 'sign-in' && appDownload}
       {page.id === 'sign-in' && <div className="card col"><h3>Sign-in background</h3><ImagePick label="Sign-in background" hint="Shown behind the welcome side of the sign-in page" value={t.authImage} onChange={(authImage) => set({ authImage })} /></div>}
       {page.groups.map((g) => (
         <div key={g.title} className="card col">
@@ -246,15 +259,7 @@ export default function AdminAppearance() {
           <ColorField id="ap-ink" label="Text colour" value={t.ink ?? THEME_DEFAULTS.ink} onChange={(ink) => set({ ink })} />
         </div>
       </div>
-      <div className="card col">
-        <h3>Android app download</h3>
-        <span className="small muted">Shown on the sign-in page. The QR code is made from this link automatically, unless you upload your own.</span>
-        <div className="field"><label htmlFor="ap-play">Google Play link</label>
-          <input id="ap-play" className="input" type="url" placeholder="https://play.google.com/store/apps/details?id=…" value={t.playStoreUrl ?? ''}
-            onChange={(e) => set({ playStoreUrl: e.target.value.trim() || undefined })} /></div>
-        {t.playStoreUrl && !/^https:\/\//.test(t.playStoreUrl) && <span className="small" style={{ color: 'var(--red)' }}>The link should start with https://</span>}
-        <ImagePick label="Download QR code" hint="Optional. Leave on Default to use a QR made from the link above." value={t.appQr} onChange={(appQr) => set({ appQr })} />
-      </div>
+      {appDownload}
       <div className="card col">
         <h3>Background</h3>
         <span className="small muted">Behind every page of the website and the app (not the reader, where pages stay clean).</span>

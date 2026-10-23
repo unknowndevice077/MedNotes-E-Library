@@ -11,6 +11,8 @@ const DRAFT = 'admin-file-editor';
 type Fields = { name: string; label: string; description: string; price: string; meta: string; published: boolean; is_free: boolean };
 type Draft = { fileId: string | null; f: Fields; upload: File | null; cover: File | null };
 import CategoryPicker from '../components/CategoryPicker';
+import SubjectsManager from './Subjects';
+import { reloadSubjects } from '../lib/subjects';
 import { AdminLayout } from '../components/Layouts';
 import { Modal, Toggle, useConfirm, useIsMobile, useToast } from '../components/ui';
 import { Search, Upload } from '../components/Icons';
@@ -46,6 +48,7 @@ export default function AdminFiles() {
       setRestore(d); setEditing(target);
     });
   }, [data]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [subjects, setSubjects] = useState(false);
   const shown = useMemo(() => (data?.files ?? []).filter((f) => (kind === 'all' || f.kind === kind)
     && (!q || `${f.name} ${f.label}`.toLowerCase().includes(q.toLowerCase()))), [data, q, kind]);
 
@@ -62,7 +65,9 @@ export default function AdminFiles() {
   return (
     <AdminLayout title="Files" actions={<>
       {!mobile && <label className="search" style={{ width: 280 }}><Search width={18} color="var(--slate-400)" /><input placeholder="Search files" value={q} onChange={(e) => setQ(e.target.value)} /></label>}
+      <button className="btn" onClick={() => setSubjects(true)}>Subjects &amp; categories</button>
       <button className="btn btn-primary" onClick={() => setEditing('new')}>+ Upload file</button></>}>
+      {subjects && <SubjectsManager labels={(data?.files ?? []).map((f) => f.label ?? '')} onClose={() => setSubjects(false)} onChanged={reload} />}
       <div className="chips">
         <button className={`chip${kind === 'all' ? ' on' : ''}`} onClick={() => setKind('all')}>All {data?.files.length ?? ''}</button>
         {(['epub', 'pdf', 'video', 'image', 'docx', 'pptx', 'xlsx'] as FileKind[]).map((k) => <button key={k} className={`chip${kind === k ? ' on' : ''}`} onClick={() => setKind(k)}>{KIND_LABEL[k]}</button>)}
@@ -158,6 +163,8 @@ function FileEditor({ file, restored, onClose: close, onSaved: saved }: { file: 
       setBusy('Saving…');
       const res = file ? await supabase.from('files').update({ ...row, updated_at: new Date().toISOString() }).eq('id', file.id) : await supabase.from('files').insert(row);
       if (res.error) throw res.error;
+      // a subject typed in here joins the Subjects & categories list
+      if (row.label && !(await reloadSubjects()).some((x) => x.name.toLowerCase() === row.label!.toLowerCase())) { await supabase.from('subjects').insert({ name: row.label }); void reloadSubjects(); }
       toast(file ? 'File updated.' : 'File uploaded.');
       onSaved();
     } catch (e) { setErr(errMsg(e)); setBusy(''); }

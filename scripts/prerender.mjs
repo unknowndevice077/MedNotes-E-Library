@@ -15,7 +15,7 @@ const base = process.env.VITE_BASE || '/';
 const shell = readFileSync(join(dist, 'index.html'), 'utf8');
 
 // Plain SPA routes: same app shell, but served with 200 instead of the 404 fallback.
-for (const r of ['sign-in', 'sign-up', 'forgot-password', 'reset-password', 'library', 'my-files', 'devices', 'account', 'saved', 'admin']) {
+for (const r of ['sign-in', 'sign-up', 'forgot-password', 'reset-password', 'auth/confirm', 'library', 'my-files', 'devices', 'account', 'saved', 'admin']) {
   mkdirSync(join(dist, r), { recursive: true });
   writeFileSync(join(dist, r, 'index.html'), shell);
 }

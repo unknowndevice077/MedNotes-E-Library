@@ -11,6 +11,16 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
     <title>MedNotes E-Library</title>
+    <style>html[data-dark] { background: #0b1220; color-scheme: dark; }</style>
+    <script>
+      // dark mode before anything paints, so a fresh visit doesn't flash white while the app loads
+      try {
+        var admin = /\/admin(\/|$)/.test(location.pathname);
+        var m = localStorage.getItem(admin ? 'mn.admin-dark' : 'mn.app-theme');
+        var dark = admin ? m === '1' : m === 'dark' || (m === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
+        if (dark) { document.documentElement.setAttribute('data-dark', ''); }
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -279,11 +279,6 @@ export function AdminSettings() {
             <div className="field"><label htmlFor="sn">Store name</label><input id="sn" className="input" value={s.store_name} onChange={(e) => set({ store_name: e.target.value })} /></div>
             <div className="field"><label htmlFor="se">Support email</label><input id="se" className="input" type="email" value={s.support_email} onChange={(e) => set({ support_email: e.target.value })} /></div>
           </div>
-          <div className="card col">
-            <h3>Sign-in providers</h3>
-            <span className="small muted">Google and Facebook sign-in are switched on in Supabase (Authentication → Providers) with your app's client IDs. See README → "Social sign-in".</span>
-            <Link to="/admin/users" className="link">Manage admins in Users →</Link>
-          </div>
           <AdminEmails />
         </div>
       </div>

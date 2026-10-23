@@ -254,3 +254,45 @@ export function ResetPassword() {
     </AuthShell>
   );
 }
+
+// Links in our emails come here instead of to Supabase's own address. The token in the link is
+// checked here and signs the person in, then they go where the email was for.
+type OtpType = 'email' | 'signup' | 'recovery' | 'email_change' | 'invite' | 'magiclink';
+const OTP_TYPES: OtpType[] = ['email', 'signup', 'recovery', 'email_change', 'invite', 'magiclink'];
+
+export function ConfirmEmail() {
+  const nav = useNavigate();
+  const [state, setState] = useState<'working' | 'failed'>('working');
+  const ran = useRef(false);
+  useEffect(() => {
+    if (ran.current) return; // a link token works once; don't spend it twice in dev
+    ran.current = true;
+    const q = new URLSearchParams(location.search);
+    const token_hash = q.get('token_hash') ?? '';
+    const type = (OTP_TYPES as string[]).includes(q.get('type') ?? '') ? (q.get('type') as OtpType) : 'email';
+    if (!token_hash) { setState('failed'); return; }
+    supabase.auth.verifyOtp({ token_hash, type }).then(({ error }) => {
+      if (error) return setState('failed');
+      if (type === 'recovery') nav('/reset-password', { replace: true });
+      else if (type === 'email_change') nav('/account/settings', { replace: true });
+      else nav('/library', { replace: true });
+    });
+  }, [nav]);
+  return (
+    <AuthShell withHero={false}>
+      <div className="auth-card center">
+        <Logo />
+        {state === 'working' ? (
+          <><h2>Confirming…</h2><p className="muted">One moment while we check your link.</p></>
+        ) : (
+          <>
+            <h2>This link didn't work</h2>
+            <p className="muted">It may have expired or already been used. Links in our emails work once and for about an hour.</p>
+            <Link to="/sign-in" className="btn btn-primary btn-block">Go to sign in</Link>
+            <Link to="/forgot-password" className="link small">Send me a new password link</Link>
+          </>
+        )}
+      </div>
+    </AuthShell>
+  );
+}

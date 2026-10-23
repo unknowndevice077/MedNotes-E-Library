@@ -92,6 +92,26 @@ describe('public pages', () => {
     assert.match(p.url(), /sign-in/);
     await p.close();
   });
+
+  test('email links open on our own site: /auth/confirm signs in, reset goes to a new password, a bad link explains itself', async () => {
+    const u = await makeUser('e2e-confirm');
+    try {
+      const link = async (type) => (await service.auth.admin.generateLink({ type, email: u.email })).data.properties.hashed_token;
+      let p = await open(null);
+      await go(p, `/auth/confirm?token_hash=${await link('magiclink')}&type=magiclink`);
+      await p.waitForFunction(() => location.pathname.endsWith('/library'), { timeout: 15000 });
+      await p.close();
+      p = await open(null);
+      await go(p, `/auth/confirm?token_hash=${await link('recovery')}&type=recovery`);
+      await p.waitForFunction(() => location.pathname.endsWith('/reset-password'), { timeout: 15000 });
+      await p.close();
+      p = await open(null);
+      await go(p, '/auth/confirm?token_hash=not-a-real-token&type=email');
+      await p.waitForFunction(() => document.body.innerText.includes("This link didn't work"), { timeout: 15000 });
+      await shot(p, 'auth-confirm-bad-link');
+      await p.close();
+    } finally { await dropUser(u); }
+  });
 });
 
 describe('buyer: browse, buy, read', () => {
@@ -110,8 +130,9 @@ describe('buyer: browse, buy, read', () => {
     await sleep(300);
     const vids = await p.$$eval('.grid .bookcard .small', (els) => els.map((e) => e.textContent));
     assert.ok(vids.every((v) => v.startsWith('Video')), 'type filter');
-    // filters mix and stay visibly picked
+    // filters mix and stay visibly picked, and sit above the shelves
     await go(p, '/library');
+    assert.ok(await p.evaluate(() => document.querySelector('#filters').getBoundingClientRect().top < document.querySelector('.shelf').getBoundingClientRect().top), 'filters come first');
     await clickText(p, '.chip', 'Video');
     await clickText(p, '.chip', 'PDF');
     await sleep(300);
@@ -122,6 +143,11 @@ describe('buyer: browse, buy, read', () => {
     const kinds = await p.$$eval('.grid .bookcard .small', (els) => els.map((e) => e.textContent.split(' ·')[0]));
     assert.ok(kinds.length && kinds.every((k) => /^(Video|PDF)/.test(k)) && kinds.some((k) => k.startsWith('PDF')) && kinds.some((k) => k.startsWith('Video')), `mixed: ${kinds}`);
     await shot(p, 'library-mixed-filters');
+    // taking every filter off keeps the page where it was (no jump back to the top)
+    const y0 = await p.evaluate(() => document.querySelector('#filters').getBoundingClientRect().top + scrollY);
+    await clickText(p, '.chip', 'All types');
+    await sleep(300);
+    assert.equal(await p.evaluate(() => document.querySelector('#filters').getBoundingClientRect().top + scrollY), y0, 'filters stay put');
     await p.close();
   });
 
@@ -165,6 +191,8 @@ describe('buyer: browse, buy, read', () => {
     const m = await open(buyer, { mobile: true });
     await go(m, '/library');
     const first = await m.$('.shelf .pv-anchor .cover');
+    await first.evaluate((e) => e.scrollIntoView({ block: 'center' })); // the filters sit above the shelves now
+    await sleep(300);
     const b = await first.boundingBox();
     await m.touchscreen.touchStart(b.x + b.width / 2, b.y + b.height / 2);
     await sleep(700);
@@ -594,6 +622,55 @@ describe('account settings', () => {
   });
 });
 
+describe('admin subjects', () => {
+  test('subjects & categories: add, rename (files follow), delete; shown first in the upload form and library filter', async () => {
+    const name = `Board Review ${Date.now().toString(36)}`;
+    // a file already in the subject, so renaming it has something to move
+    await service.from('files').update({ label: name }).eq('id', FILES.xlsx);
+    const p = await open(admin);
+    try {
+      await go(p, '/admin/files');
+      await clickText(p, 'button', 'Subjects & categories');
+      await p.waitForSelector('#new-subject');
+      await p.type('#new-subject', name);
+      await clickText(p, '.modal button', 'Add');
+      await p.waitForFunction((n) => [...document.querySelectorAll('.subject-row b')].some((b) => b.textContent === n), { timeout: 8000 }, name);
+      // rename the subject: the file follows
+      const renamed = `${name} 2`;
+      await p.evaluate((n) => [...document.querySelectorAll('.subject-row')].find((r) => r.querySelector('b')?.textContent === n)?.querySelector('button')?.click(), name);
+      const box = await p.waitForSelector('.subject-row input');
+      await box.click({ clickCount: 3 }); await box.type(renamed);
+      await clickText(p, '.subject-row button', 'Save');
+      await p.waitForFunction(() => [...document.querySelectorAll('.modal button')].some((b) => b.textContent === 'Rename' && !b.closest('.subject-row')), { timeout: 8000 }); // "1 file moves too"
+      await p.evaluate(() => [...document.querySelectorAll('.modal button')].find((b) => b.textContent === 'Rename' && !b.closest('.subject-row'))?.click());
+      await p.waitForFunction((n) => [...document.querySelectorAll('.subject-row b')].some((b) => b.textContent === n), { timeout: 8000 }, renamed);
+      assert.equal((await service.from('files').select('label').eq('id', FILES.xlsx).single()).data.label, renamed, 'file moved with the rename');
+      await shot(p, 'admin-subjects');
+      await p.keyboard.press('Escape');
+      // shown first in the buyer's subject filter
+      const b = await open(buyer);
+      await go(b, '/library');
+      await b.click('#subject');
+      await b.waitForFunction((n) => [...document.querySelectorAll('.catpick-list li')].some((li) => li.textContent.includes(n)), { timeout: 8000 }, renamed);
+      await b.close();
+      // delete it: the file stays, without a subject
+      await go(p, '/admin/files');
+      await clickText(p, 'button', 'Subjects & categories');
+      await p.waitForSelector('.subject-row');
+      await p.evaluate((n) => [...document.querySelectorAll('.subject-row')].find((r) => r.querySelector('b')?.textContent === n)?.querySelector('.btn-danger')?.click(), renamed);
+      await p.waitForFunction(() => [...document.querySelectorAll('.modal button')].some((b) => b.textContent === 'Delete subject'));
+      await p.evaluate(() => [...document.querySelectorAll('.modal button')].find((b) => b.textContent === 'Delete subject')?.click());
+      await p.waitForFunction((n) => ![...document.querySelectorAll('.subject-row b')].some((b) => b.textContent === n), { timeout: 8000 }, renamed);
+      const { data: f } = await service.from('files').select('label').eq('id', FILES.xlsx).single();
+      assert.equal(f.label, '', 'file kept, subject cleared');
+    } finally {
+      await service.from('files').update({ label: 'Clinical' }).eq('id', FILES.xlsx);
+      await service.from('subjects').delete().ilike('name', `${name}%`);
+      await p.close();
+    }
+  });
+});
+
 describe('admin receipts and appearance', () => {
   test('receipts: issued list, configurable design with a live sample, buyers see it', async () => {
     const { data: before } = await service.from('settings').select('receipt_design').eq('id', 1).single();
@@ -669,6 +746,31 @@ describe('admin receipts and appearance', () => {
       const a = await open(null);
       await go(a, '/sign-in');
       assert.equal(await a.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--blue').trim()), '#be185d', 'sign-in page themed before login');
+      await a.close();
+    } finally {
+      await service.from('settings').update(before).eq('id', 1);
+    }
+  });
+
+  test('appearance: the app download link and QR are set from the sign-in page editor', async () => {
+    const { data: before } = await service.from('settings').select('theme').eq('id', 1).single();
+    const link = 'https://play.google.com/store/apps/details?id=com.example.newapp';
+    try {
+      const p = await open(admin);
+      await go(p, '/admin/appearance');
+      await p.waitForSelector('iframe.site-frame');
+      await clickText(p, '[role=tab]', 'Edit website');
+      await p.select('.site-page-pick', 'sign-in');
+      await p.waitForSelector('#ap-play');
+      await p.type('#ap-play', link);
+      await clickText(p, 'button', 'Save website');
+      await sleep(1200);
+      await p.close();
+      assert.equal((await service.from('settings').select('theme').eq('id', 1).single()).data.theme.playStoreUrl, link);
+      const a = await open(null);
+      await go(a, '/sign-in');
+      await a.waitForFunction((l) => document.querySelector('.store-btn')?.getAttribute('href') === l && document.querySelector('.qr img.code')?.src.startsWith('data:image/png'), { timeout: 8000 }, link);
+      await shot(a, 'sign-in-custom-app-qr');
       await a.close();
     } finally {
       await service.from('settings').update(before).eq('id', 1);
@@ -801,6 +903,16 @@ describe('free samples, extra device slots, profile', () => {
       await p.waitForFunction((l) => document.querySelector('.range-chips button[aria-pressed="true"]')?.textContent === l, {}, label);
       await p.waitForSelector('.range-report .kpi-grid .stat .v');
     }
+    // pick a month to review it on its own
+    const prevMonth = await p.$eval('select.month-pick option:nth-child(3)', (o) => o.value);
+    await p.select('select.month-pick', prevMonth);
+    await p.waitForFunction(() => document.querySelector('select.month-pick')?.classList.contains('on'));
+    const [yy, mm] = prevMonth.split('-').map(Number);
+    const monthName = new Date(yy, mm - 1, 1).toLocaleDateString('en-US', { month: 'short' });
+    await p.waitForFunction((n) => (document.querySelector('.range-report')?.innerText ?? '').includes(`${n} 1`), { timeout: 8000 }, monthName);
+    await p.waitForSelector('.range-report .kpi-grid .stat .v');
+    await clickText(p, '.range-chips button', 'This month');
+    await p.waitForSelector('.range-report .chart-wrap');
     // pointing anywhere over the chart (gaps included) shows one steady label
     const cw = await (await p.$('.range-report .chart-wrap')).boundingBox();
     for (const f of [0.2, 0.5, 0.8]) {

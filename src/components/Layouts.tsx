@@ -26,13 +26,18 @@ function useCount(key: string | null, query: () => PromiseLike<{ count: number |
   const [n, setN] = useState(() => (key && counts.get(key)) || 0);
   useEffect(() => {
     if (!key) return;
+    const fetch = () => query().then(({ count }) => { counts.set(key, count ?? 0); counts.set(`${key}:at`, Date.now()); setN(count ?? 0); });
     const last = counts.get(`${key}:at`) ?? 0;
-    if (Date.now() - last < 30_000) { setN(counts.get(key) ?? 0); return; } // fresh enough
-    query().then(({ count }) => { counts.set(key, count ?? 0); counts.set(`${key}:at`, Date.now()); setN(count ?? 0); });
+    if (Date.now() - last < 30_000) setN(counts.get(key) ?? 0); // fresh enough
+    else void fetch();
+    // something changed (a payment confirmed, a ticket read): refresh the badge right away
+    window.addEventListener('mn:counts', fetch);
+    const tick = setInterval(() => { if (!document.hidden) void fetch(); }, 60_000); // new payments / tickets show up without a reload
+    return () => { window.removeEventListener('mn:counts', fetch); clearInterval(tick); };
   }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
   return n;
 }
-export const invalidateCounts = () => counts.clear();
+export const invalidateCounts = () => { counts.clear(); window.dispatchEvent(new Event('mn:counts')); };
 
 function usePendingCount() {
   const { session } = useAuth();
@@ -204,6 +209,8 @@ export function AdminLayout({ title, subtitle, actions, children }: { title: str
     ]);
     return { count: (a.count ?? 0) + (b.count ?? 0) };
   });
+  // tickets waiting on the admin: new ones and ones where the buyer wrote back
+  const tickets = useCount('admin-tickets', () => supabase.from('tickets').select('id', { count: 'exact', head: true }).eq('unread_admin', true).not('status', 'in', '(resolved,closed)'));
   const mobile = useIsMobile();
   const loc = useLocation();
   const [more, setMore] = useState(false);
@@ -212,7 +219,7 @@ export function AdminLayout({ title, subtitle, actions, children }: { title: str
     { to: '/admin/files', label: 'Files', icon: <Files /> },
     { to: '/admin/payments', label: 'Payments', icon: <Pay />, count: pending },
     { to: '/admin/users', label: 'Users', icon: <Users /> },
-    { to: '/admin/support', label: 'Support', icon: <Bell /> },
+    { to: '/admin/support', label: 'Support', icon: <Bell />, count: tickets },
     { to: '/admin/receipts', label: 'Receipts', icon: <Receipt /> },
     { to: '/admin/statistics', label: 'Statistics', icon: <Trend /> },
     { to: '/admin/logs', label: 'Logs', icon: <Clock /> },

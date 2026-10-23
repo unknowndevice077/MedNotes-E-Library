@@ -104,8 +104,7 @@ export default function Library() {
     <ClientLayout>
       <div className="page library" ref={revealRef}>
         {t('library.announcement') && <div className="announce" role="status"><Tx k="library.announcement" /></div>}
-        {!filtering && (
-          <section className="hero-card">
+        <section className="hero-card">
             <div className="col" style={{ gap: 10, maxWidth: 560 }}>
               <span className="eyebrow light">{greeting()}{first ? `, ${first}` : ''}</span>
               <h1><Tx k="library.heroTitle" /></h1>
@@ -121,7 +120,37 @@ export default function Library() {
               <div className="hero-stat"><b>{data?.files.length ?? '–'}</b><span><Tx k="library.statTotal" /></span></div>
             </div>
           </section>
-        )}
+
+        {/* filters first, so people see them without scrolling */}
+          <div className="filterbar" id="filters">
+          <div className="spread wrap" style={{ gap: 12 }}>
+            <div className="col" style={{ gap: 2 }}>
+              <h2>{q ? `Results for “${q}”` : filtering ? 'Filtered files' : 'Find a file'}</h2>
+              <span className="small muted">{shown.length} file{shown.length === 1 ? '' : 's'}{filtering && <> · <button className="link" onClick={() => { setKinds([]); setLabelsOn([]); setQ(''); setFreeOnly(false); }}>Clear filters</button></>}</span>
+            </div>
+            <select className="input" style={{ width: 170 }} value={sort} onChange={(e) => setSort(e.target.value as typeof sort)} aria-label="Sort">
+              <option value="new">Newest first</option><option value="price">Lowest price</option><option value="name">A–Z</option>
+            </select>
+          </div>
+          <div className="chips">
+            <button className={`chip${!kinds.length ? ' on' : ''}`} aria-pressed={!kinds.length} onClick={() => setKinds([])}>All types</button>
+            {KINDS.map((k) => <button key={k} className={`chip${kinds.includes(k) ? ' on' : ''}`} aria-pressed={kinds.includes(k)} onClick={() => toggleKind(k)}>{kinds.includes(k) && <span className="chip-check" aria-hidden>✓</span>}{KIND_LABEL[k]}</button>)}
+            <button className={`chip soft${freeOnly ? ' on' : ''}`} aria-pressed={freeOnly} onClick={() => setFreeOnly(!freeOnly)}>{freeOnly && <span className="chip-check" aria-hidden>✓</span>}Free</button>
+          </div>
+          <div className="row wrap" style={{ gap: 10 }}>
+            <div style={{ flex: '0 1 340px', minWidth: 220 }}><CategoryPicker id="subject" value={null} onChange={(l) => (l ? setLabelsOn((a) => (a.includes(l) ? a : [...a, l])) : setLabelsOn([]))} counts={labelCounts} allLabel="All subjects" placeholder="Add a subject" /></div>
+            {[...labelCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([l]) => <button key={l} className={`chip soft${labelsOn.includes(l) ? ' on' : ''}`} aria-pressed={labelsOn.includes(l)} onClick={() => toggleLabel(l)}>{labelsOn.includes(l) && <span className="chip-check" aria-hidden>✓</span>}{l}</button>)}
+          </div>
+          {filtering && (
+            <div className="active-filters" aria-label="Filters in use">
+              <span className="small muted">Showing:</span>
+              {kinds.map((k) => <button key={k} className="af-pill" onClick={() => toggleKind(k)} aria-label={`Remove ${KIND_LABEL[k]}`}>{KIND_LABEL[k]} <span aria-hidden>×</span></button>)}
+              {labelsOn.map((l) => <button key={l} className="af-pill" onClick={() => toggleLabel(l)} aria-label={`Remove ${l}`}>{l} <span aria-hidden>×</span></button>)}
+              {freeOnly && <button className="af-pill" onClick={() => setFreeOnly(false)} aria-label="Remove Free">Free <span aria-hidden>×</span></button>}
+              {q && <button className="af-pill" onClick={() => setQ('')} aria-label="Clear search">“{q}” <span aria-hidden>×</span></button>}
+            </div>
+          )}
+        </div>
 
         {!filtering && owned.length > 0 && (
           <Shelf title={<Tx k="library.continue" />} action={<Link to="/my-files" className="link row" style={{ gap: 4 }}><Tx k="nav.myFiles" /> <ArrowRight width={16} /></Link>}>
@@ -142,36 +171,8 @@ export default function Library() {
           </Shelf>
         ))}
 
-        <section className="col reveal" style={{ gap: 16 }}>
-          <div className="filterbar">
-            <div className="spread wrap" style={{ gap: 12 }}>
-              <div className="col" style={{ gap: 2 }}>
-                <h2>{q ? `Results for “${q}”` : filtering ? 'Filtered files' : <Tx k="library.all" />}</h2>
-                <span className="small muted">{shown.length} file{shown.length === 1 ? '' : 's'}{filtering && <> · <button className="link" onClick={() => { setKinds([]); setLabelsOn([]); setQ(''); setFreeOnly(false); }}>Clear filters</button></>}</span>
-              </div>
-              <select className="input" style={{ width: 170 }} value={sort} onChange={(e) => setSort(e.target.value as typeof sort)} aria-label="Sort">
-                <option value="new">Newest first</option><option value="price">Lowest price</option><option value="name">A–Z</option>
-              </select>
-            </div>
-            <div className="chips">
-              <button className={`chip${!kinds.length ? ' on' : ''}`} aria-pressed={!kinds.length} onClick={() => setKinds([])}>All types</button>
-              {KINDS.map((k) => <button key={k} className={`chip${kinds.includes(k) ? ' on' : ''}`} aria-pressed={kinds.includes(k)} onClick={() => toggleKind(k)}>{kinds.includes(k) && <span className="chip-check" aria-hidden>✓</span>}{KIND_LABEL[k]}</button>)}
-              <button className={`chip soft${freeOnly ? ' on' : ''}`} aria-pressed={freeOnly} onClick={() => setFreeOnly(!freeOnly)}>{freeOnly && <span className="chip-check" aria-hidden>✓</span>}Free</button>
-            </div>
-            <div className="row wrap" style={{ gap: 10 }}>
-              <div style={{ flex: '0 1 340px', minWidth: 220 }}><CategoryPicker id="subject" value={null} onChange={(l) => (l ? setLabelsOn((a) => (a.includes(l) ? a : [...a, l])) : setLabelsOn([]))} counts={labelCounts} allLabel="All subjects" placeholder="Add a subject" /></div>
-              {[...labelCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([l]) => <button key={l} className={`chip soft${labelsOn.includes(l) ? ' on' : ''}`} aria-pressed={labelsOn.includes(l)} onClick={() => toggleLabel(l)}>{labelsOn.includes(l) && <span className="chip-check" aria-hidden>✓</span>}{l}</button>)}
-            </div>
-            {filtering && (
-              <div className="active-filters" aria-label="Filters in use">
-                <span className="small muted">Showing:</span>
-                {kinds.map((k) => <button key={k} className="af-pill" onClick={() => toggleKind(k)} aria-label={`Remove ${KIND_LABEL[k]}`}>{KIND_LABEL[k]} <span aria-hidden>×</span></button>)}
-                {labelsOn.map((l) => <button key={l} className="af-pill" onClick={() => toggleLabel(l)} aria-label={`Remove ${l}`}>{l} <span aria-hidden>×</span></button>)}
-                {freeOnly && <button className="af-pill" onClick={() => setFreeOnly(false)} aria-label="Remove Free">Free <span aria-hidden>×</span></button>}
-                {q && <button className="af-pill" onClick={() => setQ('')} aria-label="Clear search">“{q}” <span aria-hidden>×</span></button>}
-              </div>
-            )}
-          </div>
+        <section className="col" style={{ gap: 16 }}>
+          {!filtering && <h2>{<Tx k="library.all" />}</h2>}
           {loading ? <SkeletonGrid /> : error ? <Empty title="Couldn't load the library">{error}</Empty>
             : shown.length === 0 ? <Empty title={<Tx k="library.empty" />}><Tx k="library.emptySub" /></Empty>
             : <div className="grid">{shown.map((f) => <BookCard key={f.id} f={f} status={status.get(f.id)} />)}</div>}

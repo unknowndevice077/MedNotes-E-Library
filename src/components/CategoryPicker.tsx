@@ -1,5 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { CATEGORY_GROUPS, matches } from '../lib/categories';
+import { useSubjects } from '../lib/subjects';
 import { Chevron, Search } from './Icons';
 
 /**
@@ -18,10 +19,16 @@ export default function CategoryPicker({ id, value, onChange, counts, allowCusto
   const box = useRef<HTMLDivElement>(null);
   const list = useRef<HTMLUListElement>(null);
 
-  // groups → flat options, filtered by the search; labels already used in the library come first
+  const mine = useSubjects();
+  // groups → flat options, filtered by the search; the admin's own subjects come first, then any
+  // other labels already in the library, then the built-in list
   const options = useMemo(() => {
-    const extra = counts ? [...counts.keys()].filter((k) => !CATEGORY_GROUPS.some((g) => g.items.includes(k))) : [];
-    const groups = [...(extra.length ? [{ group: 'In your library', items: extra }] : []), ...CATEGORY_GROUPS];
+    const own = mine.map((s) => s.name);
+    const seen = new Set(own.map((n) => n.toLowerCase()));
+    const extra = counts ? [...counts.keys()].filter((k) => !seen.has(k.toLowerCase()) && !CATEGORY_GROUPS.some((g) => g.items.includes(k))) : [];
+    for (const k of extra) seen.add(k.toLowerCase());
+    const builtIn = CATEGORY_GROUPS.map((g) => ({ ...g, items: g.items.filter((i) => !seen.has(i.toLowerCase())) }));
+    const groups = [...(own.length ? [{ group: 'Your subjects & categories', items: own }] : []), ...(extra.length ? [{ group: 'In your library', items: extra }] : []), ...builtIn];
     const out: { label: string; group: string }[] = [];
     for (const g of groups) {
       const items = g.items.filter((i) => !q || matches(i, q));
@@ -29,7 +36,7 @@ export default function CategoryPicker({ id, value, onChange, counts, allowCusto
       for (const i of items) out.push({ label: i, group: g.group });
     }
     return out;
-  }, [q, counts]);
+  }, [q, counts, mine]);
   const custom = allowCustom && q.trim() && !options.some((o) => o.label.toLowerCase() === q.trim().toLowerCase()) ? q.trim() : null;
   const rows = [...(allLabel && !q ? [{ label: '', group: '' }] : []), ...(custom ? [{ label: custom, group: 'custom' }] : []), ...options];
 

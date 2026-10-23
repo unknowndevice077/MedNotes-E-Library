@@ -6,7 +6,7 @@ import { useApplyPrefs } from './lib/prefs';
 import { ThemeProvider } from './lib/theme';
 import { ConfirmProvider, ToastProvider } from './components/ui';
 import DeviceGate from './components/DeviceGate';
-import { ForgotPassword, ResetPassword, SignIn, SignUp } from './pages/Auth';
+import { ConfirmEmail, ForgotPassword, ResetPassword, SignIn, SignUp } from './pages/Auth';
 import Library from './pages/Library';
 import { DataDeletion, Privacy } from './pages/Legal';
 import { AppShellSkeleton } from './components/Skeletons';
@@ -101,6 +101,7 @@ export default function App() {
               <Route path="/sign-up" element={<PublicOnly><SignUp /></PublicOnly>} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/auth/confirm" element={<ConfirmEmail />} />
               <Route path="/privacy" element={<Privacy />} />
               <Route path="/data-deletion" element={<DataDeletion />} />
 

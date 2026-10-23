@@ -765,3 +765,13 @@ html.site-edit [data-edit]:not(.editing):hover::after { content: "✎"; font-siz
 .tr-blink { color: #22d3ee; animation: tr-blink 1s steps(2) infinite; }
 @keyframes tr-blink { 50% { opacity: .35; } }
 @media (prefers-reduced-motion: reduce) { .tr-beam, .tr-blink { animation: none; } }
+
+/* statistics: a month dropdown sitting with the period chips */
+.month-pick { height: 34px; width: auto; padding: 0 30px 0 12px; border-radius: 17px; font-size: 14px; }
+.month-pick.on { border-color: var(--blue-200, #bfdbfe); background-color: var(--blue-100, #dbeafe); color: var(--blue-deep, #1d4ed8); font-weight: 600; }
+:root[data-dark] .month-pick.on { background-color: rgba(59, 130, 246, .2); color: #bfdbfe; }
+
+/* Subjects & categories manager */
+.subject-list { gap: 0; max-height: 55vh; overflow: auto; border: 1px solid var(--line); border-radius: 12px; }
+.subject-row { padding: 10px 14px; gap: 10px; border-top: 1px solid var(--line); }
+.subject-row:first-child { border-top: 0; }

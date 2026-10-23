@@ -14,10 +14,10 @@ const daysBetween = (a: string, b: string) => Math.round((Date.parse(b) - Date.p
 const ts = (d: string) => `${d}T00:00:00+08:00`;
 const nice = (d: string, year = false) => new Date(d + 'T00:00:00').toLocaleDateString('en-PH', { month: 'short', day: 'numeric', ...(year ? { year: 'numeric' } : {}) });
 
-export type Preset = 'today' | '7d' | '30d' | 'month' | 'lastMonth' | 'year' | 'custom';
+export type Preset = 'today' | '7d' | '30d' | 'month' | 'lastMonth' | 'year' | 'pick' | 'custom';
 const PRESETS: [Preset, string][] = [['today', 'Today'], ['7d', 'Last 7 days'], ['30d', 'Last 30 days'], ['month', 'This month'], ['lastMonth', 'Last month'], ['year', 'This year'], ['custom', 'Custom']];
 
-export function rangeFor(p: Preset, custom: { from: string; to: string }) {
+export function rangeFor(p: Preset, custom: { from: string; to: string; month?: string }) {
   const t = today();
   const month0 = t.slice(0, 8) + '01';
   let from: string, to: string, prevFrom: string, prevTo: string;
@@ -28,10 +28,11 @@ export function rangeFor(p: Preset, custom: { from: string; to: string }) {
     case 'month': from = month0; to = addMonths(month0, 1); break;
     case 'lastMonth': from = addMonths(month0, -1); to = month0; break;
     case 'year': from = t.slice(0, 4) + '-01-01'; to = `${Number(t.slice(0, 4)) + 1}-01-01`; break;
+    case 'pick': from = (custom.month ?? month0.slice(0, 7)) + '-01'; to = addMonths(from, 1); break;
     default: from = custom.from; to = addDays(custom.to, 1);
   }
   // compared with the period just before it: the month before for months, the year before for years
-  if (p === 'month' || p === 'lastMonth') { prevFrom = addMonths(from, -1); prevTo = from; }
+  if (p === 'month' || p === 'lastMonth' || p === 'pick') { prevFrom = addMonths(from, -1); prevTo = from; }
   else if (p === 'year') { prevFrom = `${Number(from.slice(0, 4)) - 1}-01-01`; prevTo = from; }
   else { prevFrom = addDays(from, -daysBetween(from, to)); prevTo = from; }
   return { from, to, prevFrom, prevTo };
@@ -63,7 +64,9 @@ function hours(h: number | null) {
 /** The report for one period: money, orders, buyers, what sold, how payments went, plus a CSV for the accountant. */
 export default function RangeReport() {
   const [preset, setPreset] = useState<Preset>('month');
-  const [custom, setCustom] = useState(() => ({ from: addDays(today(), -13), to: today() }));
+  const [custom, setCustom] = useState(() => ({ from: addDays(today(), -13), to: today(), month: today().slice(0, 7) }));
+  // the last two years of months, newest first, for "Pick a month"
+  const months = useMemo(() => Array.from({ length: 24 }, (_, i) => addMonths(today().slice(0, 8) + '01', -i).slice(0, 7)), []);
   const r = rangeFor(preset, custom);
   const bad = preset === 'custom' && (!custom.from || !custom.to || custom.from > custom.to);
   const { data, loading } = useLoad(async () => {
@@ -122,6 +125,11 @@ export default function RangeReport() {
         </div>
         <div className="chips range-chips" role="group" aria-label="Period">
           {PRESETS.map(([k, l]) => <button key={k} className={`chip soft${preset === k ? ' on' : ''}`} aria-pressed={preset === k} onClick={() => setPreset(k)}>{l}</button>)}
+          <select className={`input month-pick${preset === 'pick' ? ' on' : ''}`} aria-label="Pick a month" value={preset === 'pick' ? custom.month : ''}
+            onChange={(e) => { if (!e.target.value) return; setCustom({ ...custom, month: e.target.value }); setPreset('pick'); }}>
+            <option value="">Pick a month…</option>
+            {months.map((m) => <option key={m} value={m}>{new Date(m + '-01T00:00:00').toLocaleDateString('en-PH', { month: 'long', year: 'numeric' })}</option>)}
+          </select>
         </div>
         {preset === 'custom' && (
           <div className="row wrap" style={{ gap: 10 }}>

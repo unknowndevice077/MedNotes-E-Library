@@ -225,9 +225,11 @@ function Epub({ blob }: { blob: Blob }) {
       const total = (b as unknown as { spine: { length: number } }).spine.length || 1;
       r.on('relocated', (l) => setAt({ href: l.start.href, index: l.start.index, total }));
       await r.display();
+      if (!alive) return;
       const nav = await b.loaded.navigation;
+      if (!alive) return;
       setToc(nav.toc.map((t: { href: string; label: string }) => ({ href: t.href, label: t.label.trim() })));
-    })();
+    })().catch((e) => { if (alive) throw e; }); // a book closed mid-load (e.g. the window resized) just stops quietly
     return () => { alive = false; book?.destroy(); };
   }, [blob, mobile]);
   const chapter = toc.find((t) => at.href && t.href.split('#')[0]!.endsWith(at.href.split('/').pop()!));

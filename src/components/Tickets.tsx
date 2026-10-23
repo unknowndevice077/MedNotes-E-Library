@@ -4,6 +4,7 @@ import { useAuth } from '../lib/auth';
 import { ago, dateTime, errMsg } from '../lib/format';
 import { useToast } from './ui';
 import ZoomImage from './ZoomImage';
+import { invalidateCounts } from './Layouts';
 
 // Shared by Help (buyers) and Admin → Support.
 
@@ -67,7 +68,7 @@ export function Thread({ ticket, asAdmin, onChanged }: { ticket: Ticket; asAdmin
     load();
     // reading it clears the unread dot for this side (only when it's set, so this can't loop with the list reloading)
     if (asAdmin ? ticket.unread_admin : ticket.unread_user)
-      void supabase.from('tickets').update(asAdmin ? { unread_admin: false } : { unread_user: false }).eq('id', ticket.id).then(() => onChanged?.());
+      void supabase.from('tickets').update(asAdmin ? { unread_admin: false } : { unread_user: false }).eq('id', ticket.id).then(() => { invalidateCounts(); onChanged?.(); });
     const ch = supabase.channel(`ticket-${ticket.id}-${asAdmin ? 'a' : 'u'}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ticket_messages', filter: `ticket_id=eq.${ticket.id}` }, () => load())
       .subscribe();
