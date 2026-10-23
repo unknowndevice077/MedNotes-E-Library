@@ -28,6 +28,9 @@ interface AuthState {
 
 const Ctx = createContext<AuthState | null>(null);
 const SETTINGS_CACHE = 'mn.settings';
+// where supabase-js keeps the session (its default key), read directly when there's no internet
+const SESSION_KEY = `sb-${new URL(import.meta.env.VITE_SUPABASE_URL).hostname.split('.')[0]}-auth-token`;
+const OFFLINE_AFTER_MS = 4000;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
@@ -36,6 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [device, setDevice] = useState<DeviceCheck | null>(null);
   const [loading, setLoading] = useState(true);
   const [online, setOnline] = useState(true);
+  const loadingRef = useRef(true); loadingRef.current = loading;
 
   // The user whose profile is loaded. supabase-js re-emits SIGNED_IN / TOKEN_REFRESHED when the tab
   // wakes up or the token renews; for the same user that must not blank the app and refetch everything.
@@ -55,9 +59,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // offline in the app: keep the cached session and settings so saved files still open
       const cached = (await Preferences.get({ key: SETTINGS_CACHE })).value;
       if (cached) setSettings(JSON.parse(cached));
+      setOnline(false); // also covers Wi-Fi that's "connected" but has no internet
       setLoading(false);
       return;
     }
+    if (isNative) setOnline(true);
     setProfile(p.data as Profile | null);
     if (st.data) {
       setSettings(st.data as Settings);
@@ -69,6 +75,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { data } = await supabase.from('purchases').select('file_id').eq('user_id', s.user.id).eq('status', 'confirmed');
       if (data) { await pruneSaved(new Set(data.map((r) => r.file_id))); await markVerified(); }
     }
+    setLoading(false);
+  }, []);
+
+  // Offline start in the app: use the session and settings saved on the phone instead of waiting on
+  // the network, so saved files open right away. The online load takes over once it gets through.
+  const profileRef = useRef<Profile | null>(null); profileRef.current = profile;
+  const goOffline = useCallback(async () => {
+    if (!isNative || profileRef.current) return;
+    setOnline(false);
+    try {
+      const raw = (await Preferences.get({ key: SESSION_KEY })).value;
+      const stored = raw ? (JSON.parse(raw) as Session & { currentSession?: Session }) : null;
+      const s = stored?.currentSession ?? stored;
+      if (s?.user) setSession((cur) => cur ?? s);
+      const cached = (await Preferences.get({ key: SETTINGS_CACHE })).value;
+      if (cached) setSettings((cur) => cur ?? JSON.parse(cached));
+    } catch { /* nothing saved: they land on sign-in */ }
     setLoading(false);
   }, []);
 
@@ -99,9 +122,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (code) await supabase.auth.exchangeCodeForSession(code);
       await Browser.close().catch(() => undefined);
     });
-    Network.getStatus().then((s) => setOnline(s.connected));
-    const n = Network.addListener('networkStatusChange', (s) => setOnline(s.connected));
-    return () => { h.then((x) => x.remove()); n.then((x) => x.remove()); };
+    Network.getStatus().then((s) => { if (!s.connected) void goOffline(); });
+    const n = Network.addListener('networkStatusChange', (s) => {
+      setOnline(s.connected);
+      // back online after starting offline: load the account properly now
+      if (s.connected && !profileRef.current) void supabase.auth.getSession().then(({ data }) => { if (data.session) void load(data.session, { quiet: true }); });
+    });
+    // no answer from the server in a few seconds (no signal, or Wi-Fi without internet): open offline
+    const t = setTimeout(() => { if (loadingRef.current) void goOffline(); }, OFFLINE_AFTER_MS);
+    return () => { h.then((x) => x.remove()); n.then((x) => x.remove()); clearTimeout(t); };
   }, []);
 
   useEffect(() => {
